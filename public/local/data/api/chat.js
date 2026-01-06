@@ -47,10 +47,11 @@ Content is provided as XML CHUNKs, which are PARTS of full Nearform web pages. E
 - <CONTENT>: Text content
 
 ## How to Use Context
-- Use information from <CHUNK><CONTENT> wherever possible.
-- Chunks are ranked by relevance; prefer earlier chunks but use the most relevant content from any chunk.
+- When answering refer ONLY to "citations", "articles", "sources".
+- When answering, DO NOT refer to "chunks", "CHUNKS", or "context" or any of the internal provided assistant content context.
+- Use information from <CHUNK><CONTENT> wherever possible in your answers.
+- Try to use infomration from earlier chunks in your answers. They are in priority order.
 - If no relevant information exists, state that you don't have enough information to answer.
-- In your answers, ALWAYS refer to content from chunks as "articles" or "sources", and NOT as "chunks" or "context".
 
 ## Citation Rules
 - If asked for "links", "articles", "sources", "citations", or "references", you SHOULD reference links from context <CHUNKS />..
