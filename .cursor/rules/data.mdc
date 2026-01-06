@@ -1,0 +1,196 @@
+---
+description: Guidelines for data code
+globs: public/local/data/**/*.js
+alwaysApply: false
+---
+
+# Data Development Guidelines
+
+## Core Philosophy
+
+This is a pure JavaScript, web browser-only app.
+- All data is served / imported as part of a static app.
+- That means all of our tools are in-browser tools.
+- There is no remote backend, and our use of data should be available offline. (The only exception to this is fetching embedding or chat models and storing locally).
+
+## Database
+
+We use [Orama](https://docs.oramasearch.com/docs/orama-js) for all database and search functionality. Orama is a full-text search engine that runs entirely in the browser, which aligns with our browser-only architecture.
+
+### Orama Databases
+Two databases are created at runtime:
+- **postsDb** — Full-text search on post metadata (title, authors, categories, etc.)
+- **chunksDb** — Vector search using 384-dimension embeddings from `gte-small`
+
+### Key Points
+- All database operations happen client-side using Orama JS
+- No backend database server required - everything runs in the browser
+- Search indexes are built and maintained in-memory
+- Refer to the [Orama JS documentation](https://docs.oramasearch.com/docs/orama-js) for API details and usage patterns
+
+## Embeddings
+
+Query embeddings are generated using [@xenova/transformers](https://huggingface.co/docs/transformers.js) with the `Xenova/gte-small` model (384 dimensions, max 512 tokens).
+
+## Loading System
+
+Resource loading is managed via `public/local/data/loading.js` with status tracking and pub/sub notifications.
+
+### Resources
+Resources are defined with `id`, `get` (async loader), and optional `deps` (dependency IDs):
+```javascript
+RESOURCES.POSTS_DATA    // posts.json
+RESOURCES.POSTS_EMBEDDINGS  // posts-embeddings.json
+RESOURCES.DB            // Orama databases (depends on above)
+RESOURCES.EXTRACTOR     // Transformers pipeline
+```
+
+### Status Tracking
+- `getLoadingStatus(id)` — returns `"not_loaded"` | `"loading"` | `"loaded"` | `"error"`
+- `subscribeLoadingStatus(id, callback)` — pub/sub for status changes
+
+## Caching Pattern
+
+Use `getAndCache` from `shared-util.js` to memoize async operations:
+```javascript
+import { getAndCache } from "../../../shared-util.js";
+export const getMyData = getAndCache(async () => { /* ... */ });
+```
+
+## Web-LLM
+
+We use [Web-LLM](https://webllm.mlc.ai/) for in-browser LLM inference. Web-LLM leverages WebGPU for hardware acceleration, enabling powerful LLM operations directly in the browser without server-side processing.
+
+### Key Features
+- **OpenAI-compatible API**: Full compatibility with streaming, JSON-mode, and function-calling
+- **Model caching**: Models are downloaded once and cached in browser storage
+- **Extensive model support**: Llama, Phi, Gemma, Mistral, Qwen, and more
+
+### Core API Pattern
+```javascript
+import { CreateMLCEngine, hasModelInCache } from "@mlc-ai/web-llm";
+
+// Check if model is already cached
+const isCached = await hasModelInCache(modelId);
+
+// Create engine with progress callback
+const engine = await CreateMLCEngine(modelId, {
+  initProgressCallback: (progress) => {
+    console.log(`Loading: ${progress.text}`);
+  },
+});
+
+// Use OpenAI-compatible chat completions
+const response = await engine.chat.completions.create({
+  messages: [{ role: "user", content: "Hello!" }],
+  stream: true,
+});
+```
+
+### Resources
+- [GitHub Repository](https://github.com/mlc-ai/web-llm)
+- [Documentation](https://webllm.mlc.ai/)
+
+## Chrome Built-in AI
+
+Chrome provides [Built-in AI APIs](https://developer.chrome.com/docs/ai/) powered by Gemini Nano. The browser manages model download, caching, and updates automatically. Requires Chrome 138+.
+
+### Hardware Requirements
+- **Storage**: At least 22 GB free space
+- **GPU**: More than 4 GB VRAM, or **CPU**: 16 GB RAM with 4+ cores
+- **OS**: Windows 10/11, macOS 13+, Linux, or ChromeOS (Chromebook Plus)
+
+### Feature Detection
+Use global objects `LanguageModel` and `Writer` for feature detection:
+```javascript
+// Check if Prompt API is supported
+if ("LanguageModel" in self) { /* supported */ }
+
+// Check if Writer API is supported
+if ("Writer" in self) { /* supported */ }
+```
+
+### Available APIs
+
+#### Prompt API
+General-purpose prompting via the global `LanguageModel` object. Use for chat, Q&A, classification, and custom AI tasks.
+
+```javascript
+// Check availability - returns string directly
+// Values: "available" | "downloading" | "downloadable" | "unavailable"
+const status = await LanguageModel.availability();
+
+// Create session with initialPrompts for conversation history
+const session = await LanguageModel.create({
+  initialPrompts: [
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: "What is the capital of Italy?" },
+    { role: "assistant", content: "The capital of Italy is Rome." },
+  ],
+  monitor(m) {
+    m.addEventListener("downloadprogress", (e) => {
+      console.log(`Downloaded ${e.loaded * 100}%`);
+    });
+  },
+});
+
+// Prompt with streaming - returns async iterable ReadableStream
+const stream = session.promptStreaming("What language is spoken there?");
+for await (const chunk of stream) {
+  // Each chunk is a delta (incremental text)
+  console.log(chunk);
+}
+
+// Clean up - ALWAYS destroy when done
+session.destroy();
+```
+
+#### Writer API
+Content generation with configurable tone, length, and format options. The Writer API is designed for content creation tasks, not chat.
+
+```javascript
+// Check availability - returns string directly
+const status = await Writer.availability();
+
+// Create writer with options
+const writer = await Writer.create({
+  tone: "formal",       // "formal" | "neutral" | "casual"
+  length: "medium",     // "short" | "medium" | "long"
+  format: "markdown",   // "plain-text" | "markdown"
+  sharedContext: "Context for all writing tasks",
+  monitor(m) {
+    m.addEventListener("downloadprogress", (e) => {
+      console.log(`Downloaded ${e.loaded * 100}%`);
+    });
+  },
+});
+
+// Write with streaming - task is the writing instruction
+const stream = writer.writeStreaming("Write an email about...");
+for await (const chunk of stream) {
+  // Each chunk is a delta (incremental text)
+  console.log(chunk);
+}
+
+// Clean up
+writer.destroy();
+```
+
+### Key Patterns
+- **Feature detection**: Use `"LanguageModel" in self` / `"Writer" in self`
+- **Availability check**: `availability()` returns string: `"available"` | `"downloading"` | `"downloadable"` | `"unavailable"`
+- **Download progress**: Use `monitor` callback with `downloadprogress` event
+- **Session cleanup**: ALWAYS call `destroy()` when done to free resources
+- **Streaming behavior**: Chrome streams deltas (incremental text chunks), similar to other streaming APIs.
+- **Conversation history**: Use `initialPrompts` array with `role` and `content` for context
+
+### Localhost Development
+Enable these Chrome flags for local development:
+- `chrome://flags/#optimization-guide-on-device-model` → **Enabled**
+- `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input` → **Enabled**
+
+### Resources
+- [Chrome AI Overview](https://developer.chrome.com/docs/ai/)
+- [Prompt API Documentation](https://developer.chrome.com/docs/ai/prompt-api)
+- [Writer API Documentation](https://developer.chrome.com/docs/ai/writer-api)
+- [Streaming Best Practices](https://developer.chrome.com/docs/ai/streaming)

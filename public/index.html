@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Joyce</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/combine/npm/purecss@2.0.3/build/pure-min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/combine/npm/purecss@2.0.3/site/static/layouts/side-menu/styles.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/iconoir-icons/iconoir@main/css/iconoir.css"
+    />
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- TODO(FRONTEND): REMOVE `?dev` mode -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@mlc-ai/web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.80/+esm",
+          "@orama/orama": "https://esm.sh/@orama/orama@3.1.18?dev",
+          "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2",
+          "dompurify": "https://esm.sh/dompurify@3.3.1?dev",
+          "file-saver": "https://esm.sh/file-saver@2.0.5?dev",
+          "htm": "https://esm.sh/htm@3.1.1?dev&external=react,react-dom",
+          "llm-splitter": "https://esm.sh/llm-splitter@0.2.0?dev",
+          "marked": "https://esm.sh/marked@17.0.1?dev",
+          "react": "https://esm.sh/react@19.2.3?dev&external=react,react-dom",
+          "react/jsx-runtime": "https://esm.sh/react@19.2.3/jsx-runtime?dev&external=react,react-dom",
+          "react-dom": "https://esm.sh/react-dom@19.2.3?dev&external=react,react-dom",
+          "react-dom/client": "https://esm.sh/react-dom@19.2.3/client?dev&external=react,react-dom",
+          "react-is": "https://esm.sh/react-is@19.2.3?dev&external=react,react-dom",
+          "react-select": "https://esm.sh/react-select@5.10.2?dev&external=react,react-dom",
+          "react-router": "https://esm.sh/react-router@7.11.0?dev&external=react,react-dom"
+        }
+      }
+    </script>
+    <script type="module">
+      import React from "react";
+      import ReactDOM from "react-dom/client";
+      import { html } from "./app/util/html.js";
+      import { App } from "./app/index.js";
+      import { init } from "./local/data/loading.js";
+      import { getSystemInfo } from "./local/data/util.js";
+      import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
+
+      // Initialize loaders early and get system info.
+      init();
+      const systemInfo = await getSystemInfo();
+
+      // TODO(LOCAL): Add config or remove.
+      const config = {
+        systemInfo,
+        // TODO(CHAT): Move somewhere else?
+        providers: {
+          webLlm: {
+            enabled: true,
+          },
+          chrome: {
+            enabled: CHROME_ANY_API_POSSIBLE,
+          },
+        },
+      };
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(html`<${App} config=${config} />`);
+    </script>
+  </body>
+</html>
