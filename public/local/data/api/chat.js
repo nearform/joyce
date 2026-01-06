@@ -40,6 +40,9 @@ export const buildBasePrompts = (context = "") => {
 - Nearform has acquired Formidable. Replace "Formidable", "Formidable Labs", or "Nearform Commerce" with "Nearform".
 - Always use "Nearform" (lowercase 'f'), never "NearForm". Even if sources use "NearForm", answer with "Nearform".
 
+## Nearform Clients
+- "RTD" is "Regional Transportation District" of Denver, Colorado.
+
 ## Context Format
 Content is provided as XML CHUNKs, which are PARTS of full Nearform web pages. Each <CHUNK> contains:
 - <URL>: Reference link
