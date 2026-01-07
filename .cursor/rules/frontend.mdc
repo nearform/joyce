@@ -52,6 +52,30 @@ The frontend of this project uses modern web development without build tools. Al
 
 - Use Iconoir for all iconography: https://iconoir.com/
 
+### React Router
+
+- Use React Router v7+ for client-side routing: https://reactrouter.com/
+- Import from `"react-router"` (unified package in v7, replaces `react-router-dom`)
+- Core components: `BrowserRouter`, `Routes`, `Route`, `Link`
+- Use `basename` prop on `BrowserRouter` for subdirectory deployments (e.g., GitHub Pages)
+
+
+#### HTM Examples
+```javascript
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router";
+
+// Router setup with basename for GitHub Pages
+<${Router} basename="${BASE_PATH}">
+  <${Routes}>
+    <${Route} path="/" Component=${Home} />
+    <${Route} path="/posts" Component=${Posts} />
+  </${Routes}>
+</${Router}>
+
+// Navigation links
+<${Link} to="/posts">Posts</${Link}>
+```
+
 ### CSS and HTML
 - Use modern CSS features (Grid, Flexbox, custom properties)
 - Use https://pure-css.github.io/ for CSS library with special nav menu using: https://pure-css.github.io/layouts/side-menu/ (example)
