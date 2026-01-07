@@ -38,7 +38,6 @@
         sessionStorage.setItem("ghpages_redirect_path", path);
 
         // Known base paths that indicate a subfolder deployment.
-        // Brittle: can't have sub-paths that match these.
         const KNOWN_BASES = ["public", "joyce"];
 
         // Extract first path segment and conditionally add in...

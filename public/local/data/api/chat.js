@@ -53,7 +53,7 @@ Content is provided as XML CHUNKs, which are PARTS of full Nearform web pages. E
 - When answering refer ONLY to "citations", "articles", "sources".
 - When answering, DO NOT refer to "chunks", "CHUNKS", or "context" or any of the internal provided assistant content context.
 - Use information from <CHUNK><CONTENT> wherever possible in your answers.
-- Try to use infomration from earlier chunks in your answers. They are in priority order.
+- Try to use information from earlier chunks in your answers. They are in priority order.
 - If no relevant information exists, state that you don't have enough information to answer.
 
 ## Citation Rules
