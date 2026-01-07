@@ -1,9 +1,3 @@
 {
-  "public": "public",
-  "rewrites": [
-    {
-      "source": "/{chat,search,posts,settings,data}",
-      "destination": "/index.html"
-    }
-  ]
+  "public": "public"
 }
