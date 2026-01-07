@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Joyce - Redirecting...</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>"
+    />
+    <style>
+      body {
+        font-family: Inter, Helvetica, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background: #f5f5f5;
+      }
+      .message {
+        text-align: center;
+        color: #666;
+      }
+    </style>
+    <script>
+      // GitHub Pages SPA redirect script
+      // Capture the current path and redirect to index.html
+      (function () {
+        const loc = window.location || {};
+        const path = loc.pathname + loc.search + loc.hash;
+
+        // Store the path in sessionStorage for index.html to pick up
+        sessionStorage.setItem("ghpages_redirect_path", path);
+
+        // Known base paths that indicate a subfolder deployment.
+        const KNOWN_BASES = ["public", "joyce"];
+
+        // Extract first path segment and conditionally add in...
+        const firstSegment = loc.pathname.split("/")[1];
+        const basePath = KNOWN_BASES.includes(firstSegment)
+          ? "/" + firstSegment + "/"
+          : "/";
+
+        // Redirect to index.html at the appropriate base
+        window.location.href = basePath;
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="message">
+      <h2>Redirecting...</h2>
+      <p>You will be redirected shortly.</p>
+    </div>
+  </body>
+</html>

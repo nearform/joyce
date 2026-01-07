@@ -39,7 +39,9 @@ const BASE_PAGES = [
   { name: "Settings", to: "/settings", icon: "iconoir-tools" },
 ].filter(({ enabled }) => enabled !== false);
 
-const DEV_ONLY_PAGES = [{ name: "Data", to: "/data", icon: "iconoir-cpu" }];
+const DEV_ONLY_PAGES = [
+  { name: "Data", to: "/data-load", icon: "iconoir-cpu" },
+];
 
 export const TOKEN_CUSHION_CHAT = 512; // 250 ok for web-llm
 export const TOKEN_CUSHION_EMBEDDINGS = 25;

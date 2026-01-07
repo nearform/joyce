@@ -30,6 +30,19 @@
   <body>
     <div id="root"></div>
 
+    <!-- GitHub Pages SPA redirect handler -->
+    <script>
+      // Check if we were redirected from 404.html
+      (function () {
+        const redirectPath = sessionStorage.getItem("ghpages_redirect_path");
+        if (redirectPath) {
+          // Clear the stored path and replace the current history entry with the SPA path.
+          sessionStorage.removeItem("ghpages_redirect_path");
+          window.history.replaceState(null, "", redirectPath);
+        }
+      })();
+    </script>
+
     <!-- TODO(FRONTEND): REMOVE `?dev` mode -->
     <script type="importmap">
       {

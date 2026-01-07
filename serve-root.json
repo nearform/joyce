@@ -2,8 +2,12 @@
   "public": ".",
   "rewrites": [
     {
-      "source": "/public/{chat,search,posts,settings,data}",
+      "source": "/public/",
       "destination": "/public/index.html"
+    },
+    {
+      "source": "/public/*",
+      "destination": "/public/404.html"
     }
   ]
 }
