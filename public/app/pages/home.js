@@ -1,7 +1,7 @@
 import { Fragment } from "react";
-import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
+import { PersistentLink as Link } from "../components/persistent-link.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { ShortDescription as ChatShortDescription } from "./chat.js";
 import { FEATURES } from "../../config.js";

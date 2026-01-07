@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import { html } from "../util/html.js";
+import { PersistentLink as Link } from "./persistent-link.js";
 
 export const MenuPage = ({ name, navName, to, sub, icon }) => {
   const loc = useLocation();
