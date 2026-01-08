@@ -8,7 +8,7 @@ const mergeSearch = (to, currentSearch) => {
 
   // to can be a string or a URL object, but we only use string. Error out if it's a URL object.
   if (typeof to !== "string") {
-    throw new Error(`"to" must be a string, got ${JSON.stringify(to)}`);
+    throw new Error(`"to" must be a string, got ${typeof to}`);
   }
 
   // URL requires an absolute URL, so use a dummy base for relative paths
