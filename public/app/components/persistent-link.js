@@ -6,7 +6,10 @@ import { html } from "../util/html.js";
 const mergeSearch = (to, currentSearch) => {
   // Extract parts based on type - object form already has them separated
   const urlObj = typeof to === "string" ? new URL(to, "http://x") : to;
-  const { pathname, search, hash } = urlObj;
+  const { search, hash } = urlObj;
+
+  // But get path (which can have different base paths) from the destination URL.
+  const pathname = String(to).split(/[?#]/)[0];
 
   if (!currentSearch) {
     return `${pathname}${search}${hash}`;
