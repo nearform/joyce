@@ -4,29 +4,25 @@ import { html } from "../util/html.js";
 
 // Merge current location search params into a destination path
 const mergeSearch = (to, currentSearch) => {
-  // Extract parts based on type - object form already has them separated
-  const urlObj = typeof to === "string" ? new URL(to, "http://x") : to;
-  const { search, hash } = urlObj;
+  if (!currentSearch) return to;
 
-  // But get path (which can have different base paths) from the destination URL.
-  const pathname = String(to).split(/[?#]/)[0];
-
-  if (!currentSearch) {
-    return `${pathname}${search}${hash}`;
+  // to can be a string or a URL object, but we only use string. Error out if it's a URL object.
+  if (typeof to !== "string") {
+    throw new Error(`"to" must be a string, got ${JSON.stringify(to)}`);
   }
 
-  // Merge params - destination params take precedence
-  const destParams = new URLSearchParams(search);
+  // URL requires an absolute URL, so use a dummy base for relative paths
+  const url = new URL(to, "http://x");
   const currentParams = new URLSearchParams(currentSearch);
 
+  // Add current params that aren't already in the destination
   for (const [key, value] of currentParams) {
-    if (!destParams.has(key)) {
-      destParams.set(key, value);
+    if (!url.searchParams.has(key)) {
+      url.searchParams.set(key, value);
     }
   }
 
-  const mergedSearch = destParams.toString();
-  return `${pathname}${mergedSearch ? "?" + mergedSearch : ""}${hash}`;
+  return url.pathname + url.search + url.hash;
 };
 
 // Preserves ALL current search params when navigating
