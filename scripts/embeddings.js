@@ -70,7 +70,7 @@ const splitter = (text) => {
 
 const generateTokens = (lines) => lines.flatMap((line) => splitter(line));
 
-const logTokenStats = (tokenCounts, chunkSize, maxTokens) => {
+const logTokenStats = (tokenCounts, postStats, chunkSize, maxTokens) => {
   const totalChunks = tokenCounts.length;
   const minTokens = Math.min(...tokenCounts);
   const maxTokensFound = Math.max(...tokenCounts);
@@ -94,6 +94,31 @@ const logTokenStats = (tokenCounts, chunkSize, maxTokens) => {
     console.log(`  Counts: ${overMax.join(", ")}`);
   }
   console.log(`Percentage over maxTokens: ${overMaxPct}%`);
+
+  // Post-level stats
+  const chunksPerPost = postStats.map((p) => p.numChunks);
+  const tokensPerPost = postStats.map((p) => p.totalTokens);
+  const totalPosts = postStats.length;
+
+  const minChunksPerPost = Math.min(...chunksPerPost);
+  const maxChunksPerPost = Math.max(...chunksPerPost);
+  const avgChunksPerPost = (
+    chunksPerPost.reduce((a, b) => a + b, 0) / totalPosts
+  ).toFixed(2);
+
+  const minTokensPerPost = Math.min(...tokensPerPost);
+  const maxTokensPerPost = Math.max(...tokensPerPost);
+  const avgTokensPerPost = (
+    tokensPerPost.reduce((a, b) => a + b, 0) / totalPosts
+  ).toFixed(2);
+
+  console.log(`Total posts: ${totalPosts}`);
+  console.log(
+    `Post stats - chunks per post: min: ${minChunksPerPost}, max: ${maxChunksPerPost}, avg: ${avgChunksPerPost}`,
+  );
+  console.log(
+    `Post stats - tokens per post: min: ${minTokensPerPost}, max: ${maxTokensPerPost}, avg: ${avgTokensPerPost}`,
+  );
 };
 
 const getChunks = (lines, chunkSize, tokenCounts) => {
@@ -180,6 +205,7 @@ const generateEmbeddingsForSize = async (
   sizeName,
 ) => {
   const tokenCounts = [];
+  const postStats = [];
   const slugs = Object.keys(posts);
   const result = {};
 
@@ -209,6 +235,16 @@ const generateEmbeddingsForSize = async (
 
     result[slug] = { chunks };
 
+    // Collect post-level stats for debug output
+    if (DEBUG_TOKENS) {
+      const numChunks = chunks.length;
+      const totalTokens = chunks.reduce(
+        (sum, c) => sum + c.embeddingNumTokens,
+        0,
+      );
+      postStats.push({ numChunks, totalTokens });
+    }
+
     if ((i + 1) % 100 === 0) {
       const now = performance.now();
       const incrementTime = ((now - lastCheckpoint) / 1000).toFixed(2);
@@ -222,7 +258,7 @@ const generateEmbeddingsForSize = async (
   const totalTime = ((performance.now() - processStart) / 1000).toFixed(2);
   console.log(`Completed processing ${slugs.length} posts. (${totalTime}s)`);
 
-  return { result, tokenCounts };
+  return { result, tokenCounts, postStats };
 };
 
 const main = async () => {
@@ -260,7 +296,7 @@ const main = async () => {
 
   for (const [sizeName, maxTokens] of chunkSizeEntries) {
     const chunkSize = maxTokens - TOKEN_CUSHION_EMBEDDINGS;
-    const { result, tokenCounts } = await generateEmbeddingsForSize(
+    const { result, tokenCounts, postStats } = await generateEmbeddingsForSize(
       posts,
       extractor,
       chunkSize,
@@ -277,7 +313,7 @@ const main = async () => {
     );
 
     if (DEBUG_TOKENS) {
-      logTokenStats(tokenCounts, chunkSize, maxTokens);
+      logTokenStats(tokenCounts, postStats, chunkSize, maxTokens);
     }
   }
 
