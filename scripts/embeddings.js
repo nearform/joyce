@@ -32,12 +32,16 @@ import { parseArgs } from "node:util";
 import { pipeline, AutoTokenizer } from "@xenova/transformers";
 import { split } from "llm-splitter";
 import config, { TOKEN_CUSHION_EMBEDDINGS } from "../public/shared-config.js";
-import { quantizeEmbedding } from "../public/local/data/embeddings.js";
+import {
+  quantizeEmbedding,
+  dequantizeEmbedding,
+} from "../public/local/data/embeddings.js";
 
 const { dirname } = import.meta;
 
 const TOKEN_CHUNK_OVERLAP = 10;
 const DEBUG_TOKENS = true;
+const DEBUG_QUANTIZATION = true;
 
 const EMBEDDINGS_MODEL = config.embeddings.model;
 const EMBEDDINGS_DATA_CHUNK_SIZES = config.embeddings.dataChunkSizes;
@@ -119,6 +123,19 @@ const logTokenStats = (tokenCounts, postStats, chunkSize, maxTokens) => {
   console.log(
     `Post stats - tokens per post: min: ${minTokensPerPost}, max: ${maxTokensPerPost}, avg: ${avgTokensPerPost}`,
   );
+};
+
+const logQuantizationStats = (stats, chunkSize) => {
+  const { count, min, max, sum, valueMin, valueMax } = stats;
+  const avg = sum / count;
+
+  console.log(`\n## Quantization Debug Stats (chunkSize=${chunkSize})`);
+  console.log(`Total embedding values compared: ${count}`);
+  console.log(`Original embedding values - min: ${valueMin}, max: ${valueMax}`);
+  console.log(`Error (original vs dequantized):`);
+  console.log(`  Min: ${min}`);
+  console.log(`  Avg: ${avg}`);
+  console.log(`  Max: ${max}`);
 };
 
 const getChunks = (lines, chunkSize, tokenCounts) => {
@@ -206,6 +223,14 @@ const generateEmbeddingsForSize = async (
 ) => {
   const tokenCounts = [];
   const postStats = [];
+  const quantizationStats = {
+    count: 0,
+    min: Infinity,
+    max: -Infinity,
+    sum: 0,
+    valueMin: Infinity,
+    valueMax: -Infinity,
+  };
   const slugs = Object.keys(posts);
   const result = {};
 
@@ -227,6 +252,23 @@ const generateEmbeddingsForSize = async (
         delete chunk.text;
         // Quantize embeddings to uint8 for ~75% storage reduction
         chunk.embeddings = quantizeEmbedding(embeddings);
+
+        // Track quantization error by round-tripping
+        if (DEBUG_QUANTIZATION) {
+          const dequantized = dequantizeEmbedding(chunk.embeddings);
+          for (let j = 0; j < embeddings.length; j++) {
+            const val = embeddings[j];
+            const diff = Math.abs(val - dequantized[j]);
+            quantizationStats.count++;
+            quantizationStats.sum += diff;
+            if (diff < quantizationStats.min) quantizationStats.min = diff;
+            if (diff > quantizationStats.max) quantizationStats.max = diff;
+            if (val < quantizationStats.valueMin)
+              quantizationStats.valueMin = val;
+            if (val > quantizationStats.valueMax)
+              quantizationStats.valueMax = val;
+          }
+        }
       }
     } catch (error) {
       console.error("(E) getChunks: ", slug);
@@ -258,7 +300,7 @@ const generateEmbeddingsForSize = async (
   const totalTime = ((performance.now() - processStart) / 1000).toFixed(2);
   console.log(`Completed processing ${slugs.length} posts. (${totalTime}s)`);
 
-  return { result, tokenCounts, postStats };
+  return { result, tokenCounts, postStats, quantizationStats };
 };
 
 const main = async () => {
@@ -282,7 +324,9 @@ const main = async () => {
   // Initialize the feature-extraction pipeline
   console.log(`Loading model: ${EMBEDDINGS_MODEL}...`);
   const modelLoadStart = performance.now();
-  const extractor = await pipeline("feature-extraction", EMBEDDINGS_MODEL);
+  const extractor = await pipeline("feature-extraction", EMBEDDINGS_MODEL, {
+    device: "gpu",
+  });
   const modelLoadTime = ((performance.now() - modelLoadStart) / 1000).toFixed(
     2,
   );
@@ -296,12 +340,8 @@ const main = async () => {
 
   for (const [sizeName, maxTokens] of chunkSizeEntries) {
     const chunkSize = maxTokens - TOKEN_CUSHION_EMBEDDINGS;
-    const { result, tokenCounts, postStats } = await generateEmbeddingsForSize(
-      posts,
-      extractor,
-      chunkSize,
-      sizeName,
-    );
+    const { result, tokenCounts, postStats, quantizationStats } =
+      await generateEmbeddingsForSize(posts, extractor, chunkSize, sizeName);
 
     // Write to output file
     const outputFileName = `posts-embeddings-${maxTokens}.json`;
@@ -314,6 +354,10 @@ const main = async () => {
 
     if (DEBUG_TOKENS) {
       logTokenStats(tokenCounts, postStats, chunkSize, maxTokens);
+    }
+
+    if (DEBUG_QUANTIZATION) {
+      logQuantizationStats(quantizationStats, chunkSize);
     }
   }
 
