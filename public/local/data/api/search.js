@@ -27,7 +27,7 @@ export const getPostsDb = getAndCache(async () => {
     date: dateToNumber(post.date),
   }));
 
-  const db = await create({
+  const db = create({
     schema: {
       href: "string",
       postType: "enum",
@@ -43,7 +43,7 @@ export const getPostsDb = getAndCache(async () => {
     },
   });
 
-  await insertMultiple(db, posts);
+  insertMultiple(db, posts);
 
   return db;
 });
@@ -70,7 +70,7 @@ export const getChunksDb = getAndCache(async () => {
     }));
   });
 
-  const db = await create({
+  const db = create({
     schema: {
       // Post.
       slug: "string",
@@ -88,7 +88,7 @@ export const getChunksDb = getAndCache(async () => {
     },
   });
 
-  await insertMultiple(db, chunks);
+  insertMultiple(db, chunks);
 
   return db;
 });
@@ -150,7 +150,7 @@ export const search = async ({
   }
 
   // Vector search on chunks DB
-  const results = await oramaSearch(chunksDb, {
+  const results = oramaSearch(chunksDb, {
     mode: "vector",
     vector: { value: queryEmbedding, property: "embeddings" },
     limit: MAX_CHUNKS,
