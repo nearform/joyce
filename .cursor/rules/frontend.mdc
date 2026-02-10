@@ -92,6 +92,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router";
 - Use `=${variable}` for variable references
 - Use `=${condition && html`...`}` for conditional rendering
 - Use `=${array.map(item => html`...`)}` for list rendering
+- **Spacing with inline elements**: When an inline element (like `<a>`, `<span>`, `<strong>`, etc.) starts on a line that has only space prefixes (indentation), use `${" "}` before the element to ensure proper spacing. This prevents text from running together when the template is rendered. Also use `${" "}` on the line _after_ the closing tag.
 
 #### Style Attributes
 - **Prefer CSS classes in `public/styles.css` over inline styles whenever possible**
@@ -126,6 +127,18 @@ style=${{ transform: `translateX(${offset}px)` }}
 ${cursorData.length > 0 && html`
   <${Component} data=${cursorData} />
 `}
+
+// Spacing with inline elements when starting on a new indented line
+html`<p>
+  Chrome provides built-in AI. See the Chrome AI
+  ${" "}<a href="..." target="_blank">documentation</a>
+  ${" "}for more.
+</p>`
+
+// Inline within same line is fine!
+html`<p>
+  Same line <a href="...">link</a> is fine without manual spaces.
+</p>`
 ```
 
 ## CDN Dependencies

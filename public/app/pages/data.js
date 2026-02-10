@@ -199,14 +199,12 @@ export const Data = () => {
               Chrome provides built-in AI powered by Gemini Nano. The browser
               manages model downloads and updates automatically. Requires Chrome
               138+ with AI features enabled. See the Chrome AI
-              <a
+              ${" "}<a
                 href="https://developer.chrome.com/docs/ai/built-in-apis"
                 target="_blank"
                 rel="noopener noreferrer"
-              >
-                documentation
-              </a>
-              for more.
+              >documentation</a>
+              ${" "}for more.
             </p>
             <${ChromeAIInfo} />
 
