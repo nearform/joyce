@@ -41,6 +41,7 @@ Key libraries: React 19, React Router 7, HTM (JSX-like templates without build),
 ### HTM Templating
 
 Uses `htm` tagged template literals instead of JSX. Key patterns:
+
 - Expressions: `=${variable}`, `=${{ object }}`, `=${[array]}`
 - Inline styles must use object syntax: `style=${{ backgroundColor: "red" }}` (never string syntax)
 - Spacing with inline elements on new indented lines: use `${" "}` before/after the element
@@ -64,6 +65,7 @@ All data processing happens client-side. No remote backend.
 **Resource loading system** (`loading.js`): Manages async resources with dependency tracking, status states (`not_loaded`/`loading`/`loaded`/`error`), and pub/sub notifications. Resources: `POSTS_DATA`, `POSTS_EMBEDDINGS`, `DB` (depends on both), `EXTRACTOR`.
 
 **Two Orama databases** built at runtime:
+
 - `postsDb` — Full-text search on post metadata
 - `chunksDb` — Vector search using 384-dim embeddings (Xenova/gte-small)
 
