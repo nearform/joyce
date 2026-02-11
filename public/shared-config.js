@@ -27,7 +27,7 @@ export const FEATURES = {
 };
 
 const BASE_PAGES = [
-  { name: "Home", naveName: "Joyce", to: "/", icon: "iconoir-post" },
+  { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-home-simple" },
   { name: "Posts", to: "/posts", icon: "iconoir-multiple-pages-empty" },
   { name: "Search", to: "/search", icon: "iconoir-doc-magnifying-glass-in" },
   {
