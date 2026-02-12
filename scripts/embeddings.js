@@ -29,7 +29,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { parseArgs } from "node:util";
-import { pipeline, AutoTokenizer } from "@xenova/transformers";
+import { pipeline, AutoTokenizer } from "@huggingface/transformers";
 import { split } from "llm-splitter";
 import config, { TOKEN_CUSHION_EMBEDDINGS } from "../public/shared-config.js";
 import {

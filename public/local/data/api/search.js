@@ -1,9 +1,10 @@
-/* global performance:false */
+/* global navigator:false,performance:false */
 import { create, insertMultiple, search as oramaSearch } from "@orama/orama";
-import { pipeline } from "@xenova/transformers";
+import { pipeline } from "@huggingface/transformers";
 
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
+import { FEATURES } from "../../../shared-config.js";
 import { dequantizeEmbedding } from "../embeddings.js";
 import { getPosts, getPostsEmbeddings } from "./posts.js";
 
@@ -13,10 +14,36 @@ const MIN_SIMILARITY = 0.8;
 const dateToNumber = (date) => Date.parse(date);
 
 // Embeddings extractor (feature-extraction pipeline)
+// WebGPU is behind ?webgpuEmbeddings=true flag. It helps with batch embedding (e.g., hundreds
+// of documents), but for single query embeddings the GPU transfer overhead negates any compute
+// advantage over WASM.
 export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
-  const extractor = await pipeline("feature-extraction", model);
-  return extractor;
+
+  let device = null;
+  if (FEATURES.webgpuEmbeddings && "gpu" in navigator) {
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) device = "webgpu";
+    } catch {
+      /* fall through to WASM */
+    }
+  }
+
+  try {
+    const extractor = await pipeline(
+      "feature-extraction",
+      model,
+      device ? { device, dtype: "fp32" } : undefined,
+    );
+    extractor._device = device ?? "wasm";
+    return extractor;
+  } catch {
+    // WebGPU pipeline failed, fall back to WASM
+    const extractor = await pipeline("feature-extraction", model);
+    extractor._device = "wasm";
+    return extractor;
+  }
 });
 
 // Posts database (full-text search)

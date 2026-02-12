@@ -24,6 +24,7 @@ export const FEATURES = {
     enabled: params.get("chatEnabled") === "true",
     conversations: params.get("chatConversations") === "true",
   },
+  webgpuEmbeddings: params.get("webgpuEmbeddings") === "true",
 };
 
 const BASE_PAGES = [
