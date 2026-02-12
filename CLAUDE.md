@@ -36,7 +36,7 @@ There is no test framework configured.
 
 All runtime deps come from CDN (esm.sh, cdn.jsdelivr.net) via an import map in `public/index.html`. No `node_modules` at runtime. Import map entries must be fully version-pinned (e.g., `htm@3.1.1`, not `htm@^3`). Add `?external=react,react-dom` to packages depending on either.
 
-Key libraries: React 19, React Router 7, HTM (JSX-like templates without build), Orama (browser search engine), @xenova/transformers, @mlc-ai/web-llm, Pure CSS 2.0.
+Key libraries: React 19, React Router 7, HTM (JSX-like templates without build), Orama (browser search engine), @huggingface/transformers, @mlc-ai/web-llm, Pure CSS 2.0.
 
 ### HTM Templating
 

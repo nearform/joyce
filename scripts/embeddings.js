@@ -40,6 +40,7 @@ import {
 const { dirname } = import.meta;
 
 const TOKEN_CHUNK_OVERLAP = 10;
+const BATCH_SIZE = 64;
 const DEBUG_TOKENS = true;
 const DEBUG_QUANTIZATION = true;
 
@@ -164,17 +165,29 @@ const getChunks = (lines, chunkSize, tokenCounts) => {
 };
 
 /**
- * Generate embeddings for a given text using the extractor
+ * Generate embeddings for an array of texts in batches.
  * @param {any} extractor - The feature extraction pipeline
- * @param {string[]} lines - The lines to generate embeddings for
- * @returns {Promise<number[]>} - The embedding vector as an array
+ * @param {string[]} texts - Flat array of text strings to embed
+ * @returns {Promise<number[][]>} - Array of embedding vectors
  */
-const generateEmbeddings = async (extractor, lines) => {
-  const output = await extractor(lines.join("\n"), {
-    pooling: "mean",
-    normalize: true,
-  });
-  return Array.from(output.data);
+const batchGenerateEmbeddings = async (extractor, texts) => {
+  const allEmbeddings = [];
+
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    const output = await extractor(batch, {
+      pooling: "mean",
+      normalize: true,
+    });
+    const dim = output.dims[1];
+    for (let j = 0; j < batch.length; j++) {
+      allEmbeddings.push(Array.from(output.data.slice(j * dim, (j + 1) * dim)));
+    }
+    const done = Math.min(i + BATCH_SIZE, texts.length);
+    console.log(`  Embedded ${done}/${texts.length} chunks...`);
+  }
+
+  return allEmbeddings;
 };
 
 /**
@@ -239,46 +252,58 @@ const generateEmbeddingsForSize = async (
     `\nGenerating embeddings for ${slugs.length} posts (${sizeName}: chunkSize=${chunkSize})...`,
   );
   const processStart = performance.now();
-  let lastCheckpoint = processStart;
 
-  for (let i = 0; i < slugs.length; i++) {
-    const slug = slugs[i];
+  // Phase 1: Chunk all posts (CPU)
+  console.log("Phase 1: Chunking posts...");
+  const allPosts = [];
+  const allTexts = [];
+  for (const slug of slugs) {
     const post = posts[slug];
-    let chunks = [];
     try {
-      // Just store the start and end indices of the chunks and add the embeddings.
-      chunks = getChunks(post.content, chunkSize, tokenCounts);
+      const chunks = getChunks(post.content, chunkSize, tokenCounts);
+      allPosts.push({ slug, chunks });
       for (const chunk of chunks) {
-        const embeddings = await generateEmbeddings(extractor, chunk.text);
-        delete chunk.text;
-        // Quantize embeddings to uint8 for ~75% storage reduction
-        chunk.embeddings = quantizeEmbedding(embeddings);
-
-        // Track quantization error by round-tripping
-        if (DEBUG_QUANTIZATION) {
-          const dequantized = dequantizeEmbedding(chunk.embeddings);
-          for (let j = 0; j < embeddings.length; j++) {
-            const val = embeddings[j];
-            const diff = Math.abs(val - dequantized[j]);
-            quantizationStats.count++;
-            quantizationStats.sum += diff;
-            if (diff < quantizationStats.min) quantizationStats.min = diff;
-            if (diff > quantizationStats.max) quantizationStats.max = diff;
-            if (val < quantizationStats.valueMin)
-              quantizationStats.valueMin = val;
-            if (val > quantizationStats.valueMax)
-              quantizationStats.valueMax = val;
-          }
-        }
+        allTexts.push(chunk.text.join("\n"));
       }
     } catch (error) {
       console.error("(E) getChunks: ", slug);
       throw error;
     }
+  }
+  console.log(`Chunked ${slugs.length} posts into ${allTexts.length} chunks.`);
+
+  // Phase 2: Batch embed (GPU)
+  console.log("Phase 2: Generating embeddings...");
+  const allEmbeddings = await batchGenerateEmbeddings(extractor, allTexts);
+
+  // Phase 3: Quantize and assemble results (CPU)
+  console.log("Phase 3: Quantizing and assembling...");
+  let embIdx = 0;
+  for (const { slug, chunks } of allPosts) {
+    for (const chunk of chunks) {
+      const embeddings = allEmbeddings[embIdx++];
+      delete chunk.text;
+      chunk.embeddings = quantizeEmbedding(embeddings);
+
+      if (DEBUG_QUANTIZATION) {
+        const dequantized = dequantizeEmbedding(chunk.embeddings);
+        for (let j = 0; j < embeddings.length; j++) {
+          const val = embeddings[j];
+          const diff = Math.abs(val - dequantized[j]);
+          quantizationStats.count++;
+          quantizationStats.sum += diff;
+          if (diff < quantizationStats.min) quantizationStats.min = diff;
+          if (diff > quantizationStats.max) quantizationStats.max = diff;
+          if (val < quantizationStats.valueMin)
+            quantizationStats.valueMin = val;
+          if (val > quantizationStats.valueMax)
+            quantizationStats.valueMax = val;
+        }
+      }
+    }
 
     result[slug] = { chunks };
 
-    // Collect post-level stats for debug output
     if (DEBUG_TOKENS) {
       const numChunks = chunks.length;
       const totalTokens = chunks.reduce(
@@ -286,15 +311,6 @@ const generateEmbeddingsForSize = async (
         0,
       );
       postStats.push({ numChunks, totalTokens });
-    }
-
-    if ((i + 1) % 100 === 0) {
-      const now = performance.now();
-      const incrementTime = ((now - lastCheckpoint) / 1000).toFixed(2);
-      lastCheckpoint = now;
-      console.log(
-        `Processed ${i + 1}/${slugs.length} posts... (${incrementTime}s)`,
-      );
     }
   }
 
@@ -327,6 +343,7 @@ const main = async () => {
   const modelLoadStart = performance.now();
   const extractor = await pipeline("feature-extraction", EMBEDDINGS_MODEL, {
     device: "gpu",
+    dtype: "fp32",
   });
   const modelLoadTime = ((performance.now() - modelLoadStart) / 1000).toFixed(
     2,
