@@ -205,32 +205,6 @@ const getChunks = (lines, chunkSize, tokenCounts) => {
 };
 
 /**
- * Generate embeddings for an array of texts in batches.
- * @param {any} extractor - The feature extraction pipeline
- * @param {string[]} texts - Flat array of text strings to embed
- * @returns {Promise<number[][]>} - Array of embedding vectors
- */
-const batchGenerateEmbeddings = async (extractor, texts) => {
-  const allEmbeddings = [];
-
-  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE);
-    const output = await extractor(batch, {
-      pooling: "mean",
-      normalize: true,
-    });
-    const dim = output.dims[1];
-    for (let j = 0; j < batch.length; j++) {
-      allEmbeddings.push(Array.from(output.data.slice(j * dim, (j + 1) * dim)));
-    }
-    const done = Math.min(i + BATCH_SIZE, texts.length);
-    console.log(`  Embedded ${done}/${texts.length} chunks...`);
-  }
-
-  return allEmbeddings;
-};
-
-/**
  * Convert result object to JSON string with pretty print, but keep embeddings compact.
  * Handles quantized embeddings format: { values: number[], min: number, max: number }
  * @param {Object} result - The embeddings result object
@@ -297,6 +271,7 @@ const generateEmbeddingsForSize = async (
   console.log("Phase 1: Chunking posts...");
   const allPosts = [];
   const allTexts = [];
+  const chunkRefs = [];
   for (const slug of slugs) {
     const post = posts[slug];
     try {
@@ -304,6 +279,7 @@ const generateEmbeddingsForSize = async (
       allPosts.push({ slug, chunks });
       for (const chunk of chunks) {
         allTexts.push(chunk.text.join("\n"));
+        chunkRefs.push(chunk);
       }
     } catch (error) {
       console.error("(E) getChunks: ", slug);
@@ -312,25 +288,28 @@ const generateEmbeddingsForSize = async (
   }
   console.log(`Chunked ${slugs.length} posts into ${allTexts.length} chunks.`);
 
-  // Phase 2: Batch embed (GPU)
-  console.log("Phase 2: Generating embeddings...");
+  // Phase 2: Embed and quantize in batches (GPU + CPU)
+  // Quantizes each batch immediately so raw float embeddings can be GC'd per-batch.
+  console.log("Phase 2: Generating and quantizing embeddings...");
   const extractor = await getExtractor();
-  const allEmbeddings = await batchGenerateEmbeddings(extractor, allTexts);
-
-  // Phase 3: Quantize and assemble results (CPU)
-  console.log("Phase 3: Quantizing and assembling...");
-  let embIdx = 0;
-  for (const { slug, chunks } of allPosts) {
-    for (const chunk of chunks) {
-      const embeddings = allEmbeddings[embIdx++];
+  for (let i = 0; i < allTexts.length; i += BATCH_SIZE) {
+    const batch = allTexts.slice(i, i + BATCH_SIZE);
+    const output = await extractor(batch, {
+      pooling: "mean",
+      normalize: true,
+    });
+    const dim = output.dims[1];
+    for (let j = 0; j < batch.length; j++) {
+      const embeddings = Array.from(output.data.slice(j * dim, (j + 1) * dim));
+      const chunk = chunkRefs[i + j];
       delete chunk.text;
       chunk.embeddings = quantizeEmbedding(embeddings);
 
       if (DEBUG_QUANTIZATION) {
         const dequantized = dequantizeEmbedding(chunk.embeddings);
-        for (let j = 0; j < embeddings.length; j++) {
-          const val = embeddings[j];
-          const diff = Math.abs(val - dequantized[j]);
+        for (let k = 0; k < embeddings.length; k++) {
+          const val = embeddings[k];
+          const diff = Math.abs(val - dequantized[k]);
           quantizationStats.count++;
           quantizationStats.sum += diff;
           if (diff < quantizationStats.min) quantizationStats.min = diff;
@@ -342,7 +321,12 @@ const generateEmbeddingsForSize = async (
         }
       }
     }
+    const done = Math.min(i + BATCH_SIZE, allTexts.length);
+    console.log(`  Embedded ${done}/${allTexts.length} chunks...`);
+  }
 
+  // Assemble results and collect post-level stats
+  for (const { slug, chunks } of allPosts) {
     result[slug] = { chunks };
 
     if (DEBUG_TOKENS) {
