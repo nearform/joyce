@@ -15,6 +15,8 @@ import {
   LoadingButton,
   LOADING,
 } from "../../local/app/components/loading/index.js";
+import { useLoading } from "../../local/app/context/loading.js";
+import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
 
 // Get model short name from resource id (provider-agnostic)
@@ -148,6 +150,32 @@ const ChromeAIInfo = () => {
   `;
 };
 
+const EmbeddingsInfo = () => {
+  const { getStatus } = useLoading();
+  const extractorStatus = getStatus(LOADING.EXTRACTOR);
+  const extractor =
+    extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
+  const device = extractor?._device ?? null;
+
+  const badge =
+    device === "webgpu"
+      ? { label: "WebGPU", className: "status-supported" }
+      : device === "wasm"
+        ? { label: "WASM", className: "status-warning" }
+        : { label: "Not Loaded", className: "status-unsupported" };
+
+  return html`
+    <div className="system-info">
+      <div className="system-info-row">
+        <strong>Embeddings Backend:</strong>
+        <span className=${`status-badge ${badge.className}`}>
+          ${badge.label}
+        </span>
+      </div>
+    </div>
+  `;
+};
+
 export const Data = () => {
   const { systemInfo } = useConfig();
 
@@ -186,14 +214,15 @@ export const Data = () => {
         }
       </div>
 
+      <h2 className="content-subhead">Models</h2>
+
+      <${SystemInfo} info=${systemInfo} />
+      <${EmbeddingsInfo} />
+
       ${
         FEATURES.chat.enabled &&
         html`
           <${Fragment}>
-            <h2 className="content-subhead">Models</h2>
-
-            <${SystemInfo} info=${systemInfo} />
-
             <h3>Google Chrome Built-in AI</h3>
             <p>
               Chrome provides built-in AI powered by Gemini Nano. The browser

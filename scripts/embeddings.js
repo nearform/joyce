@@ -2,11 +2,15 @@
 /**
  * Generate embeddings for all posts from posts.json.
  *
+ * By default, runs in incremental mode — only embeds new posts and prunes
+ * removed ones. Use --full to regenerate all embeddings from scratch.
+ *
  * Usage:
- *   node scripts/embeddings.js [--output-dir=DIR]
+ *   node scripts/embeddings.js [--output-dir=DIR] [--full]
  *
  * Options:
  *   --output-dir=DIR   Output directory (defaults to public/data/)
+ *   --full             Regenerate all embeddings (ignore existing files)
  *
  * Reads posts from public/data/posts.json and generates embeddings files for
  * each configured chunk size in config.embeddings.dataChunkSizes.
@@ -15,6 +19,7 @@
  * Example:
  * ```
  * $ node scripts/embeddings.js
+ * $ node scripts/embeddings.js --full
  * $ node scripts/embeddings.js --output-dir=public/data/
  * ```
  *
@@ -29,7 +34,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { parseArgs } from "node:util";
-import { pipeline, AutoTokenizer } from "@xenova/transformers";
+import { pipeline, AutoTokenizer } from "@huggingface/transformers";
 import { split } from "llm-splitter";
 import config, { TOKEN_CUSHION_EMBEDDINGS } from "../public/shared-config.js";
 import {
@@ -39,7 +44,43 @@ import {
 
 const { dirname } = import.meta;
 
+/**
+ * Read and parse an existing embeddings JSON file.
+ * Returns null if the file does not exist, re-throws other errors.
+ */
+const readExistingEmbeddings = async (filePath) => {
+  try {
+    const content = await readFile(filePath, "utf8");
+    return JSON.parse(content);
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  }
+};
+
+/**
+ * Compare post slugs against existing embeddings slugs.
+ * Returns { newSlugs, removedSlugs, isUpToDate }.
+ */
+const diffSlugs = (posts, existingEmbeddings) => {
+  const postSlugs = new Set(Object.keys(posts));
+
+  if (!existingEmbeddings) {
+    return { newSlugs: postSlugs, removedSlugs: new Set(), isUpToDate: false };
+  }
+
+  const existingSlugs = new Set(Object.keys(existingEmbeddings));
+  const newSlugs = new Set([...postSlugs].filter((s) => !existingSlugs.has(s)));
+  const removedSlugs = new Set(
+    [...existingSlugs].filter((s) => !postSlugs.has(s)),
+  );
+  const isUpToDate = newSlugs.size === 0 && removedSlugs.size === 0;
+
+  return { newSlugs, removedSlugs, isUpToDate };
+};
+
 const TOKEN_CHUNK_OVERLAP = 10;
+const BATCH_SIZE = 64;
 const DEBUG_TOKENS = true;
 const DEBUG_QUANTIZATION = true;
 
@@ -164,20 +205,6 @@ const getChunks = (lines, chunkSize, tokenCounts) => {
 };
 
 /**
- * Generate embeddings for a given text using the extractor
- * @param {any} extractor - The feature extraction pipeline
- * @param {string[]} lines - The lines to generate embeddings for
- * @returns {Promise<number[]>} - The embedding vector as an array
- */
-const generateEmbeddings = async (extractor, lines) => {
-  const output = await extractor(lines.join("\n"), {
-    pooling: "mean",
-    normalize: true,
-  });
-  return Array.from(output.data);
-};
-
-/**
  * Convert result object to JSON string with pretty print, but keep embeddings compact.
  * Handles quantized embeddings format: { values: number[], min: number, max: number }
  * @param {Object} result - The embeddings result object
@@ -211,14 +238,14 @@ const formatOutput = (result) => {
 /**
  * Generate embeddings for all posts with a specific chunk size
  * @param {Object} posts - The posts object keyed by slug
- * @param {any} extractor - The feature extraction pipeline
+ * @param {Function} getExtractor - Async function that returns the feature extraction pipeline
  * @param {number} chunkSize - The chunk size for splitting
  * @param {string} sizeName - The name of the size (for logging)
  * @returns {Promise<{result: Object, tokenCounts: number[]}>}
  */
 const generateEmbeddingsForSize = async (
   posts,
-  extractor,
+  getExtractor,
   chunkSize,
   sizeName,
 ) => {
@@ -239,46 +266,69 @@ const generateEmbeddingsForSize = async (
     `\nGenerating embeddings for ${slugs.length} posts (${sizeName}: chunkSize=${chunkSize})...`,
   );
   const processStart = performance.now();
-  let lastCheckpoint = processStart;
 
-  for (let i = 0; i < slugs.length; i++) {
-    const slug = slugs[i];
+  // Phase 1: Chunk all posts (CPU)
+  console.log("Phase 1: Chunking posts...");
+  const allPosts = [];
+  const allTexts = [];
+  const chunkRefs = [];
+  for (const slug of slugs) {
     const post = posts[slug];
-    let chunks = [];
     try {
-      // Just store the start and end indices of the chunks and add the embeddings.
-      chunks = getChunks(post.content, chunkSize, tokenCounts);
+      const chunks = getChunks(post.content, chunkSize, tokenCounts);
+      allPosts.push({ slug, chunks });
       for (const chunk of chunks) {
-        const embeddings = await generateEmbeddings(extractor, chunk.text);
-        delete chunk.text;
-        // Quantize embeddings to uint8 for ~75% storage reduction
-        chunk.embeddings = quantizeEmbedding(embeddings);
-
-        // Track quantization error by round-tripping
-        if (DEBUG_QUANTIZATION) {
-          const dequantized = dequantizeEmbedding(chunk.embeddings);
-          for (let j = 0; j < embeddings.length; j++) {
-            const val = embeddings[j];
-            const diff = Math.abs(val - dequantized[j]);
-            quantizationStats.count++;
-            quantizationStats.sum += diff;
-            if (diff < quantizationStats.min) quantizationStats.min = diff;
-            if (diff > quantizationStats.max) quantizationStats.max = diff;
-            if (val < quantizationStats.valueMin)
-              quantizationStats.valueMin = val;
-            if (val > quantizationStats.valueMax)
-              quantizationStats.valueMax = val;
-          }
-        }
+        allTexts.push(chunk.text.join("\n"));
+        chunkRefs.push(chunk);
       }
     } catch (error) {
       console.error("(E) getChunks: ", slug);
       throw error;
     }
+  }
+  console.log(`Chunked ${slugs.length} posts into ${allTexts.length} chunks.`);
 
+  // Phase 2: Embed and quantize in batches (GPU + CPU)
+  // Quantizes each batch immediately so raw float embeddings can be GC'd per-batch.
+  console.log("Phase 2: Generating and quantizing embeddings...");
+  const extractor = await getExtractor();
+  for (let i = 0; i < allTexts.length; i += BATCH_SIZE) {
+    const batch = allTexts.slice(i, i + BATCH_SIZE);
+    const output = await extractor(batch, {
+      pooling: "mean",
+      normalize: true,
+    });
+    const dim = output.dims[1];
+    for (let j = 0; j < batch.length; j++) {
+      const embeddings = Array.from(output.data.slice(j * dim, (j + 1) * dim));
+      const chunk = chunkRefs[i + j];
+      delete chunk.text;
+      chunk.embeddings = quantizeEmbedding(embeddings);
+
+      if (DEBUG_QUANTIZATION) {
+        const dequantized = dequantizeEmbedding(chunk.embeddings);
+        for (let k = 0; k < embeddings.length; k++) {
+          const val = embeddings[k];
+          const diff = Math.abs(val - dequantized[k]);
+          quantizationStats.count++;
+          quantizationStats.sum += diff;
+          if (diff < quantizationStats.min) quantizationStats.min = diff;
+          if (diff > quantizationStats.max) quantizationStats.max = diff;
+          if (val < quantizationStats.valueMin)
+            quantizationStats.valueMin = val;
+          if (val > quantizationStats.valueMax)
+            quantizationStats.valueMax = val;
+        }
+      }
+    }
+    const done = Math.min(i + BATCH_SIZE, allTexts.length);
+    console.log(`  Embedded ${done}/${allTexts.length} chunks...`);
+  }
+
+  // Assemble results and collect post-level stats
+  for (const { slug, chunks } of allPosts) {
     result[slug] = { chunks };
 
-    // Collect post-level stats for debug output
     if (DEBUG_TOKENS) {
       const numChunks = chunks.length;
       const totalTokens = chunks.reduce(
@@ -286,15 +336,6 @@ const generateEmbeddingsForSize = async (
         0,
       );
       postStats.push({ numChunks, totalTokens });
-    }
-
-    if ((i + 1) % 100 === 0) {
-      const now = performance.now();
-      const incrementTime = ((now - lastCheckpoint) / 1000).toFixed(2);
-      lastCheckpoint = now;
-      console.log(
-        `Processed ${i + 1}/${slugs.length} posts... (${incrementTime}s)`,
-      );
     }
   }
 
@@ -309,11 +350,13 @@ const main = async () => {
   const { values } = parseArgs({
     options: {
       "output-dir": { type: "string", default: "public/data" },
+      full: { type: "boolean", default: false },
     },
     strict: false,
   });
 
   const outputDir = values["output-dir"];
+  const fullMode = values.full;
 
   // Read posts.json
   const postsPath = resolve(dirname, "../public/data/posts.json");
@@ -321,17 +364,24 @@ const main = async () => {
   const posts = JSON.parse(postsContent);
 
   console.log("## Generating Embeddings");
+  console.log(`Mode: ${fullMode ? "full (regenerate all)" : "incremental"}`);
 
-  // Initialize the feature-extraction pipeline
-  console.log(`Loading model: ${EMBEDDINGS_MODEL}...`);
-  const modelLoadStart = performance.now();
-  const extractor = await pipeline("feature-extraction", EMBEDDINGS_MODEL, {
-    device: "gpu",
-  });
-  const modelLoadTime = ((performance.now() - modelLoadStart) / 1000).toFixed(
-    2,
-  );
-  console.log(`Model loaded. (${modelLoadTime}s)`);
+  // Lazy model loading — only loads when actually needed
+  let _extractor;
+  const getExtractor = async () => {
+    if (!_extractor) {
+      console.log(`Loading model: ${EMBEDDINGS_MODEL}...`);
+      const t = performance.now();
+      _extractor = await pipeline("feature-extraction", EMBEDDINGS_MODEL, {
+        device: "gpu",
+        dtype: "fp32",
+      });
+      console.log(
+        `Model loaded. (${((performance.now() - t) / 1000).toFixed(2)}s)`,
+      );
+    }
+    return _extractor;
+  };
 
   // Generate embeddings for each configured chunk size
   const chunkSizeEntries = Object.entries(EMBEDDINGS_DATA_CHUNK_SIZES);
@@ -341,24 +391,98 @@ const main = async () => {
 
   for (const [sizeName, maxTokens] of chunkSizeEntries) {
     const chunkSize = maxTokens - TOKEN_CUSHION_EMBEDDINGS;
-    const { result, tokenCounts, postStats, quantizationStats } =
-      await generateEmbeddingsForSize(posts, extractor, chunkSize, sizeName);
-
-    // Write to output file
     const outputFileName = `posts-embeddings-${maxTokens}.json`;
     const outputPath = resolve(outputDir, outputFileName);
-    const output = formatOutput(result);
-    await writeFile(outputPath, output, "utf8");
-    console.log(
-      `Wrote embeddings for ${Object.keys(result).length} posts to ${outputPath}`,
-    );
 
-    if (DEBUG_TOKENS) {
-      logTokenStats(tokenCounts, postStats, chunkSize, maxTokens);
-    }
+    if (fullMode) {
+      // Full mode: regenerate everything
+      const { result, tokenCounts, postStats, quantizationStats } =
+        await generateEmbeddingsForSize(
+          posts,
+          getExtractor,
+          chunkSize,
+          sizeName,
+        );
 
-    if (DEBUG_QUANTIZATION) {
-      logQuantizationStats(quantizationStats, chunkSize);
+      await writeFile(outputPath, formatOutput(result), "utf8");
+      console.log(
+        `Wrote embeddings for ${Object.keys(result).length} posts to ${outputPath}`,
+      );
+
+      if (DEBUG_TOKENS) {
+        logTokenStats(tokenCounts, postStats, chunkSize, maxTokens);
+      }
+
+      if (DEBUG_QUANTIZATION) {
+        logQuantizationStats(quantizationStats, chunkSize);
+      }
+    } else {
+      // Incremental mode
+      const existing = await readExistingEmbeddings(outputPath);
+      const { newSlugs, removedSlugs, isUpToDate } = diffSlugs(posts, existing);
+
+      if (isUpToDate) {
+        console.log(
+          `\n${sizeName} (chunkSize=${chunkSize}): Up to date, skipping.`,
+        );
+        continue;
+      }
+
+      let result;
+      let tokenCounts;
+      let postStats;
+      let quantizationStats;
+
+      if (!existing) {
+        console.log(
+          `\n${sizeName} (chunkSize=${chunkSize}): No existing file, generating all ${Object.keys(posts).length} posts...`,
+        );
+        ({ result, tokenCounts, postStats, quantizationStats } =
+          await generateEmbeddingsForSize(
+            posts,
+            getExtractor,
+            chunkSize,
+            sizeName,
+          ));
+      } else {
+        const unchangedCount = Object.keys(existing).length - removedSlugs.size;
+        console.log(
+          `\n${sizeName} (chunkSize=${chunkSize}): ${newSlugs.size} new, ${removedSlugs.size} removed, ${unchangedCount} unchanged.`,
+        );
+
+        // Build filtered posts object with only new slugs
+        const newPosts = {};
+        for (const slug of newSlugs) {
+          newPosts[slug] = posts[slug];
+        }
+
+        ({ result, tokenCounts, postStats, quantizationStats } =
+          await generateEmbeddingsForSize(
+            newPosts,
+            getExtractor,
+            chunkSize,
+            sizeName,
+          ));
+
+        // Merge: existing + new, then prune removed
+        result = { ...existing, ...result };
+        for (const slug of removedSlugs) {
+          delete result[slug];
+        }
+      }
+
+      await writeFile(outputPath, formatOutput(result), "utf8");
+      console.log(
+        `Wrote embeddings for ${Object.keys(result).length} posts to ${outputPath}`,
+      );
+
+      if (DEBUG_TOKENS && tokenCounts) {
+        logTokenStats(tokenCounts, postStats, chunkSize, maxTokens);
+      }
+
+      if (DEBUG_QUANTIZATION && quantizationStats) {
+        logQuantizationStats(quantizationStats, chunkSize);
+      }
     }
   }
 
