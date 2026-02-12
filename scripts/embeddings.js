@@ -147,6 +147,7 @@ const getChunks = (lines, chunkSize, tokenCounts) => {
       chunkSize,
       chunkOverlap: TOKEN_CHUNK_OVERLAP,
       splitter,
+      chunkStrategy: "paragraph",
     },
   );
 

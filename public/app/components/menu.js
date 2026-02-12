@@ -35,6 +35,18 @@ export const Menu = ({ pages = [] }) => html`
         )}
       </ul>
       <div className="pure-menu-divided" />
+      <ul className="pure-menu-list">
+        <li className="pure-menu-item">
+          <a
+            className="pure-menu-link"
+            href="https://github.com/nearform/joyce"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <i className="iconoir-github"></i> Source
+          </a>
+        </li>
+      </ul>
     </nav>
   </div>
 `;
