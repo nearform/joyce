@@ -289,7 +289,12 @@ export const createChatSession = ({ provider, model, temperature }) => {
      */
     async *start(
       query,
-      { postType = [], minDate = "", categoryPrimary = [] } = {},
+      {
+        postType = [],
+        minDate = "",
+        categoryPrimary = [],
+        verticalPrimary = [],
+      } = {},
     ) {
       if (state.destroyed) throw new Error("Session destroyed");
 
@@ -299,7 +304,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
       // RAG search + context building (extracted to rag.js)
       const { searchData, contextState } = await performRagSearch({
         query,
-        filters: { postType, minDate, categoryPrimary },
+        filters: { postType, minDate, categoryPrimary, verticalPrimary },
         provider,
         model,
         supportsMultiTurn: capabilities.supportsMultiTurn,

@@ -24,10 +24,12 @@ const filterPosts = async ({
   postType = [],
   minDate,
   categoryPrimary = [],
+  verticalPrimary = [],
   withContent = false,
 }) => {
   const postTypeSet = new Set(postType);
   const categoryPrimarySet = new Set(categoryPrimary);
+  const verticalPrimarySet = new Set(verticalPrimary);
   const minDateObj = minDate ? new Date(minDate) : null; // Precompute minDate as a Date object
   const postsObj = await getPosts();
   return Object.values(postsObj)
@@ -36,7 +38,9 @@ const filterPosts = async ({
         (postType.length === 0 || postTypeSet.has(post.postType)) &&
         (!minDateObj || new Date(post.date) >= minDateObj) &&
         (categoryPrimary.length === 0 ||
-          categoryPrimarySet.has(post.categories?.primary)),
+          categoryPrimarySet.has(post.categories?.primary)) &&
+        (verticalPrimary.length === 0 ||
+          verticalPrimarySet.has(post.verticals?.primary)),
     )
     .map((post) => (withContent ? post : { ...post, content: undefined }));
 };
@@ -47,6 +51,7 @@ const filterPosts = async ({
  * @param {string[]} params.postType
  * @param {string} params.minDate
  * @param {string[]} params.categoryPrimary
+ * @param {string[]} params.verticalPrimary
  * @param {boolean} params.withContent
  * @returns {Promise<{posts: Object, metadata: Object}>}
  */

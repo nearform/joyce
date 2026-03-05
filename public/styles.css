@@ -325,6 +325,24 @@ table.pure-table-bordered tr:first-child th:last-child {
   background-color: rgba(var(--label-color, 0, 0, 0), 0.2);
   border-color: rgb(var(--label-color, 0, 0, 0));
 }
+.ui-vertical-label {
+  display: inline-block;
+  padding: 1px 4px;
+  border: 2px solid rgb(var(--label-color, 0, 0, 0));
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  background-color: rgba(var(--label-color, 0, 0, 0), 0.1);
+  font-size: 14px;
+  text-align: center;
+  cursor: default;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
+}
+.ui-vertical-label:hover {
+  background-color: rgba(var(--label-color, 0, 0, 0), 0.2);
+  border-color: rgb(var(--label-color, 0, 0, 0));
+}
 
 /* Multi-select */
 /* hack to move the multi-select up a bit */

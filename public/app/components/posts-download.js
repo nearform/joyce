@@ -6,16 +6,21 @@ const { saveAs } = FileSaver;
 
 const postsToCsv = (posts) => {
   return (
-    ["Date", "Type", "Title", "URL", "Category"].join(",") +
+    ["Date", "Type", "Title", "URL", "Category", "Vertical"].join(",") +
     "\n" +
     posts
       .map((post) => {
-        const { title, postType, date, href, categories } = post;
+        const { title, postType, date, href, categories, verticals } = post;
         // Escape any commas in the title with quotes
         const escapedTitle = `"${title}"`.replace(/\n/g, " ");
-        return [date, postType, escapedTitle, href, categories.primary].join(
-          ",",
-        );
+        return [
+          date,
+          postType,
+          escapedTitle,
+          href,
+          categories.primary,
+          verticals?.primary ?? "",
+        ].join(",");
       })
       .join("\n")
   );

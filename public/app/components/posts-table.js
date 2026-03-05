@@ -1,5 +1,6 @@
 import { html } from "../util/html.js";
 import { Category } from "./category.js";
+import { Vertical } from "./vertical.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { useTableSort } from "../hooks/use-table-sort.js";
 
@@ -7,6 +8,7 @@ const BASE_HEADINGS = {
   date: "Date",
   title: "Title",
   "categories.primary": "Cat.",
+  "verticals.primary": "Vert.",
 };
 
 const ANALYTICS_HEADINGS = {
@@ -66,6 +68,7 @@ export const PostsTable = ({
                 title,
                 href,
                 categories,
+                verticals,
                 analytics,
                 similarity,
                 embeddingNumTokens,
@@ -86,6 +89,10 @@ export const PostsTable = ({
                     <a href="${href}">${title}</a>
                   </td>
                   <td>${Category({ category: categories.primary })}</td>
+                  <td>
+                    ${verticals?.primary &&
+                    Vertical({ vertical: verticals.primary })}
+                  </td>
                   ${settings.displayAnalytics
                     ? html`
                         <td key="views">${analytics.views}</td>

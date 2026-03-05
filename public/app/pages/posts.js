@@ -7,6 +7,7 @@ import {
   PostMinDate,
   PostTypeSelect,
   PostCategoryPrimarySelect,
+  PostVerticalPrimarySelect,
 } from "../components/forms.js";
 import {
   DownloadPostsCsv,
@@ -29,6 +30,7 @@ export const Posts = () => {
   });
   const [selectedPostTypes, setSelectedPostTypes] = useState([]);
   const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
   const [minDate, setMinDate] = useState("");
   const [isFetching, setIsFetching] = useState(false);
   const [settings] = useSettings();
@@ -42,6 +44,7 @@ export const Posts = () => {
       minDate,
       postType: selectedPostTypes.map(({ value }) => value),
       categoryPrimary: selectedCategoryPrimary.map(({ value }) => value),
+      verticalPrimary: selectedVerticalPrimary.map(({ value }) => value),
       withContent: false,
     });
     setPostsData(data);
@@ -81,6 +84,10 @@ export const Posts = () => {
         <${PostCategoryPrimarySelect}
           selected=${selectedCategoryPrimary}
           setSelected=${setSelectedCategoryPrimary}
+        />
+        <${PostVerticalPrimarySelect}
+          selected=${selectedVerticalPrimary}
+          setSelected=${setSelectedVerticalPrimary}
         />
         <${PostMinDate} value=${minDate} setValue=${setMinDate} />
       </${Form}>

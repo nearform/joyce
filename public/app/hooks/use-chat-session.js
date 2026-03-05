@@ -19,6 +19,7 @@ const setQueryValue = getQuerySetter("query");
  * @param {string} options.minDate - Minimum post date filter
  * @param {Array} options.selectedPostTypes - Selected post type filters
  * @param {Array} options.selectedCategoryPrimary - Selected category filters
+ * @param {Array} options.selectedVerticalPrimary - Selected vertical filters
  * @param {boolean} options.isModelLoaded - Whether the current model is loaded
  * @param {Function} options.startLoading - Callback to start model loading
  * @param {Function} options.getError - Callback to get model loading error
@@ -30,6 +31,7 @@ export const useChatSession = ({
   minDate,
   selectedPostTypes,
   selectedCategoryPrimary,
+  selectedVerticalPrimary,
   isModelLoaded,
   startLoading,
   getError,
@@ -177,7 +179,7 @@ export const useChatSession = ({
    * Uses chat session facade for RAG search + context + session creation.
    */
   const executeChatQuery = async (queryParams) => {
-    const { query, postType, categoryPrimary } = queryParams;
+    const { query, postType, categoryPrimary, verticalPrimary } = queryParams;
 
     // Reset for new conversation and add the first entry
     resetForNewConversation();
@@ -201,6 +203,7 @@ export const useChatSession = ({
         postType,
         minDate,
         categoryPrimary,
+        verticalPrimary,
       })) {
         if (event.type === "search") {
           // Update UI with search results
@@ -329,7 +332,8 @@ export const useChatSession = ({
     // Infer other input parameters
     const postType = selectedPostTypes.map(({ value }) => value);
     const categoryPrimary = selectedCategoryPrimary.map(({ value }) => value);
-    const queryParams = { query, postType, categoryPrimary };
+    const verticalPrimary = selectedVerticalPrimary.map(({ value }) => value);
+    const queryParams = { query, postType, categoryPrimary, verticalPrimary };
 
     // Should we continue the existing conversation or start fresh?
     const shouldContinue = conversationsEnabled && isConversationActive;

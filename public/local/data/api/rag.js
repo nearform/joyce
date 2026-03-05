@@ -15,6 +15,7 @@ import { MIN_CONTEXT_CHUNKS } from "../../../config.js";
  * @param {string[]} options.filters.postType - Post types to filter
  * @param {string} options.filters.minDate - Minimum date filter
  * @param {string[]} options.filters.categoryPrimary - Categories to filter
+ * @param {string[]} options.filters.verticalPrimary - Verticals to filter
  * @param {string} options.provider - LLM provider
  * @param {string} options.model - Model ID
  * @param {boolean} options.supportsMultiTurn - Whether model supports multi-turn
@@ -35,6 +36,7 @@ export const performRagSearch = async ({
     postType: filters.postType ?? [],
     minDate: filters.minDate ?? "",
     categoryPrimary: filters.categoryPrimary ?? [],
+    verticalPrimary: filters.verticalPrimary ?? [],
     withContent: false,
   });
 

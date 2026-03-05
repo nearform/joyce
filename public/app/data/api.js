@@ -9,6 +9,7 @@
  * @property {string[]} postType
  * @property {string} minDate
  * @property {string[]} categoryPrimary
+ * @property {string[]} verticalPrimary
  * @property {boolean} withContent
  * @property {string} datastore
  *
@@ -18,6 +19,7 @@
  * @property {string[]} postType
  * @property {string} minDate
  * @property {string[]} categoryPrimary
+ * @property {string[]} verticalPrimary
  * @property {boolean} withContent
  * @property {string} model
  * @property {string} provider
@@ -28,5 +30,6 @@
  * @property {string[]} postType
  * @property {string} minDate
  * @property {string[]} categoryPrimary
+ * @property {string[]} verticalPrimary
  * @property {boolean} withContent
  */

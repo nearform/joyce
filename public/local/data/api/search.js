@@ -67,6 +67,10 @@ export const getPostsDb = getAndCache(async () => {
         primary: "string",
         others: "string[]",
       },
+      verticals: {
+        primary: "string",
+        others: "string[]",
+      },
     },
   });
 
@@ -91,6 +95,7 @@ export const getChunksDb = getAndCache(async () => {
       date: dateToNumber(post?.date),
       postType: post?.postType,
       categories: post?.categories,
+      verticals: post?.verticals,
       ...chunk,
       // Dequantize embeddings: { values, min, max } -> float[]
       embeddings: dequantizeEmbedding(chunk.embeddings),
@@ -104,6 +109,10 @@ export const getChunksDb = getAndCache(async () => {
       date: "number",
       postType: "string",
       categories: {
+        primary: "string",
+        others: "string[]",
+      },
+      verticals: {
         primary: "string",
         others: "string[]",
       },
@@ -138,6 +147,7 @@ export const getDb = getAndCache(async () => {
  * @param {string[]} params.postType
  * @param {string} params.minDate
  * @param {string[]} params.categoryPrimary
+ * @param {string[]} params.verticalPrimary
  * @param {boolean} params.withContent
  * @returns {Promise<{posts: Object, chunks: Array, metadata: Object}>}
  */
@@ -147,6 +157,7 @@ export const search = async ({
   postType,
   minDate,
   categoryPrimary,
+  verticalPrimary,
   withContent,
 }) => {
   const db = await getDb();
@@ -171,6 +182,9 @@ export const search = async ({
   }
   if (categoryPrimary?.length) {
     where["categories.primary"] = categoryPrimary;
+  }
+  if (verticalPrimary?.length) {
+    where["verticals.primary"] = verticalPrimary;
   }
   if (minDate) {
     where.date = { gte: dateToNumber(minDate) };
@@ -216,6 +230,7 @@ export const search = async ({
           date: post.date,
           postType: post.postType,
           categories: post.categories,
+          verticals: post.verticals,
           ...(withContent ? { content: post.content } : {}),
           similarityMax: similarity,
         };
