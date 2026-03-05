@@ -131,20 +131,20 @@ export const createJudge = async ({ provider, model }) => {
   );
   const maxInputTokens = maxTokens - maxOutputTokens;
 
-  // --- Chrome: create LanguageModel session with judge system prompt directly ---
+  // --- Chrome: fresh LanguageModel session per case to avoid context overflow ---
   if (provider === "chrome") {
     const status = await checkAvailability("prompt");
     if (!status.available && !status.downloading) {
       throw new Error(`Chrome Prompt API not available: ${status.reason}`);
     }
 
-    const session = await LanguageModel.create({
+    const sessionOpts = {
       topK: CHROME_DEFAULT_TOP_K,
       temperature,
       expectedInputs: [{ type: "text", languages: ["en"] }],
       expectedOutputs: [{ type: "text", languages: ["en"] }],
       initialPrompts: [{ role: "system", content: JUDGE_SYSTEM_PROMPT }],
-    });
+    };
 
     const score = async ({ query, context, answer }) => {
       const prompt = buildJudgePrompt({
@@ -154,31 +154,38 @@ export const createJudge = async ({ provider, model }) => {
         maxInputTokens,
       });
 
-      // First attempt
-      let raw = await session.prompt(prompt);
-      let parsed = parseJudgeResponse(raw);
+      // Create a fresh session per case so conversation history doesn't accumulate
+      const session = await LanguageModel.create(sessionOpts);
 
-      if (parsed && validateScores(parsed)) {
-        return { scores: parsed, raw };
+      try {
+        // First attempt
+        let raw = await session.prompt(prompt);
+        let parsed = parseJudgeResponse(raw);
+
+        if (parsed && validateScores(parsed)) {
+          return { scores: parsed, raw };
+        }
+
+        // Retry within same session (it remembers the failed attempt)
+        const retryRaw = await session.prompt(
+          "Your previous response was not valid JSON. Respond with ONLY a JSON object in this exact format, no markdown fencing:\n" +
+            '{"faithfulness":{"score":N,"reason":"..."},"relevance":{"score":N,"reason":"..."},"citationQuality":{"score":N,"reason":"..."},"completeness":{"score":N,"reason":"..."}}',
+        );
+        const retryParsed = parseJudgeResponse(retryRaw);
+
+        if (retryParsed && validateScores(retryParsed)) {
+          return { scores: retryParsed, raw: retryRaw };
+        }
+
+        return { scores: null, raw: `${raw}\n---RETRY---\n${retryRaw}` };
+      } finally {
+        session.destroy();
       }
-
-      // Retry — the session is multi-turn so it remembers the previous exchange
-      const retryRaw = await session.prompt(
-        "Your previous response was not valid JSON. Respond with ONLY a JSON object in this exact format, no markdown fencing:\n" +
-          '{"faithfulness":{"score":N,"reason":"..."},"relevance":{"score":N,"reason":"..."},"citationQuality":{"score":N,"reason":"..."},"completeness":{"score":N,"reason":"..."}}',
-      );
-      const retryParsed = parseJudgeResponse(retryRaw);
-
-      if (retryParsed && validateScores(retryParsed)) {
-        return { scores: retryParsed, raw: retryRaw };
-      }
-
-      return { scores: null, raw: `${raw}\n---RETRY---\n${retryRaw}` };
     };
 
     return {
       score,
-      destroy: () => session.destroy(),
+      destroy: () => {},
     };
   }
 
