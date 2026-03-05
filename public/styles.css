@@ -1326,3 +1326,233 @@ button.loading-status-icon-button {
   display: flex;
   align-items: center;
 }
+
+/* =========================================================================
+   Eval Page
+   ========================================================================= */
+
+.eval-config {
+  margin-bottom: 20px;
+}
+
+.eval-config label {
+  display: block;
+  font-weight: bold;
+  margin: 8px 4px 4px;
+  font-size: 0.9em;
+}
+
+.eval-config select,
+.eval-config input[type="number"] {
+  margin: 0 4px;
+}
+
+.eval-categories {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px;
+}
+
+.eval-category-label {
+  font-weight: normal !important;
+  cursor: pointer;
+}
+
+.eval-actions {
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.eval-warning {
+  color: #c60;
+  display: block;
+  margin: 2px 4px;
+}
+
+.eval-error {
+  color: #c00;
+  font-weight: bold;
+}
+
+/* Progress */
+.eval-progress {
+  margin: 16px 0;
+}
+
+.eval-progress-bar-track {
+  background: #e0e0e0;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.eval-progress-bar-fill {
+  background: #1f8dd6;
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.eval-progress-text {
+  font-size: 0.85em;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Summary */
+.eval-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 8px;
+  background: #f7f7f7;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.eval-summary-item {
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Score colors */
+.eval-score-low {
+  background: #fdd;
+  color: #900;
+}
+
+.eval-score-mid {
+  background: #ffd;
+  color: #860;
+}
+
+.eval-score-high {
+  background: #dfd;
+  color: #060;
+}
+
+.eval-score-na {
+  color: #999;
+}
+
+/* Results grid */
+.eval-results {
+  margin: 16px 0;
+}
+
+.eval-grid {
+  font-size: 0.85em;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.eval-grid-row {
+  display: grid;
+  grid-template-columns: 2fr 80px repeat(6, 56px);
+  gap: 0;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.eval-grid-header {
+  background: #f0f0f0;
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+  cursor: default;
+}
+
+.eval-row {
+  border-bottom: 1px solid #eee;
+}
+
+.eval-row-even > .eval-grid-row {
+  background: #f9f9f9;
+}
+
+.eval-row:last-child {
+  border-bottom: none;
+}
+
+.eval-cell {
+  padding: 2px 4px;
+}
+
+.eval-query {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eval-category {
+  font-size: 0.85em;
+  color: #666;
+}
+
+.eval-score {
+  text-align: center;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.eval-error-msg {
+  grid-column: 3 / -1;
+  color: #c00;
+}
+
+.eval-detail {
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.eval-detail h4 {
+  margin: 12px 0 4px;
+}
+
+.eval-detail h4:first-child {
+  margin-top: 0;
+}
+
+.eval-answer,
+.eval-raw {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 0.9em;
+}
+
+.eval-row-error td {
+  color: #c00;
+}
+
+/* Footer */
+.eval-footer {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.eval-previous {
+  flex: 1;
+}
+
+.eval-previous-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}

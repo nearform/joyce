@@ -25,6 +25,7 @@ export const FEATURES = {
     conversations: params.get("chatConversations") === "true",
   },
   webgpuEmbeddings: params.get("webgpuEmbeddings") === "true",
+  evalLog: params.get("evalLog") === "true",
 };
 
 const BASE_PAGES = [
@@ -42,6 +43,7 @@ const BASE_PAGES = [
 
 const DEV_ONLY_PAGES = [
   { name: "Data", to: "/data-load", icon: "iconoir-cpu" },
+  { name: "Eval", to: "/eval", icon: "iconoir-check-circle" },
 ];
 
 export const TOKEN_CUSHION_CHAT = 512; // 250 ok for web-llm

@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "nf-react-expertise",
+      "query": "What is Nearform's expertise in React?",
+      "category": "technology",
+      "difficulty": "easy",
+      "expectedTopics": ["React", "frontend"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-nodejs-history",
+      "query": "How has Nearform contributed to the Node.js ecosystem?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["Node.js", "open source"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-fastify-framework",
+      "query": "Tell me about Fastify and Nearform's involvement.",
+      "category": "technology",
+      "difficulty": "easy",
+      "expectedTopics": ["Fastify", "performance"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-security-practices",
+      "query": "What does Nearform write about application security?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["security"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-design-sprints",
+      "query": "How does Nearform approach design sprints?",
+      "category": "services",
+      "difficulty": "easy",
+      "expectedTopics": ["design sprint"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-cloud-services",
+      "query": "What cloud platforms and services does Nearform work with?",
+      "category": "services",
+      "difficulty": "medium",
+      "expectedTopics": ["cloud"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-kubernetes-devops",
+      "query": "What has Nearform published about Kubernetes and DevOps?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["Kubernetes"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-react-native",
+      "query": "Does Nearform have experience with React Native mobile development?",
+      "category": "technology",
+      "difficulty": "easy",
+      "expectedTopics": ["React Native", "mobile"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-graphql",
+      "query": "What has Nearform written about GraphQL?",
+      "category": "technology",
+      "difficulty": "easy",
+      "expectedTopics": ["GraphQL"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-testing-practices",
+      "query": "What testing approaches and tools does Nearform recommend?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["testing"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-accessibility",
+      "query": "What does Nearform say about web accessibility?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["accessibility"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-performance-monitoring",
+      "query": "How does Nearform approach Node.js performance monitoring and profiling?",
+      "category": "technology",
+      "difficulty": "hard",
+      "expectedTopics": ["performance", "Node.js"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-pino-logger",
+      "query": "Tell me about the Pino logger.",
+      "category": "technology",
+      "difficulty": "easy",
+      "expectedTopics": ["Pino", "logging"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-case-study-enterprise",
+      "query": "Can you describe an enterprise case study from Nearform?",
+      "category": "case-study",
+      "difficulty": "hard",
+      "expectedTopics": [],
+      "expectedCitations": true,
+      "filters": { "postType": ["work"] }
+    },
+    {
+      "id": "nf-ai-ml",
+      "query": "What has Nearform written about AI and machine learning?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["AI"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-typescript",
+      "query": "What is Nearform's perspective on TypeScript?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["TypeScript"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-microservices",
+      "query": "How does Nearform approach microservices architecture?",
+      "category": "services",
+      "difficulty": "hard",
+      "expectedTopics": ["microservices"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-open-source",
+      "query": "What open source projects has Nearform created or contributed to?",
+      "category": "general",
+      "difficulty": "hard",
+      "expectedTopics": ["open source"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-docker-containers",
+      "query": "What has Nearform published about Docker and containerization?",
+      "category": "technology",
+      "difficulty": "medium",
+      "expectedTopics": ["Docker"],
+      "expectedCitations": true,
+      "filters": {}
+    },
+    {
+      "id": "nf-general-about",
+      "query": "What does Nearform do?",
+      "category": "general",
+      "difficulty": "easy",
+      "expectedTopics": ["Nearform"],
+      "expectedCitations": false,
+      "filters": {}
+    }
+  ]
+}

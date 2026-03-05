@@ -13,6 +13,7 @@ import { Posts } from "../pages/posts.js";
 import { Search } from "../pages/search.js";
 import { Chat } from "../pages/chat.js";
 import { Data } from "../pages/data.js";
+import { Eval } from "../pages/eval.js";
 import { BASE_PATH } from "../../local/data/util.js";
 
 const PAGE_COMPONENTS = {
@@ -22,6 +23,7 @@ const PAGE_COMPONENTS = {
   Settings,
   Chat,
   Data,
+  Eval,
 };
 
 export const Layout = () => {
