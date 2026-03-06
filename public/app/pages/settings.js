@@ -39,25 +39,39 @@ export const Settings = () => {
     <${Page} name="Settings">
       <p>
         Configure application-wide settings and preferences.
-        ${" "}<i
-          className="iconoir-flask"
+        ${" "}<button
+          type="button"
+          aria-label=${
+            pendingSettings.showExperimental
+              ? "Hide experimental settings"
+              : "Show experimental settings"
+          }
           style=${{
+            background: "none",
+            border: "none",
+            padding: 0,
             cursor: "pointer",
             display: "inline-block",
             transition: "transform 0.2s",
             transform: pendingSettings.showExperimental
               ? "rotate(30deg)"
               : "none",
+            fontSize: "inherit",
+            color: "inherit",
           }}
           onClick=${() => {
-            const newSettings = {
+            const newShowExperimental = !pendingSettings.showExperimental;
+            const updatedPendingSettings = {
               ...pendingSettings,
-              showExperimental: !pendingSettings.showExperimental,
+              showExperimental: newShowExperimental,
             };
-            setPendingSettings(newSettings);
-            updateSettings(newSettings);
+            setPendingSettings(updatedPendingSettings);
+            updateSettings({
+              ...settings,
+              showExperimental: newShowExperimental,
+            });
           }}
-        />
+        ><i className="iconoir-flask"></i></button>
       </p>
 
       ${showSuccess && html`<${Alert} type="success">Settings saved successfully!</${Alert}>`}

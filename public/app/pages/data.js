@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
@@ -57,7 +58,7 @@ const getApiStatusBadge = (hasApi, availability) => {
 
 const ResourcesPanel = ({ experimentalChat }) => {
   return html`
-    <div className="tabs-panel">
+    <div className="tabs-panel" role="tabpanel" id="tabpanel-resources" aria-labelledby="tab-resources">
       <p style=${{ color: "var(--color-text-muted)", marginTop: 0 }}>
         Gray circles indicate unloaded resources you can click to load.
       </p>
@@ -116,7 +117,12 @@ const SystemPanel = ({ systemInfo }) => {
         : { label: "Available", className: "status-supported" };
 
   return html`
-    <div className="tabs-panel">
+    <div
+      className="tabs-panel"
+      role="tabpanel"
+      id="tabpanel-system"
+      aria-labelledby="tab-system"
+    >
       <div className="system-info">
         <div className="system-info-row">
           <strong>WebGPU:</strong>
@@ -187,10 +193,10 @@ const ModelsPanel = ({ experimentalChat }) => {
 
   if (!experimentalChat) {
     return html`
-      <div className="tabs-panel">
+      <div className="tabs-panel" role="tabpanel" id="tabpanel-models" aria-labelledby="tab-models">
         <p>
           Enable${" "}<strong>Experimental Chat</strong>${" "}in${" "}
-          <a href="/settings">Settings</a>${" "}to view AI model information.
+          <${Link} to="/settings">Settings</${Link}>${" "}to view AI model information.
         </p>
       </div>
     `;
@@ -204,7 +210,12 @@ const ModelsPanel = ({ experimentalChat }) => {
   const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
 
   return html`
-    <div className="tabs-panel">
+    <div
+      className="tabs-panel"
+      role="tabpanel"
+      id="tabpanel-models"
+      aria-labelledby="tab-models"
+    >
       <h3>Chrome AI</h3>
       <div className="system-info">
         <div className="system-info-row">

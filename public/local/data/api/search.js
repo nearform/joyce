@@ -14,9 +14,8 @@ const MIN_SIMILARITY = 0.8;
 const dateToNumber = (date) => Date.parse(date);
 
 // Embeddings extractor (feature-extraction pipeline)
-// WebGPU is behind ?webgpuEmbeddings=true flag. It helps with batch embedding (e.g., hundreds
-// of documents), but for single query embeddings the GPU transfer overhead negates any compute
-// advantage over WASM.
+// WebGPU is required for web-llm, but optional for transformers.
+// WASM can consume more space, but webgpu isn't as available.
 export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
 
@@ -173,7 +172,7 @@ export const search = async ({
     normalize: true,
   });
   const queryEmbedding = Array.from(queryExtracted.data);
-  queryEmbedding.dispose?.(); // Keep resources free if possible.
+  queryExtracted.dispose?.(); // Keep resources free if possible.
   const embeddingQuery = performance.now() - start;
 
   // Build where clause for filtering
