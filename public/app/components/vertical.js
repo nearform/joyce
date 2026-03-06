@@ -14,6 +14,7 @@ export const VERTICALS_LIST = [
   "none",
 ];
 
+// Make sure at least as long as `VERTICALS_LIST`.
 const VERTICAL_COLORS = [
   "#E74C3C",
   "#2980B9",
