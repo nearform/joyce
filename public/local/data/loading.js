@@ -1,6 +1,8 @@
 /* global performance:false */
 import { getPosts, getPostsEmbeddings } from "./api/posts.js";
 import { getDb, getExtractor } from "./api/search.js";
+import { logMemorySnapshot } from "../../app/diagnostics.js";
+import { FEATURES } from "../../shared-config.js";
 import {
   getLlmEngine,
   setLlmProgressCallback,
@@ -231,6 +233,7 @@ export const startLoading = async (resource) => {
     const result = await get();
     loadedData.set(id, result);
     const elapsed = performance.now() - start;
+    if (FEATURES.memoryDiagnostics) logMemorySnapshot(id);
     setLoadingStatus(id, "loaded", { elapsed });
   } catch (error) {
     const elapsed = performance.now() - start;
@@ -242,10 +245,10 @@ export const startLoading = async (resource) => {
  * Initialize loading system and start default loads
  */
 export const init = () => {
+  if (FEATURES.memoryDiagnostics) logMemorySnapshot("baseline");
   startLoading(RESOURCES.POSTS_DATA);
   startLoading(RESOURCES.POSTS_EMBEDDINGS);
   startLoading(RESOURCES.DB);
-  startLoading(RESOURCES.EXTRACTOR);
 
   // Auto-load LLM models that have autoLoad: true (from all providers)
   ALL_CHAT_MODELS.forEach(({ models }) => {

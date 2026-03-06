@@ -25,6 +25,7 @@ export const FEATURES = {
     conversations: params.get("chatConversations") === "true",
   },
   webgpuEmbeddings: params.get("webgpuEmbeddings") === "true",
+  memoryDiagnostics: params.get("memoryDiagnostics") === "true",
 };
 
 const BASE_PAGES = [
@@ -165,9 +166,9 @@ const config = {
   },
 };
 
-// Default embedding chunk size (uses the MEDIUM size from dataChunkSizes)
+// Default embedding chunk size — LARGE (512) reduces memory ~50% vs MEDIUM (256)
 export const DEFAULT_EMBEDDING_CHUNK_SIZE =
-  config.embeddings.dataChunkSizes.MEDIUM;
+  config.embeddings.dataChunkSizes.LARGE;
 
 export const ALL_PROVIDERS = {
   chrome: "Chrome",

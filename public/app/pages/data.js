@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { useConfig } from "../contexts/config.js";
@@ -10,6 +10,7 @@ import {
   CHROME_HAS_WRITER_API,
   FEATURES,
 } from "../../config.js";
+import { getMemoryInfo, getMemoryTimeline } from "../diagnostics.js";
 import { ModelsTable } from "../../local/app/components/models-table.js";
 import {
   LoadingButton,
@@ -176,6 +177,78 @@ const EmbeddingsInfo = () => {
   `;
 };
 
+const toMB = (bytes) =>
+  bytes != null ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : "N/A";
+
+const MemoryInfo = () => {
+  const [, setTick] = useState(0);
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  const mem = getMemoryInfo();
+  const timeline = getMemoryTimeline();
+  const hasHeap = mem.usedJSHeapSize != null;
+
+  // Also show data structure sizes from loaded resources
+  const postsData = getLoadedData(LOADING.POSTS_DATA);
+  const dbData = getLoadedData(LOADING.DB);
+  const postCount = postsData ? Object.keys(postsData).length : null;
+  const chunkCount = dbData?.chunks?.data?.docs?.count ?? null;
+
+  return html`
+    <div className="system-info">
+      <div className="system-info-row">
+        <strong>Device RAM:</strong> ${mem.deviceMemory != null
+          ? `${mem.deviceMemory} GB`
+          : "N/A"}
+      </div>
+      <div className="system-info-row">
+        <strong>JS Heap Used:</strong> ${hasHeap
+          ? toMB(mem.usedJSHeapSize)
+          : "N/A"}
+        ${hasHeap && html` / ${toMB(mem.totalJSHeapSize)} allocated`}
+        ${hasHeap && html` (limit ${toMB(mem.jsHeapSizeLimit)})`}
+      </div>
+      ${postCount != null &&
+      html`
+        <div className="system-info-row">
+          <strong>Posts:</strong> ${postCount}
+          ${chunkCount != null &&
+          html` | <strong>Chunks:</strong> ${chunkCount}`}
+        </div>
+      `}
+      <div className="system-info-row">
+        <button className="pure-button" onClick=${refresh}>Refresh</button>
+      </div>
+      ${timeline.length > 0 &&
+      html`
+        <details className="system-info-limits">
+          <summary>Memory Timeline (${timeline.length} snapshots)</summary>
+          <table className="limits-table">
+            <thead>
+              <tr>
+                <td><strong>Resource</strong></td>
+                <td><strong>Heap Used</strong></td>
+                <td><strong>Heap Total</strong></td>
+              </tr>
+            </thead>
+            <tbody>
+              ${timeline.map(
+                (s) => html`
+                  <tr key=${s.label + s.timestamp}>
+                    <td>${s.label}</td>
+                    <td>${toMB(s.usedJSHeapSize)}</td>
+                    <td>${toMB(s.totalJSHeapSize)}</td>
+                  </tr>
+                `,
+              )}
+            </tbody>
+          </table>
+        </details>
+      `}
+    </div>
+  `;
+};
+
 export const Data = () => {
   const { systemInfo } = useConfig();
 
@@ -213,6 +286,16 @@ export const Data = () => {
             )
         }
       </div>
+
+      ${
+        FEATURES.memoryDiagnostics &&
+        html`
+          <${Fragment}>
+            <h2 className="content-subhead">Memory</h2>
+            <${MemoryInfo} />
+          </${Fragment}>
+        `
+      }
 
       <h2 className="content-subhead">Models</h2>
 
