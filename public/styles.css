@@ -1284,6 +1284,46 @@ button.loading-status-icon-button {
   border-bottom: none;
 }
 
+/* Tabs Component */
+.tabs-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border-light);
+  margin-bottom: 1em;
+}
+
+.tabs-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.95em;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.tabs-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.tabs-tab-active {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-text-primary);
+  background-color: var(--color-overlay-very-light);
+}
+
+.tabs-panel {
+  padding-top: 0.5em;
+}
+
 /* Models Table Component */
 .models-table-container {
   overflow-x: auto;

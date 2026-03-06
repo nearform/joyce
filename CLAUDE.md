@@ -36,7 +36,7 @@ There is no test framework configured.
 
 All runtime deps come from CDN (cdn.jsdelivr.net) via an import map in `public/index.html`. No `node_modules` at runtime. Import map entries must be fully version-pinned (e.g., `htm@3.1.1`, not `htm@^3`). Use the `/+esm` suffix for ESM delivery. When adding a React-dependent package, fetch its jsdelivr +esm bundle, check what React version it internally imports, and add URL-based remapping entries if the version differs from our pinned version.
 
-Key libraries: React 19, React Router 7, HTM (JSX-like templates without build), Orama (browser search engine), @huggingface/transformers, @mlc-ai/web-llm, Pure CSS 2.0.
+Key libraries: React 19, React Router 7, HTM (JSX-like templates without build), Orama (browser search engine), @xenova/transformers, @mlc-ai/web-llm, Pure CSS 2.0.
 
 ### HTM Templating
 

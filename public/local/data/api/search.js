@@ -1,6 +1,6 @@
 /* global navigator:false,performance:false */
 import { create, insertMultiple, search as oramaSearch } from "@orama/orama";
-import { pipeline } from "@huggingface/transformers";
+import { pipeline } from "@xenova/transformers";
 
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
@@ -34,7 +34,7 @@ export const getExtractor = getAndCache(async () => {
     const extractor = await pipeline(
       "feature-extraction",
       model,
-      device ? { device, dtype: "fp32" } : undefined,
+      device ? { device } : undefined,
     );
     extractor._device = device ?? "wasm";
     return extractor;
@@ -173,6 +173,7 @@ export const search = async ({
     normalize: true,
   });
   const queryEmbedding = Array.from(queryExtracted.data);
+  queryEmbedding.dispose?.(); // Keep resources free if possible.
   const embeddingQuery = performance.now() - start;
 
   // Build where clause for filtering
