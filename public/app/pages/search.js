@@ -7,6 +7,7 @@ import {
   PostMinDate,
   PostTypeSelect,
   PostCategoryPrimarySelect,
+  PostVerticalPrimarySelect,
   QueryField,
 } from "../components/forms.js";
 import {
@@ -29,6 +30,7 @@ export const Search = () => {
   const [searchData, setSearchData] = useState(null);
   const [posts, setPosts] = useState(null);
   const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
   const [selectedPostTypes, setSelectedPostTypes] = useState([]);
   const [isFetching, setIsFetching] = useState(false);
   const [err, setErr] = useState(null);
@@ -54,6 +56,7 @@ export const Search = () => {
 
     const postType = selectedPostTypes.map(({ value }) => value);
     const categoryPrimary = selectedCategoryPrimary.map(({ value }) => value);
+    const verticalPrimary = selectedVerticalPrimary.map(({ value }) => value);
 
     try {
       const searchResults = await search({
@@ -61,6 +64,7 @@ export const Search = () => {
         postType,
         minDate,
         categoryPrimary,
+        verticalPrimary,
         withContent: true,
       });
       const { posts, chunks, metadata } = searchResults;
@@ -93,6 +97,10 @@ export const Search = () => {
         <${PostCategoryPrimarySelect}
           selected=${selectedCategoryPrimary}
           setSelected=${setSelectedCategoryPrimary}
+        />
+        <${PostVerticalPrimarySelect}
+          selected=${selectedVerticalPrimary}
+          setSelected=${setSelectedVerticalPrimary}
         />
         <${PostMinDate} value=${minDate} setValue=${setMinDate} />
       </${Form}>

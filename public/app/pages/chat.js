@@ -9,6 +9,7 @@ import {
   PostMinDateDropdown,
   PostTypeSelectDropdown,
   PostCategoryPrimarySelectDropdown,
+  PostVerticalPrimarySelectDropdown,
   QueryField,
   ChatInputForm,
 } from "../components/forms.js";
@@ -88,6 +89,9 @@ const DescriptionButton = () => {
           <i className="iconoir-list-select"></i> <strong>Categories</strong>: Filter content by selecting specific categories to narrow down the posts used for generating responses.
         </li>
         <li>
+          <i className="iconoir-building"></i> <strong>Verticals</strong>: Filter content by selecting specific industry verticals (health, finance, retail, etc.) to narrow down the posts used for generating responses.
+        </li>
+        <li>
           <i className="iconoir-calendar"></i> <strong>Date</strong>: Filter content to only include posts published on or after the selected date.
         </li>
         <li>
@@ -116,6 +120,7 @@ export const Chat = () => {
   // Form state
   const [selectedPostTypes, setSelectedPostTypes] = useState([]);
   const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
   const [modelObj, setModelObj] = useState(DEFAULT_CHAT_MODEL);
   const [temperature, setTemperature] = useState(DEFAULT_TEMPERATURE);
   const [minDate, setMinDate] = useState("");
@@ -158,6 +163,7 @@ export const Chat = () => {
     minDate,
     selectedPostTypes,
     selectedCategoryPrimary,
+    selectedVerticalPrimary,
     isModelLoaded,
     startLoading,
     getError,
@@ -230,6 +236,11 @@ export const Chat = () => {
         <${PostCategoryPrimarySelectDropdown}
           selected=${selectedCategoryPrimary}
           setSelected=${setSelectedCategoryPrimary}
+          disabled=${formInputsLocked}
+        />
+        <${PostVerticalPrimarySelectDropdown}
+          selected=${selectedVerticalPrimary}
+          setSelected=${setSelectedVerticalPrimary}
           disabled=${formInputsLocked}
         />
         <${PostMinDateDropdown}

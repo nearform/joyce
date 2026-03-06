@@ -307,7 +307,8 @@ table.pure-table-bordered tr:first-child th:last-child {
   cursor: pointer;
 }
 /* Base Label Styles */
-.ui-category-label {
+.ui-category-label,
+.ui-vertical-label {
   display: inline-block;
   padding: 1px 4px;
   border: 2px solid rgb(var(--label-color, 0, 0, 0));
@@ -321,7 +322,8 @@ table.pure-table-bordered tr:first-child th:last-child {
     background-color 0.3s ease,
     border-color 0.3s ease;
 }
-.ui-category-label:hover {
+.ui-category-label:hover,
+.ui-vertical-label:hover {
   background-color: rgba(var(--label-color, 0, 0, 0), 0.2);
   border-color: rgb(var(--label-color, 0, 0, 0));
 }

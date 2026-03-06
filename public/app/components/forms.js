@@ -2,6 +2,7 @@
 import Select from "react-select";
 import { html } from "../util/html.js";
 import { CATEGORIES_LIST } from "./category.js";
+import { VERTICALS_LIST } from "./vertical.js";
 import {
   ALL_CHAT_MODELS,
   DEFAULT_CHAT_MODEL,
@@ -21,6 +22,11 @@ import { formatInt } from "../../shared-util.js";
 const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
   label: category,
   value: category,
+}));
+
+const VERTICAL_OPTIONS = VERTICALS_LIST.map((vertical) => ({
+  label: vertical,
+  value: vertical,
 }));
 
 const POST_TYPE_OPTIONS = [
@@ -288,6 +294,56 @@ export const PostCategoryPrimarySelectDropdown = ({
       <${PostCategoryPrimarySelect}
         selected=${selected}
         setSelected=${handleCategoryChange}
+        menuPlacement="top"
+      />
+    </${DropdownWrapper}>
+  `;
+};
+
+export const PostVerticalPrimarySelect = ({
+  selected,
+  setSelected,
+  menuPlacement = "auto",
+}) => html`
+  <label htmlFor="verticalPrimary" style=${{ whiteSpace: "nowrap" }}>
+    <div className="form-multi-select">
+      <${Select}
+        id="verticalPrimary"
+        placeholder="Verticals..."
+        isMulti=${true}
+        menuPlacement=${menuPlacement}
+        options=${VERTICAL_OPTIONS}
+        value=${selected}
+        onChange=${setSelected}
+      />
+    </div>
+  </label>
+`;
+
+export const PostVerticalPrimarySelectDropdown = ({
+  hidden,
+  selected = [],
+  setSelected,
+  disabled = false,
+}) => {
+  const [hasChanged, setHasChanged] = useState(false);
+
+  const handleVerticalChange = (selectedOptions) => {
+    setSelected(selectedOptions);
+    setHasChanged(selectedOptions.length > 0);
+  };
+
+  return html`
+    <${DropdownWrapper}
+      icon="iconoir-building"
+      iconTitle=${disabled ? "Verticals (locked)" : "Industry Verticals"}
+      isChanged=${hasChanged}
+      hidden=${hidden}
+      disabled=${disabled}
+    >
+      <${PostVerticalPrimarySelect}
+        selected=${selected}
+        setSelected=${handleVerticalChange}
         menuPlacement="top"
       />
     </${DropdownWrapper}>
