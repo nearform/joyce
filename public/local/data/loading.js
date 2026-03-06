@@ -1,7 +1,8 @@
 /* global performance:false */
 import { getPosts, getPostsEmbeddings } from "./api/posts.js";
 import { getDb, getExtractor } from "./api/search.js";
-import { logMemorySnapshot } from "../../app/diagnostics.js";
+import { logMemorySnapshot, initDiagnostics } from "../../app/diagnostics.js";
+import { recordMilestone, recordDataSizes } from "../../app/crash-detector.js";
 import { FEATURES } from "../../shared-config.js";
 import {
   getLlmEngine,
@@ -233,10 +234,16 @@ export const startLoading = async (resource) => {
     const result = await get();
     loadedData.set(id, result);
     const elapsed = performance.now() - start;
-    if (FEATURES.memoryDiagnostics) logMemorySnapshot(id);
+    if (FEATURES.memoryDiagnostics) {
+      logMemorySnapshot(id);
+      recordMilestone({ resource: id, status: "loaded", elapsed });
+    }
     setLoadingStatus(id, "loaded", { elapsed });
   } catch (error) {
     const elapsed = performance.now() - start;
+    if (FEATURES.memoryDiagnostics) {
+      recordMilestone({ resource: id, status: "error", elapsed });
+    }
     setLoadingStatus(id, "error", { error, elapsed });
   }
 };
@@ -245,10 +252,27 @@ export const startLoading = async (resource) => {
  * Initialize loading system and start default loads
  */
 export const init = () => {
-  if (FEATURES.memoryDiagnostics) logMemorySnapshot("baseline");
+  if (FEATURES.memoryDiagnostics) {
+    initDiagnostics();
+    logMemorySnapshot("baseline");
+  }
   startLoading(RESOURCES.POSTS_DATA);
   startLoading(RESOURCES.POSTS_EMBEDDINGS);
   startLoading(RESOURCES.DB);
+
+  // Record data sizes for crash diagnostics once DB is loaded
+  if (FEATURES.memoryDiagnostics) {
+    subscribeLoadingStatus(RESOURCES.DB.id, (status) => {
+      if (status === "loaded") {
+        const posts = loadedData.get(RESOURCES.POSTS_DATA.id);
+        const db = loadedData.get(RESOURCES.DB.id);
+        recordDataSizes({
+          postCount: posts ? Object.keys(posts).length : 0,
+          chunkCount: db?.chunks?.data?.docs?.count ?? 0,
+        });
+      }
+    });
+  }
 
   // Auto-load LLM models that have autoLoad: true (from all providers)
   ALL_CHAT_MODELS.forEach(({ models }) => {

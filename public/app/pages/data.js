@@ -10,7 +10,12 @@ import {
   CHROME_HAS_WRITER_API,
   FEATURES,
 } from "../../config.js";
-import { getMemoryInfo, getMemoryTimeline } from "../diagnostics.js";
+import {
+  getMemoryInfo,
+  getMemoryTimeline,
+  getLastCrash,
+  clearLastCrash,
+} from "../diagnostics.js";
 import { ModelsTable } from "../../local/app/components/models-table.js";
 import {
   LoadingButton,
@@ -249,6 +254,123 @@ const MemoryInfo = () => {
   `;
 };
 
+const formatTime = (ts) => {
+  if (!ts) return "N/A";
+  return new Date(ts).toLocaleString();
+};
+
+const CrashInfo = () => {
+  const [crash, setCrash] = useState(() => getLastCrash());
+
+  if (!crash)
+    return html`
+      <div className="system-info">
+        <div className="system-info-row">
+          <span className="status-badge status-supported">No Crashes</span>
+          No previous crash detected.
+        </div>
+      </div>
+    `;
+
+  const lastMilestone = crash.milestones?.length
+    ? crash.milestones[crash.milestones.length - 1]
+    : null;
+
+  const dismiss = () => {
+    clearLastCrash();
+    setCrash(null);
+  };
+
+  return html`
+    <div className="system-info" style=${{ borderLeft: "3px solid #c0392b" }}>
+      <div className="system-info-row">
+        <span className="status-badge status-unsupported">Crash Detected</span>
+        <button className="pure-button" onClick=${dismiss}>Dismiss</button>
+      </div>
+      <div className="system-info-row">
+        <strong>Session:</strong> ${formatTime(crash.startedAt)}
+      </div>
+      <div className="system-info-row">
+        <strong>Platform:</strong> ${crash.platform || "N/A"} ${" | "}
+        <strong>Device Memory:</strong> ${crash.deviceMemory != null
+          ? `${crash.deviceMemory} GB`
+          : "N/A"}
+        ${" | "} <strong>Cores:</strong> ${crash.hardwareConcurrency ?? "N/A"}
+      </div>
+      ${lastMilestone &&
+      html`
+        <div className="system-info-row">
+          <strong>Last milestone:</strong> ${lastMilestone.resource}
+          (${lastMilestone.status})
+          ${lastMilestone.elapsed != null &&
+          html` — ${lastMilestone.elapsed}ms`}
+        </div>
+      `}
+      ${crash.dataSizes &&
+      html`
+        <div className="system-info-row">
+          <strong>Posts:</strong> ${crash.dataSizes.postCount} ${" | "}
+          <strong>Chunks:</strong> ${crash.dataSizes.chunkCount}
+        </div>
+      `}
+      ${crash.errors?.length > 0 &&
+      html`
+        <details className="system-info-limits">
+          <summary>Errors (${crash.errors.length})</summary>
+          <table className="limits-table">
+            <thead>
+              <tr>
+                <td><strong>Source</strong></td>
+                <td><strong>Message</strong></td>
+              </tr>
+            </thead>
+            <tbody>
+              ${crash.errors.map(
+                (e, i) => html`
+                  <tr key=${i}>
+                    <td>
+                      ${e.source || "N/A"}${e.lineno != null
+                        ? `:${e.lineno}`
+                        : ""}
+                    </td>
+                    <td>${e.message}</td>
+                  </tr>
+                `,
+              )}
+            </tbody>
+          </table>
+        </details>
+      `}
+      ${crash.milestones?.length > 0 &&
+      html`
+        <details className="system-info-limits">
+          <summary>Milestones (${crash.milestones.length})</summary>
+          <table className="limits-table">
+            <thead>
+              <tr>
+                <td><strong>Resource</strong></td>
+                <td><strong>Status</strong></td>
+                <td><strong>Elapsed</strong></td>
+              </tr>
+            </thead>
+            <tbody>
+              ${crash.milestones.map(
+                (m, i) => html`
+                  <tr key=${i}>
+                    <td>${m.resource}</td>
+                    <td>${m.status}</td>
+                    <td>${m.elapsed != null ? `${m.elapsed}ms` : "N/A"}</td>
+                  </tr>
+                `,
+              )}
+            </tbody>
+          </table>
+        </details>
+      `}
+    </div>
+  `;
+};
+
 export const Data = () => {
   const { systemInfo } = useConfig();
 
@@ -291,6 +413,8 @@ export const Data = () => {
         FEATURES.memoryDiagnostics &&
         html`
           <${Fragment}>
+            <h2 className="content-subhead">Crash Detection</h2>
+            <${CrashInfo} />
             <h2 className="content-subhead">Memory</h2>
             <${MemoryInfo} />
           </${Fragment}>

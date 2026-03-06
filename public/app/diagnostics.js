@@ -1,4 +1,13 @@
-/* global performance:false, navigator:false, console:false */
+/* global performance:false, navigator:false, console:false, window:false */
+
+import {
+  initCrashDetection,
+  recordError,
+  getLastCrash,
+  clearLastCrash,
+} from "./crash-detector.js";
+
+export { getLastCrash, clearLastCrash };
 
 const RING_BUFFER_SIZE = 30;
 const timeline = [];
@@ -51,3 +60,23 @@ export const logMemorySnapshot = (label) => {
  * @returns {Array<{ label: string, timestamp: number, usedJSHeapSize: number|null, totalJSHeapSize: number|null, jsHeapSizeLimit: number|null, deviceMemory: number|null }>}
  */
 export const getMemoryTimeline = () => [...timeline];
+
+/**
+ * Initialize all diagnostics: crash detection + global error capture.
+ * @returns {{ previousCrash: object|null }}
+ */
+export const initDiagnostics = () => {
+  const result = initCrashDetection();
+  window.addEventListener("error", (e) => {
+    recordError({
+      message: e.message,
+      source: e.filename,
+      lineno: e.lineno,
+      colno: e.colno,
+    });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    recordError({ message: String(e.reason), source: "unhandledrejection" });
+  });
+  return result;
+};
