@@ -8,8 +8,8 @@ import {
   CHROME_ANY_API_POSSIBLE,
   CHROME_HAS_PROMPT_API,
   CHROME_HAS_WRITER_API,
-  FEATURES,
 } from "../../config.js";
+import { useSettings } from "../hooks/use-settings.js";
 import { ModelsTable } from "../../local/app/components/models-table.js";
 import {
   LoadingButton,
@@ -177,6 +177,7 @@ const EmbeddingsInfo = () => {
 };
 
 export const Data = () => {
+  const [settings] = useSettings();
   const { systemInfo } = useConfig();
 
   return html`
@@ -201,7 +202,7 @@ export const Data = () => {
           <strong>Extractor</strong>: embeddings extraction model
         </${LoadingButton}>
         ${
-          FEATURES.chat.enabled &&
+          settings.experimentalChat &&
           Object.keys(LOADING)
             .filter((key) => key.startsWith("LLM_"))
             .map(
@@ -220,7 +221,7 @@ export const Data = () => {
       <${EmbeddingsInfo} />
 
       ${
-        FEATURES.chat.enabled &&
+        settings.experimentalChat &&
         html`
           <${Fragment}>
             <h3>Google Chrome Built-in AI</h3>

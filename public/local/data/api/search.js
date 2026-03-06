@@ -4,7 +4,7 @@ import { pipeline } from "@huggingface/transformers";
 
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
-import { FEATURES } from "../../../shared-config.js";
+import { getSettings } from "../../../app/hooks/use-settings.js";
 import { dequantizeEmbedding } from "../embeddings.js";
 import { getPosts, getPostsEmbeddings } from "./posts.js";
 
@@ -21,7 +21,7 @@ export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
 
   let device = null;
-  if (FEATURES.webgpuEmbeddings && "gpu" in navigator) {
+  if (getSettings().experimentalWebgpuEmbeddings && "gpu" in navigator) {
     try {
       const adapter = await navigator.gpu.requestAdapter();
       if (adapter) device = "webgpu";

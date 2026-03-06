@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getElements, getQuerySetter } from "../util/html.js";
 import { createChatSession, getProviderCapabilities } from "../data/index.js";
-import { FEATURES } from "../../config.js";
 import { isContextExceededError } from "../components/context-messages.js";
 import { buildQueryInfo } from "../util/query-info-builder.js";
 
@@ -23,6 +22,7 @@ const setQueryValue = getQuerySetter("query");
  * @param {boolean} options.isModelLoaded - Whether the current model is loaded
  * @param {Function} options.startLoading - Callback to start model loading
  * @param {Function} options.getError - Callback to get model loading error
+ * @param {boolean} options.conversationsEnabled - Whether multi-turn conversations are enabled
  * @returns {Object} Chat session state and handlers
  */
 export const useChatSession = ({
@@ -37,6 +37,7 @@ export const useChatSession = ({
   getError,
   modelResourceId,
   modelStatus,
+  conversationsEnabled: conversationsEnabledSetting,
 }) => {
   // ============================================================================
   // State Management
@@ -82,9 +83,9 @@ export const useChatSession = ({
   const sessionModel = chatSessionRef.current?.getModel();
   const modelChanged = sessionModel && sessionModel.model !== modelObj.model;
 
-  // Conversations enabled if: feature flag + model supports + model unchanged
+  // Conversations enabled if: setting + model supports + model unchanged
   const conversationsEnabled =
-    FEATURES.chat.conversations && modelSupportsMultiTurn && !modelChanged;
+    conversationsEnabledSetting && modelSupportsMultiTurn && !modelChanged;
 
   // Form inputs locked when conversation active AND conversations enabled
   const formInputsLocked = isConversationActive && conversationsEnabled;

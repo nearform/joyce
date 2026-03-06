@@ -14,13 +14,18 @@ const DEFAULT_SETTINGS = {
   // Remote-specific settings (included for compatibility, not shown in UI)
   displayAnalytics: false,
   featureOpenAIToolEnabled: false,
+  showExperimental: false,
+  // Experimental settings
+  experimentalChat: false,
+  experimentalChatConversations: false,
+  experimentalWebgpuEmbeddings: false,
 };
 
 /**
  * Get settings from localStorage with defaults
  * @returns {Object} Settings object
  */
-function getSettings() {
+export function getSettings() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) {

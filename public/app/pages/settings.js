@@ -32,12 +32,33 @@ export const Settings = () => {
       [settingKey]: event.target.checked,
     };
     setPendingSettings(newSettings);
-    setHasChanges(newSettings[settingKey] !== settings[settingKey]);
+    setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(settings));
   };
 
   return html`
     <${Page} name="Settings">
-      <p>Configure application-wide settings and preferences.</p>
+      <p>
+        Configure application-wide settings and preferences.
+        ${" "}<i
+          className="iconoir-flask"
+          style=${{
+            cursor: "pointer",
+            display: "inline-block",
+            transition: "transform 0.2s",
+            transform: pendingSettings.showExperimental
+              ? "rotate(30deg)"
+              : "none",
+          }}
+          onClick=${() => {
+            const newSettings = {
+              ...pendingSettings,
+              showExperimental: !pendingSettings.showExperimental,
+            };
+            setPendingSettings(newSettings);
+            updateSettings(newSettings);
+          }}
+        />
+      </p>
 
       ${showSuccess && html`<${Alert} type="success">Settings saved successfully!</${Alert}>`}
 
@@ -65,6 +86,44 @@ export const Settings = () => {
           >
             Show model token limits and info in the UI.
           </${Checkbox}>
+
+          ${
+            pendingSettings.showExperimental &&
+            html`
+              <legend>Experimental</legend>
+
+              <h4>Chat</h4>
+
+              <${Checkbox}
+                id="experimental-chat"
+                label="Enable Chat"
+                checked=${pendingSettings.experimentalChat}
+                onChange=${handleSettingChange("experimentalChat")}
+              >
+                Enable the Chat page for AI-generated answers using RAG.
+              </${Checkbox}>
+
+              <${Checkbox}
+                id="experimental-chat-conversations"
+                label="Enable Conversations"
+                checked=${pendingSettings.experimentalChatConversations}
+                onChange=${handleSettingChange("experimentalChatConversations")}
+              >
+                Enable multi-turn conversations in Chat.
+              </${Checkbox}>
+
+              <h4>Embeddings</h4>
+
+              <${Checkbox}
+                id="experimental-webgpu-embeddings"
+                label="WebGPU Embeddings"
+                checked=${pendingSettings.experimentalWebgpuEmbeddings}
+                onChange=${handleSettingChange("experimentalWebgpuEmbeddings")}
+              >
+                Use WebGPU for embeddings extraction when available.
+              </${Checkbox}>
+            `
+          }
         </fieldset>
       </${Form}>
     </${Page}>

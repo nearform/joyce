@@ -37,10 +37,12 @@ export const Layout = () => {
   const allPages = settings.isDeveloperMode
     ? config.pages.all
     : config.pages.simple;
-  const pages = allPages.map((page) => ({
-    ...page,
-    Component: PAGE_COMPONENTS[page.name],
-  }));
+  const pages = allPages
+    .filter((page) => page.name !== "Chat" || settings.experimentalChat)
+    .map((page) => ({
+      ...page,
+      Component: PAGE_COMPONENTS[page.name],
+    }));
 
   return html`
     <div id="layout" key="layout" className="${active ? "active" : ""}">
