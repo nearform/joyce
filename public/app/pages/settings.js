@@ -76,17 +76,6 @@ export const Settings = () => {
             temperature, etc.).
           </${Checkbox}>
 
-          <legend>Information</legend>
-
-          <${Checkbox}
-            id="display-model-stats"
-            label="Display Model Stats"
-            checked=${pendingSettings.displayModelStats}
-            onChange=${handleSettingChange("displayModelStats")}
-          >
-            Show model token limits and info in the UI.
-          </${Checkbox}>
-
           ${
             pendingSettings.showExperimental &&
             html`
@@ -110,6 +99,15 @@ export const Settings = () => {
                 onChange=${handleSettingChange("experimentalChatConversations")}
               >
                 Enable multi-turn conversations in Chat.
+              </${Checkbox}>
+
+              <${Checkbox}
+                id="display-model-stats"
+                label="Display Model Stats"
+                checked=${pendingSettings.displayModelStats}
+                onChange=${handleSettingChange("displayModelStats")}
+              >
+                Show model token limits and info in the UI.
               </${Checkbox}>
 
               <h4>Embeddings</h4>
