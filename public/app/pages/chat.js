@@ -1,7 +1,7 @@
 import { useState } from "react";
 
+import { Link } from "react-router";
 import { html } from "../util/html.js";
-import { PersistentLink as Link } from "../components/persistent-link.js";
 import { Page } from "../components/page.js";
 import {
   ModelChatSelectDropdown,
@@ -169,6 +169,7 @@ export const Chat = () => {
     getError,
     modelResourceId,
     modelStatus,
+    conversationsEnabled: settings.experimentalChatConversations,
   });
 
   return html`

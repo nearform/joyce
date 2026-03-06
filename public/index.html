@@ -57,25 +57,29 @@
       })();
     </script>
 
-    <!-- TODO(FRONTEND): REMOVE `?dev` mode -->
+    <!-- Note: @xenova/transformers@2.17.2 is UMD and breaks with '+esm' added. -->
     <script type="importmap">
       {
         "imports": {
-          "@mlc-ai/web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.80/+esm",
-          "@orama/orama": "https://esm.sh/@orama/orama@3.1.18?dev",
-          "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1",
-          "dompurify": "https://esm.sh/dompurify@3.3.1?dev",
-          "file-saver": "https://esm.sh/file-saver@2.0.5?dev",
-          "htm": "https://esm.sh/htm@3.1.1?dev&external=react,react-dom",
-          "llm-splitter": "https://esm.sh/llm-splitter@0.2.0?dev",
-          "marked": "https://esm.sh/marked@17.0.1?dev",
-          "react": "https://esm.sh/react@19.2.3?dev&external=react,react-dom",
-          "react/jsx-runtime": "https://esm.sh/react@19.2.3/jsx-runtime?dev&external=react,react-dom",
-          "react-dom": "https://esm.sh/react-dom@19.2.3?dev&external=react,react-dom",
-          "react-dom/client": "https://esm.sh/react-dom@19.2.3/client?dev&external=react,react-dom",
-          "react-is": "https://esm.sh/react-is@19.2.3?dev&external=react,react-dom",
-          "react-select": "https://esm.sh/react-select@5.10.2?dev&external=react,react-dom",
-          "react-router": "https://esm.sh/react-router@7.11.0?dev&external=react,react-dom"
+          "@mlc-ai/web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.81/+esm",
+          "@orama/orama": "https://cdn.jsdelivr.net/npm/@orama/orama@3.1.18/+esm",
+          "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2",
+          "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.3.1/+esm",
+          "file-saver": "https://cdn.jsdelivr.net/npm/file-saver@2.0.5/+esm",
+          "htm": "https://cdn.jsdelivr.net/npm/htm@3.1.1/+esm",
+          "llm-splitter": "https://cdn.jsdelivr.net/npm/llm-splitter@0.2.0/+esm",
+          "marked": "https://cdn.jsdelivr.net/npm/marked@17.0.1/+esm",
+          "react": "https://cdn.jsdelivr.net/npm/react@19.2.3/+esm",
+          "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@19.2.3/jsx-runtime/+esm",
+          "react-dom": "https://cdn.jsdelivr.net/npm/react-dom@19.2.3/+esm",
+          "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@19.2.3/client/+esm",
+          "react-is": "https://cdn.jsdelivr.net/npm/react-is@19.2.3/+esm",
+          "react-select": "https://cdn.jsdelivr.net/npm/react-select@5.10.2/+esm",
+          "react-router": "https://cdn.jsdelivr.net/npm/react-router@7.11.0/+esm",
+
+          "https://cdn.jsdelivr.net/npm/react@19.0.0/": "https://cdn.jsdelivr.net/npm/react@19.2.3/",
+          "https://cdn.jsdelivr.net/npm/react@19.1.0/": "https://cdn.jsdelivr.net/npm/react@19.2.3/",
+          "https://cdn.jsdelivr.net/npm/react-dom@19.1.0/": "https://cdn.jsdelivr.net/npm/react-dom@19.2.3/"
         }
       }
     </script>

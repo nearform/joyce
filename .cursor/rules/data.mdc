@@ -30,7 +30,7 @@ Two databases are created at runtime:
 
 ## Embeddings
 
-Query embeddings are generated using [@huggingface/transformers](https://huggingface.co/docs/transformers.js) with the `Xenova/gte-small` model (384 dimensions, max 512 tokens).
+Query embeddings are generated using [@xenova/transformers](https://github.com/xenova/transformers.js) with the `Xenova/gte-small` model (384 dimensions, max 512 tokens).
 
 ## Loading System
 

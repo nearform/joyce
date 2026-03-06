@@ -1,4 +1,3 @@
-/* global URLSearchParams:false */
 /**
  * Shared client configuration. (No secrets, Node.js compatible).
  */
@@ -14,31 +13,13 @@ export const CHROME_ANY_API_POSSIBLE =
 
 export const CHROME_DEFAULT_TOP_K = 40;
 
-let params = { get: () => undefined };
-if (globalThis.location?.search) {
-  params = new URLSearchParams(globalThis.location.search);
-}
-
-export const FEATURES = {
-  chat: {
-    enabled: params.get("chatEnabled") === "true",
-    conversations: params.get("chatConversations") === "true",
-  },
-  webgpuEmbeddings: params.get("webgpuEmbeddings") === "true",
-};
-
 const BASE_PAGES = [
   { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-home-simple" },
   { name: "Posts", to: "/posts", icon: "iconoir-multiple-pages-empty" },
   { name: "Search", to: "/search", icon: "iconoir-doc-magnifying-glass-in" },
-  {
-    name: "Chat",
-    to: "/chat",
-    icon: "iconoir-chat-bubble",
-    enabled: FEATURES.chat.enabled,
-  },
+  { name: "Chat", to: "/chat", icon: "iconoir-chat-bubble" },
   { name: "Settings", to: "/settings", icon: "iconoir-tools" },
-].filter(({ enabled }) => enabled !== false);
+];
 
 const DEV_ONLY_PAGES = [
   { name: "Data", to: "/data-load", icon: "iconoir-cpu" },

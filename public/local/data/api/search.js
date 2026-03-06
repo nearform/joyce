@@ -1,10 +1,10 @@
 /* global navigator:false,performance:false */
 import { create, insertMultiple, search as oramaSearch } from "@orama/orama";
-import { pipeline } from "@huggingface/transformers";
+import { pipeline } from "@xenova/transformers";
 
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
-import { FEATURES } from "../../../shared-config.js";
+import { getSettings } from "../../../app/hooks/use-settings.js";
 import { dequantizeEmbedding } from "../embeddings.js";
 import { getPosts, getPostsEmbeddings } from "./posts.js";
 
@@ -14,14 +14,13 @@ const MIN_SIMILARITY = 0.8;
 const dateToNumber = (date) => Date.parse(date);
 
 // Embeddings extractor (feature-extraction pipeline)
-// WebGPU is behind ?webgpuEmbeddings=true flag. It helps with batch embedding (e.g., hundreds
-// of documents), but for single query embeddings the GPU transfer overhead negates any compute
-// advantage over WASM.
+// WebGPU is required for web-llm, but optional for transformers.
+// WASM can consume more space, but webgpu isn't as available.
 export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
 
   let device = null;
-  if (FEATURES.webgpuEmbeddings && "gpu" in navigator) {
+  if (getSettings().experimentalWebgpuEmbeddings && "gpu" in navigator) {
     try {
       const adapter = await navigator.gpu.requestAdapter();
       if (adapter) device = "webgpu";
@@ -34,7 +33,7 @@ export const getExtractor = getAndCache(async () => {
     const extractor = await pipeline(
       "feature-extraction",
       model,
-      device ? { device, dtype: "fp32" } : undefined,
+      device ? { device } : undefined,
     );
     extractor._device = device ?? "wasm";
     return extractor;
@@ -173,6 +172,7 @@ export const search = async ({
     normalize: true,
   });
   const queryEmbedding = Array.from(queryExtracted.data);
+  queryExtracted.dispose?.(); // Keep resources free if possible.
   const embeddingQuery = performance.now() - start;
 
   // Build where clause for filtering

@@ -15,13 +15,13 @@ The frontend of this project uses modern web development without build tools. Al
 ### Import/Export Usage
 - Use ES6 `import`/`export` syntax exclusively
 - Use relative paths for local modules: `./foo/bar.js`
-- Use absolute paths for external CDN modules: `https://esm.sh/...`
+- Use absolute paths for external CDN modules: `https://cdn.jsdelivr.net/npm/.../+esm`
 - Avoid bundling or transpilation
 
 ## Import Maps
-- For frontend code, use an `importmap` with `esm.sh` as the provider.
-- Add `?external=react,react-dom` to packages depending on either.
-- Check full package path at `esm.sh` before adding field entry.
+- For frontend code, use an `importmap` with `cdn.jsdelivr.net` as the provider using the `/+esm` suffix.
+- When adding a React-dependent package, check what React version its jsdelivr +esm bundle internally imports, and add URL-based prefix remapping entries (trailing-slash) if the version differs from our pinned version.
+- Check the package on jsdelivr before adding an import map entry.
 - Add fully version pinned modules.
     - YES `htm@3.1.1`
     - NO `htm`
@@ -31,7 +31,7 @@ The frontend of this project uses modern web development without build tools. Al
 <script type="importmap">
   {
     "imports": {
-        "htm": "https://esm.sh/htm@3.1.1?external=react,react-dom",
+        "htm": "https://cdn.jsdelivr.net/npm/htm@3.1.1/+esm",
         // ... other dependencies
     }
   }
@@ -145,5 +145,5 @@ html`<p>
 
 ### External Libraries
 - Use bare specifiers for all libraries (`"react"`, etc.) and then `importmap` entries to bring in.
-- Prefer ESM-compatible versions when available, but `esm.sh` handles for you.
+- Prefer ESM-compatible versions when available, but jsdelivr `/+esm` handles for you.
 - Use specific versions to ensure stability

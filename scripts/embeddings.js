@@ -34,7 +34,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { parseArgs } from "node:util";
-import { pipeline, AutoTokenizer } from "@huggingface/transformers";
+import { pipeline, AutoTokenizer } from "@xenova/transformers";
 import { split } from "llm-splitter";
 import config, { TOKEN_CUSHION_EMBEDDINGS } from "../public/shared-config.js";
 import {
@@ -450,24 +450,32 @@ const main = async () => {
           `\n${sizeName} (chunkSize=${chunkSize}): ${newSlugs.size} new, ${removedSlugs.size} removed, ${unchangedCount} unchanged.`,
         );
 
-        // Build filtered posts object with only new slugs
-        const newPosts = {};
-        for (const slug of newSlugs) {
-          newPosts[slug] = posts[slug];
-        }
+        if (newSlugs.size === 0) {
+          // Removal only — no need to load the model or generate embeddings
+          result = { ...existing };
+          for (const slug of removedSlugs) {
+            delete result[slug];
+          }
+        } else {
+          // Build filtered posts object with only new slugs
+          const newPosts = {};
+          for (const slug of newSlugs) {
+            newPosts[slug] = posts[slug];
+          }
 
-        ({ result, tokenCounts, postStats, quantizationStats } =
-          await generateEmbeddingsForSize(
-            newPosts,
-            getExtractor,
-            chunkSize,
-            sizeName,
-          ));
+          ({ result, tokenCounts, postStats, quantizationStats } =
+            await generateEmbeddingsForSize(
+              newPosts,
+              getExtractor,
+              chunkSize,
+              sizeName,
+            ));
 
-        // Merge: existing + new, then prune removed
-        result = { ...existing, ...result };
-        for (const slug of removedSlugs) {
-          delete result[slug];
+          // Merge: existing + new, then prune removed
+          result = { ...existing, ...result };
+          for (const slug of removedSlugs) {
+            delete result[slug];
+          }
         }
       }
 

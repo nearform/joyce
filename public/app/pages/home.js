@@ -1,10 +1,9 @@
 import { Fragment } from "react";
+import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
-import { PersistentLink as Link } from "../components/persistent-link.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { ShortDescription as ChatShortDescription } from "./chat.js";
-import { FEATURES } from "../../config.js";
 
 export const Home = () => {
   const [settings] = useSettings();
@@ -18,14 +17,14 @@ export const Home = () => {
         <${Fragment}>
           <p>
             Joyce is a knowledge assistant that incorporates Nearform's blogs, case studies, and services pages into
-            tools to find content ${FEATURES.chat.enabled ? "and generate text answers" : ""} using AI.
+            tools to find content ${settings.experimentalChat ? "and generate text answers" : ""} using AI.
             Go ahead and try it out! ${" "}<i className="iconoir-sparks"></i>
           </p>
           <ul>
             <li id="posts"><${Link} to="/posts">Posts</${Link}>: Browse / filter all available content.</li>
             <li id="search"><${Link} to="/search">Search</${Link}>: Find / filter similar posts to a query.</li>
             ${
-              FEATURES.chat.enabled &&
+              settings.experimentalChat &&
               html`
               <li id="chat"><${Link} to="/chat">Chat</${Link}>: Get answers from AI using our content.</li>
             `
@@ -64,7 +63,7 @@ export const Home = () => {
           </p>
 
           ${
-            FEATURES.chat.enabled &&
+            settings.experimentalChat &&
             html`
               <${Fragment}>
                 <h2 className="content-subhead">Chat</h2>
