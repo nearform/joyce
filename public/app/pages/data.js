@@ -12,6 +12,7 @@ import {
 } from "../../config.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { ModelsTable } from "../../local/app/components/models-table.js";
+import { useIndexedDBCache } from "../../local/data/api/providers/web-llm.js";
 import {
   LoadingButton,
   LOADING,
@@ -227,6 +228,16 @@ const ModelsPanel = ({ experimentalChat }) => {
       </div>
 
       <h3>web-llm</h3>
+      <div className="system-info">
+        <div className="system-info-row">
+          <strong>Cache Backend:</strong>
+          <span
+            className=${`status-badge ${useIndexedDBCache ? "status-warning" : "status-supported"}`}
+          >
+            ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
+          </span>
+        </div>
+      </div>
       <p>
         Available web-llm models for local inference. Status indicates whether
         the model is loaded in memory, currently loading, or available for

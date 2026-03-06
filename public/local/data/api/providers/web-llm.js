@@ -1,9 +1,19 @@
 // web-llm provider implementation
 // Unified handler interface for chat sessions
-import { CreateMLCEngine, hasModelInCache } from "@mlc-ai/web-llm";
+import {
+  CreateMLCEngine,
+  hasModelInCache,
+  prebuiltAppConfig,
+} from "@mlc-ai/web-llm";
 import { DEFAULT_CHAT_MODEL } from "../../../../config.js";
 
 const DEFAULT_MODEL = DEFAULT_CHAT_MODEL.model;
+
+// Fall back to IndexedDB when Cache API is unavailable (e.g. iOS Chrome/WebKit)
+export const useIndexedDBCache = typeof caches === "undefined";
+if (useIndexedDBCache) {
+  prebuiltAppConfig.useIndexedDBCache = true;
+}
 
 // Map of model -> { enginePromise, progressCallback }
 const engines = new Map();
@@ -33,6 +43,7 @@ export const getLlmEngine = async (model = DEFAULT_MODEL) => {
   const entry = engines.get(model);
   if (!entry.enginePromise) {
     entry.enginePromise = CreateMLCEngine(model, {
+      appConfig: useIndexedDBCache ? prebuiltAppConfig : undefined,
       initProgressCallback: (progress) => {
         entry.progressCallback?.(progress);
       },
@@ -46,8 +57,17 @@ export const getLlmEngine = async (model = DEFAULT_MODEL) => {
  * @param {string} model - The model ID
  * @returns {Promise<boolean>} Whether the model is cached
  */
-export const isLlmCached = async (model = DEFAULT_MODEL) =>
-  hasModelInCache(model);
+export const isLlmCached = async (model = DEFAULT_MODEL) => {
+  try {
+    return await hasModelInCache(
+      model,
+      useIndexedDBCache ? prebuiltAppConfig : undefined,
+    );
+  } catch {
+    // Cache API unavailable (e.g. iOS Chrome/WebKit)
+    return false;
+  }
+};
 
 /**
  * Get capabilities for a web-llm model.
