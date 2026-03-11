@@ -15253,48 +15253,6 @@
       "others": []
     }
   },
-  "insights-nearform-achieves-aws-advanced-tier-services-partner-status": {
-    "href": "https://nearform.com/insights/nearform-achieves-aws-advanced-tier-services-partner-status",
-    "postType": "blog",
-    "slug": "insights-nearform-achieves-aws-advanced-tier-services-partner-status",
-    "date": "2023-06-08",
-    "title": "NearForm Achieves AWS Advanced Tier Services Partner Status",
-    "authors": [],
-    "content": [
-      "NearForm advances its multi-cloud offering by reaching elevated Amazon Web Services (AWS) Advanced Tier Services Partner Status\n\nNearForm, a global digital transformation leader for several Fortune 500 companies and high-calibre organisations, today announces that it has become an Amazon Web Services (AWS) Advanced Tier Services Partner within the AWS Partner Network (APN). This accomplishment recognises the commitment of NearForm to deliver scalable, cloud migration solutions for its clients using AWS.\n\nTo achieve the esteemed AWS Advanced Tier Services Partner status, organisations must undergo a rigorous process of accreditations and certifications to show their long-term investment in their collaboration with AWS, and prove they can leverage skilled teams of certified technical professionals, demonstrate expertise in AWS, and provide exceptional customer experiences.\n\nAs an Advanced Services Tier Partner, and with over 41 registered AWS certifications including acceptance onto the Map Guru Program, Partner Transformation Program and Public Sector Program, NearForm accelerates its ambitious mission to help organisations worldwide to strategically navigate and optimise value from multi-cloud environments, enhancing resilience, innovation, adaptability, and cost efficiency.\n\n““We’ve worked incredibly hard to showcase NearForm’s ability and scope to become a global leader in AWS services, and this achievement is testimony to the passion and performance of our team to empower businesses with cloud native solutions,” says Chris Williams, Head of Strategic Partnerships at NearForm. “I look forward to collaborating further with AWS and bringing this shared knowledge to our clients.””"
-    ],
-    "categories": {
-      "primary": "cloud",
-      "others": [
-        "oss"
-      ]
-    },
-    "verticals": {
-      "primary": "none",
-      "others": []
-    }
-  },
-  "insights-nearform-earns-aws-migration-acceleration-program-map-consulting-partner-status": {
-    "href": "https://nearform.com/insights/nearform-earns-aws-migration-acceleration-program-map-consulting-partner-status",
-    "postType": "blog",
-    "slug": "insights-nearform-earns-aws-migration-acceleration-program-map-consulting-partner-status",
-    "date": "2023-06-13",
-    "title": "NearForm Earns AWS Migration Acceleration Program (MAP) Consulting Partner Status",
-    "authors": [],
-    "content": [
-      "NearForm enhances its technological competencies by achieving the AWS Migration Acceleration Program Consulting Partner certification\n\nIn May 2023, NearForm, a global digital transformation leader for several Fortune 500 companies and high-calibre organisations, expanded its partnership with Amazon Web Services (AWS), the dominant cloud services platform, by earning the esteemed Migration Acceleration Program (MAP) Consulting Partner status.\n\nMAP assists corporates and enterprises in their cloud migration journey\n\nThe AWS Migration Acceleration Program represents a holistic initiative for data and services transition to the cloud, leveraging AWS's unique experience in assisting thousands of corporate and enterprise customers in their cloud migration journey. Attaining this certification equips NearForm with the resources to enable its clientele and associates to diminish costs, bolster operational robustness, and augment business agility in migrating, modernising, and operating their systems in the cloud.\n\nMAP guides customers towards their modernisation objectives\n\nAWS MAP validation certifies NearForm as a firm proficient in constructing cloud native applications and solutions on AWS, with the requisite knowledge, experience, and skills to guide its customers towards their cloud migration and modernisation objectives. With the MAP credential, NearForm acquires mature architectural methodologies based on AWS and extends its expertise to expedite the cloud migration and modernisation journey of enterprises through a result-oriented approach.\n\nAWS and NearForm: a partnership that delivers limitless scalability potential\n\nAs an AWS MAP Consulting Partner, NearForm is poised to assist organisations in optimising their back-end services, managing escalating workloads and requirements, and decreasing infrastructure investments. This program positions NearForm to offer its associates and customers exceptional advantages for their businesses: adaptability, enhanced security, and limitless scalability potential.\n\nSecuring AWS MAP status represents the inaugural step what we envision will be a long and rewarding trajectory. To deliver supplementary value and validate our engineering supremacy, we are committed to preserving this status in the coming year and undertaking the subsequent strides as a dependable global technology ally to growth-centric entities worldwide. We take immense pride in joining the AWS Partner Network to bring the efficiency, security, and reliability of the cloud to our customers.\n\n“\"NearForm boasts a rich history in the<a href=\"https://www.nearform.com/partners/aws/\" rel=\"noopener\" target=\"_blank\">AWS Partner</a>Network as an Advanced Consulting Partner. The achievement of MAP status as a partner corroborates our proficiency and know-how in the fast-paced deployment of cloud infrastructures.\" Colin Houlihan, General Manager of Europe at NearForm”"
-    ],
-    "categories": {
-      "primary": "cloud",
-      "others": [
-        "oss"
-      ]
-    },
-    "verticals": {
-      "primary": "none",
-      "others": []
-    }
-  },
   "insights-the-growth-in-telehealth-and-telemedicine-what-you-need-to-know": {
     "href": "https://nearform.com/insights/the-growth-in-telehealth-and-telemedicine-what-you-need-to-know",
     "postType": "blog",
@@ -15453,32 +15411,6 @@
     "verticals": {
       "primary": "none",
       "others": []
-    }
-  },
-  "digital-community-accessible-mobile-apps": {
-    "href": "https://nearform.com/digital-community/accessible-mobile-apps",
-    "postType": "blog",
-    "slug": "digital-community-accessible-mobile-apps",
-    "date": "2023-06-26",
-    "title": "Empowering Users: Developing Accessible Mobile Apps using React Native",
-    "authors": [
-      "ELI ZIBIN"
-    ],
-    "content": [
-      "This blog post will explore and share some of the robust technical accessibility strategies and best practices we implemented for a mobile voting application using React Native.\n\nSpecifically, we’ll look at Formidable’s open-source library react-native-ama which allowed us to construct a component library that served as accessible UI primitives. This approach let us focus on what we do best—building great applications—while simultaneously ensuring that we prioritize accessibility, baking it into each component by default. Then, it will mention a few other handy components and hooks we used, and hopefully save yourself a gotcha or two.\n\nIn many ways, building an accessible React Native mobile application is easier than ever before thanks to both React Native’s internal efforts as well as the community’s. With react-native-ama it's not about adding accessibility features as an afterthought, but integrating them into the core process of your app development. As the react-native-ama library puts it, it's about making \"Accessibility a First-Class Citizen\". (For more on this, check out this insightful blog post).\n\nComponent Libraries with react-native-ama and Restyle\n\nOne of the best parts of react-native-ama is that it provides a suite of component primitives with built-in best practices for accessibility. In essence, you get these accessibility features for free, just by using these components. Moreover, AMA has a range of runtime checks in development mode that automatically log violations and warnings, and even apply stylings to these violations, so it’s easy to see when and where you may have missed something.\n\nAnother standout feature of react-native-ama is its \"headless\" architecture. This means you can use any component from the library while maintaining complete control over its styling and design. In our application, we used Shopify’s open-source restyle theming library to handle the theming and styling of our components, all resulting in a standardized and accessible component library, fully equipped with dark mode, breakpoints, variants, and more. Together, this groundwork let us build features fast and efficiently.\n\nCase Study: Touchable Elements\n\nLet's consider a practical example. Our application has a variety of buttons and touchable elements, including large and small call-to-action buttons, multiple choice selection buttons, toggle buttons, external links, and more. To create these elements, we began with the Pressable component from react-native-ama, and then wrapped it in Restyle's createRestyleComponent. This approach resulted in a completely themeable and accessibility-ready primitive component that we could then use to create more complex components.\n\nUsing this base button as a blueprint, we created our TouchableOpacity and TouchableHighlight components. These components were then wrapped to create call-to-action buttons, checkboxes, select boxes, and external links, as specified in the designs. This component abstraction allowed us to apply specific accessibility attributes that were relevant to each component. For example, we used accessibilityRole=\"checkbox\" and the accompanying state role checked={true/false} for checkboxes, and accessibilityRole=“link” for external links. By doing so, we ensured that we had components optimized for accessibility whenever we needed any sort of Pressable inputs for any feature.\n\nRinse and Repeat\n\nIt's important to note that this strategy doesn't just apply to buttons and touchable elements. You can use this approach for any of the base components that AMA supports, including Text, TextInputs, Lists, and even the concept of Forms. Assembling a set of accessible primitives into your component library means that you can just build, knowing that you have at least a baseline of accessibility built in. You won't have to go back and \"add it later.”\n\nEscape Hatching & Other Related Examples\n\nHowever, there may be cases where using components exported from react-native-ama does not work in certain situations, (perhaps you need to use components exported from react-native-gesture-handler, such as their Touchable).Fortunately, react-native-ama's documentation provides detailed guidlines explaining which accessibility features are included so that you can theoretically recreate these properties on a different base component. Additionally, you can always review the source code to see how it works. I think it’s important to reiterate that using react-native-ama doesn’t lock you in, you can use it as much or as little as is useful to you, and leverage it where needed.\n\nMuch like the button primitives we covered above, we also created a screen header component that included an autofocusing Text component. React-native-ama's Text autofocus prop comes builtin into the component, and this component announces the new screen's title immediately during screen transitions when using VoiceOver/TalkBack. Without it, React-navigation tended to up end focussing on the back button when changing screens, so this was a nice touch of polish. Similarly, we implemented a React context that provided values on whether the user prefers reduced motion or not. This allows us to adjust animations and screen transitions accordingly.\n\nWhen using a third-party bottom-sheet library, I found that it didn’t prevent users from navigating outside/beneath it’s content when in VoiceOver/TalkBack. To ensure that VoiceOver/TalkBack remained within the presented content and didn't navigate outside that content, we used a custom context and a Screen component primitive that wrapped every screen. This made use of props such as accessibilityViewIsModal, importantForAccessibility, and accessibilityElementsHidden when the bottom sheet was open so that VoiceOver/TalkBack properly stayed within the present content.\n\nIn these cases above, we were able to work with react-native-ama and not against it to solve our specific use cases.\n\nOn Device Testing and Verification\n\nIt’s important to note that despite react-native-ama offering excellent development runtime checks and a built-in a11y-inspector for macOS, it's crucial to test accessibility on real devices using VoiceOver on iOS or TalkBack on Android. Luckily, you can also learn all about that in this iOS VoiceOver Guide for Developers blog post! It’s important and worth it to learn and test any new features in a variety of circumstances. Much like how a feature isn’t complete in React Native until you’ve tested it with both iOS and Android, I’d argue a feature also isn’t complete unless you’ve tested it with dark mode, larger text settings, smaller text settings, and using VoiceOver/TalkBack!\n\nWrap up\n\nWhile this blog post focused on one aspect of mobile application accessibility, the topic is wide and full of possibilities. I highly recommend checking out the official React Native accessibility documentation to learn more about what's possible in React Native out of the box. While design has not been discussed in this post, it plays an essential role in creating accessible applications; keep an eye out for a future blog post on this topic. And finally, even though every application will have different requirements, I hope this post demonstrates the solid foundation you can establish using react-native-ama and the potential that lies in building from there."
-    ],
-    "categories": {
-      "primary": "mobile",
-      "others": [
-        "a11y",
-        "frontend"
-      ]
-    },
-    "verticals": {
-      "primary": "government",
-      "others": [
-        "telco"
-      ]
     }
   },
   "insights-will-ai-eat-the-senior-engineer": {
@@ -21889,6 +21821,32 @@
         "design",
         "frontend",
         "product"
+      ]
+    },
+    "verticals": {
+      "primary": "none",
+      "others": []
+    }
+  },
+  "insights-moving-beyond-the-hype-engineering-for-the-ai-era": {
+    "href": "https://nearform.com/insights/moving-beyond-the-hype-engineering-for-the-ai-era/",
+    "postType": "blog",
+    "slug": "insights-moving-beyond-the-hype-engineering-for-the-ai-era",
+    "date": "2026-03-11",
+    "title": "Moving beyond the hype: Engineering for the AI era",
+    "authors": [
+      "CIAN CLARKE"
+    ],
+    "content": [
+      "AI is reshaping the fabric of software engineering. However, while the first wave of adoption brought big promises, it also exposed crafts - ineffective tools, unsustainable practices, and a gap between the tech’s hype and measurable impact. At Nearform, we set out to change that trajectory and shape what comes next.\n\nIt won’t be long until every system is born AI-native. Purposeful, intelligent and engineered with progress at its core. According to a recent McKinsey survey, the majority of organisations that have embedded AI into their workflows have seen it improve innovation, with nearly half also reporting improvements in customer satisfaction and competitive differentiation.\n\nThis is a blueprint for enduring transformation. As pioneers in AI-native engineering (AINE), Nearform continues its 15-year tradition of pushing the boundaries of software development. Our teams and enterprise partners are leading this next wave of digital evolution, setting new standards in how software is conceived, built and trusted at scale.",
+      "A more intelligent way to build\n\nAI succeeds when it’s foundational. Countless enterprises saw initial AI tooling fall short because it failed to address the core of the development lifecycle. Nearform’s approach is different from end to end - weaving AI into every stage of the software development cycle to bring precision and speed to the entire process.\n\nSoftware demands more than code, it also needs intent, precision and trust behind that code. That’s where spec-driven development (SDD) comes into play.\n\nAt the core of durable AI-native systems sits a solid specification (or series of specifications). With SDD, product requirements, business logic and architectural requirements are all codified into a series of specifications, before a single line of code is written. These specs then become the core truths between human and AI, guiding agents to build, test and deploy with precision and consistency. This ensures clear, enforceable outcomes and removes ambiguity from the process entirely.",
+      "The AI-native engineering stack: engineered for performance\n\nAn AI-native engineering stack is a layered system that’s designed for enterprise scale. Each component of the stack magnifies the effect of the next, removing friction and automating processes from end-to-end:\n\nThe spec defines the ‘what’ and the ‘why’, creating a clear blueprint.\nThe AI agents interpret the spec to generate, review and test code.\nAutomated enforcement guarantees that testing, security and quality standards are met.\n\nThis represents a bold step forward for ambitious enterprises, helping to unlock new sources of value from developing scalable, maintainable and safe software.",
+      "From talk to tangible results\n\nAI-native engineering is more than just a concept, it’s a measurable improvement to the development process. By applying AI-native engineering, we focus on metrics that matter most to our enterprise clients:\n\nHigher acceptance rates for agent-generated code. In fact, our teams also cite higher delivery output, with 2x more functionality compared to traditional approaches.\nFaster merge times and accelerated delivery cycles. In the financial services industry, we recently delivered a new production system in less than four weeks, enabling early customer onboarding.\nLower defect rates and more resilient systems. The early detection of conflicting requirements means a reduction in any late-stage surprises.\n\nOur client data points to sustainable improvements of 10-15% in productivity, onboarding and prototyping - figures that aren’t only measurable, but also repeatable and compounding. In fact, well-suited greenfield projects with SDD are typically delivered 4x faster, and at the frontier, we can push to deliver 10x faster.\n\nWe’re redefining the meaning of progress for enterprise engineering, opening new horizons for what organisations can achieve. We’re visionary about what’s possible and relentless about what works, and everything we do is centred around building trust, scale and value into every layer of your business.\n\nReady to engineer the future with us?"
+    ],
+    "categories": {
+      "primary": "ai",
+      "others": [
+        "design"
       ]
     },
     "verticals": {
