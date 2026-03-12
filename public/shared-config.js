@@ -113,6 +113,23 @@ const config = {
       ],
     },
   },
+  // MediaPipe LLM Inference (on-device via WebGPU + WASM)
+  // See: https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/web_js
+  mediaPipe: {
+    models: {
+      chat: [
+        {
+          model: "gemma-3n-e2b-it-web",
+          modelShortName: "Gemma 3n E2B",
+          shortOption: "Gemma 3n",
+          modelUrl:
+            "https://huggingface.co/google/gemma-3n-E2B-it-mediapipe-Web/resolve/main/gemma3n-E2B-it-Web.litertlm",
+          maxTokens: 1024,
+          sizeMb: 3040,
+        },
+      ],
+    },
+  },
   // web-llm model metadata (vramMb, maxTokens) is mutated into model objects at load time
   // from prebuiltAppConfig. See: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
   webLlm: {
@@ -152,6 +169,7 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
+  mediaPipe: "MediaPipe",
   webLlm: "web-llm",
 };
 

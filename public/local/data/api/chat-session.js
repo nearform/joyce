@@ -5,6 +5,7 @@ import { getProviderCapabilities } from "./llm.js";
 import { estimateTokens } from "../util.js";
 import { createHandler as createChromeHandler } from "./providers/chrome.js";
 import { createHandler as createWebLlmHandler } from "./providers/web-llm.js";
+import { createHandler as createMediaPipeHandler } from "./providers/mediapipe.js";
 import { buildBasePrompts, BASE_TOKEN_ESTIMATE } from "./chat.js";
 import { performRagSearch, reduceContext as ragReduceContext } from "./rag.js";
 import {
@@ -202,18 +203,25 @@ export const createChatSession = ({ provider, model, temperature }) => {
   const ensureHandler = async () => {
     if (state.handler) return state.handler;
 
-    state.handler =
-      provider === "chrome"
-        ? await createChromeHandler({
-            model,
-            systemContext: getContext(state),
-            temperature,
-          })
-        : await createWebLlmHandler({
-            model,
-            temperature,
-            maxOutputTokens: MAX_OUTPUT_TOKENS,
-          });
+    if (provider === "chrome") {
+      state.handler = await createChromeHandler({
+        model,
+        systemContext: getContext(state),
+        temperature,
+      });
+    } else if (provider === "mediaPipe") {
+      state.handler = await createMediaPipeHandler({
+        model,
+        temperature,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+      });
+    } else {
+      state.handler = await createWebLlmHandler({
+        model,
+        temperature,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+      });
+    }
 
     return state.handler;
   };
@@ -244,7 +252,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
     }
 
     const handler = await ensureHandler();
-    const input = provider === "webLlm" ? buildMessages(query) : query;
+    const input = provider === "chrome" ? query : buildMessages(query);
     let firstTokenTime = null;
 
     for await (const event of handler.sendMessage(input)) {
