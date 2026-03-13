@@ -1159,6 +1159,15 @@ button.loading-status-icon-button {
   font-size: 0.9em;
 }
 
+.loading-status-error-info {
+  color: var(--color-status-error);
+}
+
+.loading-status-error-info:hover {
+  color: var(--color-status-error);
+  opacity: 0.8;
+}
+
 /* Info Icon (reusable) */
 .info-icon {
   display: inline-flex;

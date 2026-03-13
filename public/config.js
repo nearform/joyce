@@ -24,6 +24,11 @@ for (const modelObj of config.webLlm.models.chat) {
   }
 }
 
+// Enrich hfTransformers models with quantization from dtype
+for (const modelObj of config.hfTransformers.models.chat) {
+  modelObj.quantization = modelObj.dtype ?? null;
+}
+
 // ======================================================
 // Helper functions
 // ======================================================

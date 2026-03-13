@@ -5,7 +5,9 @@ import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
 import { useConfig } from "../contexts/config.js";
 import { MODELS, getModelCfg, getProviderForModel } from "../../config.js";
+import { ALL_CHAT_MODELS, ALL_PROVIDERS } from "../../shared-config.js";
 import { formatBytes } from "../../shared-util.js";
+import { HfModelsTable } from "../../local/app/components/hf-models-table.js";
 import {
   CHROME_ANY_API_POSSIBLE,
   CHROME_HAS_PROMPT_API,
@@ -28,12 +30,14 @@ const TABS = [
   { id: "models", label: "AI Models", icon: "iconoir-brain" },
 ];
 
-// Get model short name from resource id (provider-agnostic)
-const modelShortName = (modelId) => {
-  const cleanId = modelId.replace(/^llm_/, "");
-  const provider = getProviderForModel(cleanId);
-  if (!provider) return cleanId;
-  return getModelCfg({ provider, model: cleanId }).modelShortName;
+// Get model info from resource id (provider-agnostic)
+const modelInfo = (resourceId) => {
+  const modelId = resourceId.replace(/^llm_/, "");
+  const provider = getProviderForModel(modelId);
+  if (!provider) return { providerLabel: "Model", shortName: modelId };
+  const providerLabel = ALL_PROVIDERS[provider] ?? provider;
+  const shortName = getModelCfg({ provider, model: modelId }).modelShortName;
+  return { providerLabel, shortName };
 };
 
 // Status badge helper for Chrome AI APIs
@@ -82,7 +86,7 @@ const ResourcesPanel = ({ experimentalChat }) => {
             .map(
               (key) => html`
             <${LoadingButton} resourceId=${LOADING[key]} key=${key}>
-              <strong>Model</strong>: ${modelShortName(LOADING[key])}
+              <strong>${modelInfo(LOADING[key]).providerLabel}</strong>: ${modelInfo(LOADING[key]).shortName}
             </${LoadingButton}>
           `,
             )
@@ -255,6 +259,15 @@ const ModelsPanel = ({ experimentalChat }) => {
         download.
       </p>
       <${ModelsTable} models=${MODELS} />
+
+      <h3>HF Transformers</h3>
+      <p>
+        HuggingFace Transformers ONNX models for local inference via WebGPU.
+      </p>
+      <${HfModelsTable}
+        models=${ALL_CHAT_MODELS.find((p) => p.provider === "hfTransformers")
+          ?.models ?? []}
+      />
     </div>
   `;
 };

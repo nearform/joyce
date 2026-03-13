@@ -3,7 +3,11 @@ import { html } from "../../../../app/util/html.js";
 import { useLoading } from "../../context/loading.js";
 import { formatElapsed } from "../../../../shared-util.js";
 import { Modal } from "../../../../app/components/modal.js";
-import { MODELS } from "../../../../config.js";
+import {
+  MODELS,
+  getModelCfg,
+  getProviderForModel,
+} from "../../../../config.js";
 
 const STATES = {
   not_loaded: {
@@ -60,17 +64,33 @@ export const LoadingButton = ({
     startLoading(resourceId);
   };
 
-  const isClickable = status === "not_loaded" && !forceStatus;
+  const isClickable =
+    (status === "not_loaded" || status === "error") && !forceStatus;
   const isModel = resourceId?.toLowerCase().startsWith("llm_");
 
   // Look up model metadata for LLM resources
+  // Try web-llm MODELS first (has modelUrl), then fall back to shared config (all providers)
   const modelId = isModel ? resourceId.replace(/^llm_/i, "") : null;
-  const modelMeta = modelId ? MODELS.find((m) => m.model === modelId) : null;
+  const modelProvider = modelId ? getProviderForModel(modelId) : null;
+  const webLlmMeta = modelId ? MODELS.find((m) => m.model === modelId) : null;
+  const sharedMeta =
+    modelId && modelProvider
+      ? getModelCfg({ provider: modelProvider, model: modelId })
+      : null;
+  const modelMeta = webLlmMeta || sharedMeta;
+
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
 
   const handleInfoClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsModalOpen(true);
+  };
+
+  const handleErrorClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsErrorModalOpen(true);
   };
 
   // TODO(LOADING): Maybe add label name and description, separated in styles, then elapsed separately.
@@ -86,11 +106,22 @@ export const LoadingButton = ({
                 ? html`<span
                     className="loading-status-info"
                     title=${modelMeta
-                      ? `${modelMeta.quantization || "—"} · ${modelMeta.vramMb ? `${modelMeta.vramMb} MB VRAM` : "—"}`
+                      ? `${modelMeta.quantization || "—"} · ${modelMeta.vramMb ? `${modelMeta.vramMb} MB VRAM` : modelMeta.downloadSizeMb ? `~${modelMeta.downloadSizeMb} MB` : "—"}`
                       : "Model info"}
                     onClick=${handleInfoClick}
                     key="info"
                     ><i className="iconoir-info-circle"></i
+                  ></span>`
+                : null
+            }
+            ${
+              status === "error"
+                ? html`<span
+                    className="loading-status-info loading-status-error-info"
+                    title="View error details"
+                    onClick=${handleErrorClick}
+                    key="error-info"
+                    ><i className="iconoir-warning-circle"></i
                   ></span>`
                 : null
             }
@@ -140,11 +171,14 @@ export const LoadingButton = ({
         title=${
           modelMeta
             ? html`<a
-                href=${modelMeta.modelUrl}
+                href=${modelMeta.modelUrl ||
+                `https://huggingface.co/${modelMeta.model}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                ${modelMeta.model} <i className="iconoir-open-new-window"></i>
+                ${modelMeta.modelShortName || modelMeta.model}${" "}<i
+                  className="iconoir-open-new-window"
+                ></i>
               </a>`
             : "Model Info"
         }
@@ -167,15 +201,32 @@ export const LoadingButton = ({
                       ${modelMeta.maxTokens?.toLocaleString() || "—"}
                     </span>
                   </div>
-                  <div className="modal-stat-card">
-                    <i className="iconoir-database"></i>
-                    <span className="modal-stat-label">VRAM Required</span>
-                    <span className="modal-stat-value">
-                      ${modelMeta.vramMb
-                        ? `${modelMeta.vramMb.toLocaleString()} MB`
-                        : "—"}
-                    </span>
-                  </div>
+                  ${modelMeta.vramMb != null
+                    ? html`
+                        <div className="modal-stat-card">
+                          <i className="iconoir-database"></i>
+                          <span className="modal-stat-label"
+                            >VRAM Required</span
+                          >
+                          <span className="modal-stat-value">
+                            ${`${modelMeta.vramMb.toLocaleString()} MB`}
+                          </span>
+                        </div>
+                      `
+                    : null}
+                  ${modelMeta.downloadSizeMb != null
+                    ? html`
+                        <div className="modal-stat-card">
+                          <i className="iconoir-download"></i>
+                          <span className="modal-stat-label"
+                            >Download Size</span
+                          >
+                          <span className="modal-stat-value">
+                            ~${modelMeta.downloadSizeMb.toLocaleString()} MB
+                          </span>
+                        </div>
+                      `
+                    : null}
                   <div className="modal-stat-card">
                     <i className=${state.icon}></i>
                     <span className="modal-stat-label">Status</span>
@@ -185,6 +236,25 @@ export const LoadingButton = ({
               `
             : html`<p>Model information not available.</p>`
         }
+      </${Modal}>
+      <${Modal}
+        isOpen=${isErrorModalOpen}
+        onClose=${() => setIsErrorModalOpen(false)}
+        title="Load Error"
+      >
+        <p style=${{ wordBreak: "break-word" }}>
+          ${error?.message || error?.toString() || "Unknown error"}
+        </p>
+        <button
+          className="pure-button"
+          onClick=${() => {
+            setIsErrorModalOpen(false);
+            startLoading(resourceId);
+          }}
+          type="button"
+        >
+          <i className="iconoir-refresh"></i>${" "}Retry
+        </button>
       </${Modal}>
     </${Fragment}>
   `;

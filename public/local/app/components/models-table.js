@@ -4,6 +4,7 @@ import { useTableSort } from "../../../app/hooks/use-table-sort.js";
 import { useLoading } from "../context/loading.js";
 import { ModelsFilter } from "./models-filter.js";
 import { addChatModel } from "../../../config.js";
+import { StatusIcon } from "./status-icon.js";
 
 const DEFAULT_FILTERS = {
   modelText: "",
@@ -29,73 +30,9 @@ const COLUMN_INFO = {
   status: "Loading status (click to load)",
 };
 
-// Status icon configuration matching LoadingButton patterns
-const STATUS_CONFIG = {
-  available: {
-    icon: "iconoir-circle",
-    cls: "loading-status-not-loaded",
-    title: "Click to load",
-    clickable: true,
-  },
-  loading: {
-    icon: "iconoir-refresh",
-    cls: "loading-status-loading",
-    title: "Loading...",
-    clickable: false,
-  },
-  loaded: {
-    icon: "iconoir-check-circle",
-    cls: "loading-status-loaded",
-    title: "Loaded",
-    clickable: false,
-  },
-  error: {
-    icon: "iconoir-warning-circle",
-    cls: "loading-status-error",
-    title: "Error loading model",
-    clickable: true,
-  },
-};
-
-const StatusIcon = ({ status, onLoad, progress }) => {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.available;
-  const progressPercent =
-    status === "loading" && progress?.progress != null
-      ? Math.round(progress.progress * 100)
-      : null;
-
-  const icon = config.clickable
-    ? html`
-        <button
-          className=${`loading-status-icon-button ${config.cls}`}
-          onClick=${onLoad}
-          type="button"
-          title=${config.title}
-        >
-          <i className=${config.icon}></i>
-        </button>
-      `
-    : html`
-        <span
-          className=${`loading-status-icon ${config.cls}`}
-          title=${config.title}
-        >
-          <i className=${config.icon}></i>
-        </span>
-      `;
-
-  return html`
-    <span className="status-icon-wrapper">
-      ${icon}
-      ${progressPercent !== null &&
-      html`<span className="status-progress-text">${progressPercent}%</span>`}
-    </span>
-  `;
-};
-
 export const ModelsTable = ({ models = [] }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
-  const { getStatus, getProgress, startLoading } = useLoading();
+  const { getStatus, getError, getProgress, startLoading } = useLoading();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   if (models.length === 0) {
@@ -107,6 +44,7 @@ export const ModelsTable = ({ models = [] }) => {
     const resourceId = `llm_${m.model}`;
     const loadingStatus = getStatus(resourceId);
     const progress = getProgress(resourceId);
+    const error = getError(resourceId);
     let status;
     if (loadingStatus === "loaded") {
       status = "loaded";
@@ -117,7 +55,7 @@ export const ModelsTable = ({ models = [] }) => {
     } else {
       status = "available";
     }
-    return { ...m, resourceId, status, progress };
+    return { ...m, resourceId, status, progress, error };
   });
 
   // Apply filters
@@ -176,6 +114,7 @@ export const ModelsTable = ({ models = [] }) => {
                   resourceId,
                   status,
                   progress,
+                  error,
                 },
                 i,
               ) => {
@@ -204,6 +143,7 @@ export const ModelsTable = ({ models = [] }) => {
                         status=${status}
                         onLoad=${handleLoad}
                         progress=${progress}
+                        error=${error}
                       />
                     </td>
                   </tr>

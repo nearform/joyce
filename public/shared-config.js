@@ -144,6 +144,32 @@ const config = {
       ],
     },
   },
+  // HuggingFace Transformers ONNX models via WebGPU
+  // Uses @huggingface/transformers pipeline API for in-browser inference
+  hfTransformers: {
+    models: {
+      chat: [
+        {
+          model: "onnx-community/Qwen3-0.6B-ONNX",
+          modelShortName: "Qwen3-0.6B",
+          shortOption: "Fast",
+          // Theoretical max is 40960, but ONNX Runtime in browser overflows
+          // with large KV caches. Use conservative limit for RAG budgeting.
+          maxTokens: 4096,
+          dtype: "q4f16",
+          downloadSizeMb: 400,
+        },
+        {
+          model: "onnx-community/Qwen3-1.7B-ONNX",
+          modelShortName: "Qwen3-1.7B",
+          shortOption: "Better",
+          maxTokens: 4096,
+          dtype: "q4f16",
+          downloadSizeMb: 1100,
+        },
+      ],
+    },
+  },
 };
 
 // Default embedding chunk size (uses the MEDIUM size from dataChunkSizes)
@@ -153,6 +179,7 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
   webLlm: "web-llm",
+  hfTransformers: "HF Transformers",
 };
 
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({

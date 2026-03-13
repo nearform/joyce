@@ -1,4 +1,4 @@
-/* global performance:false */
+/* global performance:false, console:false */
 import { getPosts, getPostsEmbeddings } from "./api/posts.js";
 import { getDb, getExtractor } from "./api/search.js";
 import {
@@ -25,8 +25,10 @@ const createLlmResource = (provider, modelId) => ({
 });
 
 // Generate LLM resource key from model ID (e.g., "SmolLM2-360M-Instruct-q4f16_1-MLC" -> "LLM_SMOLLM2_360M_INSTRUCT")
+// Handles slash-containing IDs like "onnx-community/Qwen3-0.6B-ONNX"
 const modelToResourceKey = (modelId) => {
-  const baseName = modelId.split("-q4f16")[0];
+  const normalized = modelId.replace(/\//g, "_");
+  const baseName = normalized.split("-q4f16")[0];
   return "LLM_" + baseName.toUpperCase().replace(/-/g, "_").replace(/\./g, "_");
 };
 
@@ -233,6 +235,7 @@ export const startLoading = async (resource) => {
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "loaded", { elapsed });
   } catch (error) {
+    console.error(`[loading] Failed to load "${id}":`, error);
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "error", { error, elapsed });
   }
