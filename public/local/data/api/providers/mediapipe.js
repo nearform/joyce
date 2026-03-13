@@ -91,7 +91,8 @@ const initWorker = (model) => {
     worker.postMessage({
       type: "init",
       modelUrl: modelCfg.modelUrl,
-      maxTokens: modelCfg.maxTokens || 1024,
+      // MediaPipe maxTokens = total input+output budget; add headroom beyond Joyce's context window
+      maxTokens: (modelCfg.maxTokens || 4096) + 1024,
       temperature: 0.8,
       topK: 40,
     });

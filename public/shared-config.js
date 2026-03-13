@@ -113,8 +113,15 @@ const config = {
       ],
     },
   },
+  // STATUS - ON HOLD
+  //
+  // We have to agree to a license to use the MediaPipe models.
+  // Also not as specialized for browser as web-llm, etc.
+  //
   // MediaPipe LLM Inference (on-device via WebGPU + WASM)
   // See: https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/web_js
+  // Model card & context window: https://huggingface.co/google/gemma-3n-E2B-it-litert-lm
+  // Gemma 3n supports 32K context; 4096 is conservative for browser memory constraints.
   mediaPipe: {
     models: {
       chat: [
@@ -123,9 +130,9 @@ const config = {
           modelShortName: "Gemma 3n E2B",
           shortOption: "Gemma 3n",
           modelUrl:
-            "https://huggingface.co/google/gemma-3n-E2B-it-mediapipe-Web/resolve/main/gemma3n-E2B-it-Web.litertlm",
-          maxTokens: 1024,
-          sizeMb: 3040,
+            "https://huggingface.co/google/gemma-3n-E2B-it-litert-lm/resolve/main/gemma-3n-E2B-it-int4-Web.litertlm",
+          maxTokens: 4096,
+          sizeMb: 3096,
         },
       ],
     },
