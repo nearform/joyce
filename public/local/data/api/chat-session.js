@@ -254,7 +254,9 @@ export const createChatSession = ({ provider, model, temperature }) => {
         }
         yield { type: "data", message: event.content };
       } else if (event.type === "done") {
-        // Update state
+        // Capture prompt BEFORE addTurn mutates state.history
+        const prompt = buildMessages(query);
+
         addTurn(
           state,
           query,
@@ -270,7 +272,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
             event,
             state,
             userMessage: query,
-            prompt: buildMessages(query),
+            prompt,
             firstTokenTime,
             startTime,
           }),
