@@ -141,12 +141,35 @@ export const useChatSession = ({
 
   /**
    * Append text to the last conversation entry's answer (for streaming).
+   * Filters out <think>...</think> blocks, capturing them separately.
    */
   const appendToLastAnswer = (text) =>
-    modifyLastEntry((entry) => ({
-      ...entry,
-      answer: (entry.answer ?? "") + text,
-    }));
+    modifyLastEntry((entry) => {
+      const isBuffering = entry._rawStream !== undefined;
+      const raw = (entry._rawStream ?? "") + text;
+      const thinkEnd = raw.indexOf("</think>");
+
+      if (thinkEnd !== -1) {
+        // Thinking block complete — extract and keep only the answer portion
+        const thinkStart = raw.indexOf("<think>");
+        const thinking =
+          (entry.thinking ?? "") +
+          raw.slice(thinkStart !== -1 ? thinkStart + 7 : 0, thinkEnd);
+        const answer = (entry.answer ?? "") + raw.slice(thinkEnd + 8);
+        // Clear _rawStream by removing the key (undefined = not buffering)
+        // eslint-disable-next-line no-unused-vars
+        const { _rawStream: _discarded, ...rest } = entry;
+        return { ...rest, thinking, answer };
+      }
+
+      if (raw.includes("<think>") || isBuffering) {
+        // Inside a thinking block — buffer but don't display
+        return { ...entry, _rawStream: raw };
+      }
+
+      // Normal text — no thinking block
+      return { ...entry, answer: (entry.answer ?? "") + text };
+    });
 
   /**
    * Create a new loading conversation entry.
@@ -230,14 +253,18 @@ export const useChatSession = ({
 
       // Finalize the conversation entry with queryInfo
       const chunks = chatSessionRef.current.getSearchData()?.chunks ?? [];
-      const queryInfo = buildQueryInfo({
-        usage,
-        finishReason,
-        modelObj,
-        searchMetadata,
-        chunks,
+      // Use modifyLastEntry to access thinking from the entry itself (avoids stale closure)
+      modifyLastEntry((entry) => {
+        const queryInfo = buildQueryInfo({
+          usage,
+          finishReason,
+          modelObj,
+          searchMetadata,
+          chunks,
+          thinking: entry.thinking ?? null,
+        });
+        return { ...entry, queryInfo, isLoading: false };
       });
-      updateLastEntry({ queryInfo, isLoading: false });
     } catch (respErr) {
       handleChatError(respErr);
       return;
@@ -280,8 +307,15 @@ export const useChatSession = ({
       }
 
       // Finalize entry with queryInfo
-      const queryInfo = buildQueryInfo({ usage, finishReason, modelObj });
-      updateLastEntry({ queryInfo, isLoading: false });
+      modifyLastEntry((entry) => {
+        const queryInfo = buildQueryInfo({
+          usage,
+          finishReason,
+          modelObj,
+          thinking: entry.thinking ?? null,
+        });
+        return { ...entry, queryInfo, isLoading: false };
+      });
     } catch (respErr) {
       handleChatError(respErr);
     } finally {

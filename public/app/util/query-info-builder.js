@@ -26,6 +26,7 @@
  * @param {Object} [options.searchMetadata.internal] - Internal search details
  * @param {Object} [options.searchMetadata.chunks] - Chunk similarity stats
  * @param {Array} [options.chunks] - Chunks used in context (first query only)
+ * @param {string} [options.thinking] - Model thinking/reasoning content (e.g. Qwen3 <think> blocks)
  * @returns {Object} Structured queryInfo for Answer component
  */
 export const buildQueryInfo = ({
@@ -34,6 +35,7 @@ export const buildQueryInfo = ({
   modelObj,
   searchMetadata = null,
   chunks = null,
+  thinking = null,
 }) => {
   return {
     // Usage tokens (per-turn and cumulative)
@@ -86,5 +88,8 @@ export const buildQueryInfo = ({
     // Raw data for inspection links
     prompt: usage?.prompt ?? null,
     rawContext: usage?.context ?? null,
+
+    // Model thinking/reasoning content (e.g. Qwen3 <think> blocks)
+    thinking,
   };
 };

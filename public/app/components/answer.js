@@ -58,6 +58,21 @@ const ContextDataLink = ({ data }) => {
   `;
 };
 
+/**
+ * Icon link that opens model thinking/reasoning content in a new page.
+ */
+const ThinkingDataLink = ({ data }) => {
+  if (!data) return null;
+
+  const handleOpen = () => openTextInNewWindow(data.trim());
+
+  return html`
+    <span onClick=${handleOpen} title="Open model thinking/reasoning">
+      <i className="ui-icon-button iconoir-brain"></i>
+    </span>
+  `;
+};
+
 const QueryInfo = ({
   elapsed,
   usage,
@@ -71,6 +86,7 @@ const QueryInfo = ({
   turnNumber,
   prompt,
   rawContext,
+  thinking,
 } = {}) => {
   if (!elapsed && !usage && !model && !chunks && !context) return null;
 
@@ -105,6 +121,7 @@ const QueryInfo = ({
         ${hasCost && html`$${totalCost}`}) ${" "}
         <${PromptDataLink} data=${prompt} />
         <${ContextDataLink} data=${rawContext} />
+        <${ThinkingDataLink} data=${thinking} />
       </summary>
 
       <div>
