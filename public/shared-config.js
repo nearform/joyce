@@ -167,6 +167,16 @@ const config = {
           dtype: "q4f16",
           downloadSizeMb: 1100,
         },
+        // NOTE: ERROR - Unsupported model type: qwen3_5
+        //
+        // {
+        //   model: "onnx-community/Qwen3.5-0.8B-ONNX",
+        //   modelShortName: "Qwen3.5-0.8B",
+        //   shortOption: "Fast",
+        //   maxTokens: 4096,
+        //   dtype: "q4f16",
+        //   downloadSizeMb: 620,
+        // },
       ],
     },
   },
