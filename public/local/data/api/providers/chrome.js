@@ -219,10 +219,12 @@ const createPromptHandler = async ({
         type: "done",
         finishReason: "stop",
         usage: {
-          inputTokens: session.inputUsage ?? 0,
+          // New API: contextUsage/contextWindow, old: inputUsage/inputQuota
+          // https://github.com/webmachinelearning/prompt-api/blob/153ee14cd21c6f093cbaeb27c0024a3af28723d1/README.md#api-updates-deprecations-and-renaming
+          inputTokens: session.contextUsage ?? session.inputUsage ?? 0,
           outputTokens: estimateTokens(assistantContent),
           assistantContent,
-          inputQuota: session.inputQuota,
+          inputQuota: session.contextWindow ?? session.inputQuota,
         },
       };
     },
@@ -269,7 +271,11 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
       });
 
       try {
-        const inputTokens = await writer.measureInputUsage(userMessage, {
+        // New API: measureContextUsage, old: measureInputUsage
+        // https://github.com/webmachinelearning/prompt-api/blob/153ee14cd21c6f093cbaeb27c0024a3af28723d1/README.md#api-updates-deprecations-and-renaming
+        const measureUsage =
+          writer.measureContextUsage ?? writer.measureInputUsage;
+        const inputTokens = await measureUsage.call(writer, userMessage, {
           context: "",
         });
         const stream = writer.writeStreaming(userMessage, { context: "" });
@@ -289,7 +295,7 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
             inputTokens,
             outputTokens: estimateTokens(assistantContent),
             assistantContent,
-            inputQuota: writer.inputQuota,
+            inputQuota: writer.contextWindow ?? writer.inputQuota,
           },
         };
       } finally {

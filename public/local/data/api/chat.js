@@ -137,7 +137,7 @@ export const buildContextFromChunks = async ({
     ? Math.floor(availableTokens * MULTI_TURN_CONTEXT_RATIO)
     : availableTokens;
   // TODO(ESTIMATE): These estimates determine how many chunks fit in context.
-  // For Chrome, could use measureInputUsage() for actual counts, but requires
+  // For Chrome, could use measureContextUsage() for actual counts, but requires
   // creating a session first. For now, estimates provide reasonable approximation.
   const queryTokens = estimateTokens(query);
   let totalContextTokensEst = BASE_TOKEN_ESTIMATE + queryTokens;
