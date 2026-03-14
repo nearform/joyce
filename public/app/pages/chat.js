@@ -37,13 +37,13 @@ import {
 } from "../../config.js";
 
 const SUGGESTIONS = [
-  "Tell me 2 sentences about Nearform's expertise in using AI for software development.",
+  "Tell me about Nearform's expertise with AI-native engineering.",
+  "Tell me how spec-driven development (SDD) is used at Nearform.",
   "Give me a single paragraph about Nearform's React and React Native expertise.",
   "What case studies show Nearform building design systems for global brands?",
   "How does Nearform approach accessibility in mobile applications?",
   "Summarize Nearform's work with Node.js in enterprise companies.",
   "What open source tools has Nearform contributed to the React ecosystem?",
-  "Explain in 2 sentences how Nearform uses GraphQL in their projects.",
   "What are Nearform's recommendations for choosing between open and closed AI models?",
   "Give me a brief overview of Nearform's serverless and cloud expertise.",
   "How has Nearform helped companies modernize their frontend architectures?",

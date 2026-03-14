@@ -222,7 +222,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
    * Build messages for web-llm (stateless provider).
    */
   const buildMessages = (userMessage) => [
-    ...buildBasePrompts(getContext(state)),
+    ...buildBasePrompts(getContext(state), userMessage),
     ...state.history,
     { role: "user", content: userMessage },
   ];

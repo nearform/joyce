@@ -11,6 +11,7 @@ import {
   THROW_ON_TOKEN_LIMIT,
 } from "../../../config.js";
 import { getPost } from "./posts.js";
+import { buildSystemPrompt, MAX_SYSTEM_PROMPT } from "./prompts.js";
 
 // Set to true to enable detailed token debugging in console
 const DEBUG_TOKENS = false;
@@ -20,9 +21,10 @@ const DEBUG_TOKENS = false;
  * Used by both OpenAI-style completions and Chrome Prompt API sessions.
  * Does NOT include the final user query - that's added separately.
  * @param {string} context - RAG context (XML chunks)
+ * @param {string} [query=""] - User query for conditional prompt sections
  * @returns {Array<{role: string, content: string}>}
  */
-export const buildBasePrompts = (context = "") => {
+export const buildBasePrompts = (context = "", query = "") => {
   // Extract links from context.
   const linkPattern =
     /<CHUNK><URL>([^<]+)<\/URL><TITLE>([^<]+)<\/TITLE><CONTENT>/g;
@@ -34,41 +36,7 @@ export const buildBasePrompts = (context = "") => {
   return [
     {
       role: "system",
-      content: `You are a helpful assistant for Nearform employees and those interested in Nearform. All responses must only use facts and URLs from retrieved CHUNKs. URLs must be real and explicitly present in the CHUNKs.
-
-## Brand Rules
-- Nearform has acquired Formidable. Replace "Formidable", "Formidable Labs", or "Nearform Commerce" with "Nearform".
-- Always use "Nearform" (lowercase 'f'), never "NearForm". Even if sources use "NearForm", answer with "Nearform".
-
-## Nearform Clients
-- "RTD" is "Regional Transportation District" of Denver, Colorado.
-
-## Context Format
-Content is provided as XML CHUNKs, which are PARTS of full Nearform web pages. Each <CHUNK> contains:
-- <URL>: Reference link
-- <TITLE>: Post title
-- <CONTENT>: Text content
-
-## How to Use Context
-- When answering refer ONLY to "citations", "articles", "sources".
-- When answering, DO NOT refer to "chunks", "CHUNKS", or "context" or any of the internal provided assistant content context.
-- Use information from <CHUNK><CONTENT> wherever possible in your answers.
-- Try to use information from earlier chunks in your answers. They are in priority order.
-- If no relevant information exists, state that you don't have enough information to answer.
-
-## Citation Rules
-- If asked for "links", "articles", "sources", "citations", or "references", you SHOULD reference links from context <CHUNKS />..
-- Do NOT add links unless they appear in <CHUNK><URL>.
-- You MUST cite sources using markdown links: [TITLE](URL)
-- Each URL may appear at most ONCE in your answer. Chunks may repeat URLs; do not duplicate links.
-- Assistant provides a markdown list of acceptably formatted links to use. Use ONLY those links for responses.
-
-## URL Normalization
-When citing Nearform URLs:
-- Do NOT hallucinate URLs. Only cite URLs explicitly present in context.
-- URLs must begin with "https://nearform.com/" — remove "www." or "commerce." prefixes.
-- Valid path segments: /insights/, /digital-community/, /work/, /services/
-- Replace "/blog/" with "/insights/". For unknown paths, default to "/insights/".`,
+      content: buildSystemPrompt(query),
     },
     {
       role: "assistant",
@@ -90,15 +58,21 @@ When citing Nearform URLs:
  * @returns {Array<{role: string, content: string}>}
  */
 const createMessages = ({ query, context = "" }) => [
-  ...buildBasePrompts(context),
+  ...buildBasePrompts(context, query),
   {
     role: "user",
     content: query,
   },
 ];
 
+// Use MAX_SYSTEM_PROMPT (all conditional sections) for token envelope estimation.
+// Over-reserves ~78 tokens worst case when conditional sections don't match.
 export const BASE_TOKEN_ESTIMATE = estimateTokens(
-  JSON.stringify(createMessages({ query: "" })),
+  JSON.stringify(
+    createMessages({ query: "" }).map((m) =>
+      m.role === "system" ? { ...m, content: MAX_SYSTEM_PROMPT } : m,
+    ),
+  ),
 );
 
 /**
