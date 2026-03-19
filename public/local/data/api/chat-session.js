@@ -90,7 +90,7 @@ const addTurn = (
 ) => {
   state.history.push({ role: "user", content: userMessage });
   state.history.push({ role: "assistant", content: assistantContent });
-  state.totalInputTokens += inputTokens;
+  state.totalInputTokens = inputTokens;
   state.totalOutputTokens += outputTokens;
 };
 
@@ -129,6 +129,8 @@ const buildUsageMessage = ({
   state,
   userMessage,
   prompt,
+  previousInputTokens,
+  historyTokens,
   firstTokenTime,
   startTime,
 }) => {
@@ -140,16 +142,20 @@ const buildUsageMessage = ({
         queryTokens,
         chunksTokens: tokenBreakdown.chunksTokens,
         chunkCount: getChunkCount(state),
+        historyTokens,
         totalTokens:
-          BASE_TOKEN_ESTIMATE + tokenBreakdown.chunksTokens + queryTokens,
+          BASE_TOKEN_ESTIMATE +
+          tokenBreakdown.chunksTokens +
+          historyTokens +
+          queryTokens,
       }
     : null;
 
   const usage = getTokenUsage(state);
 
   return {
-    // Per-turn tokens
-    inputTokens: event.usage.inputTokens,
+    // Per-turn tokens (incremental: current cumulative minus previous cumulative)
+    inputTokens: event.usage.inputTokens - previousInputTokens,
     outputTokens: event.usage.outputTokens,
     // Cumulative tokens
     totalInputTokens: state.totalInputTokens,
@@ -254,8 +260,13 @@ export const createChatSession = ({ provider, model, temperature }) => {
         }
         yield { type: "data", message: event.content };
       } else if (event.type === "done") {
-        // Capture prompt BEFORE addTurn mutates state.history
+        // Capture state BEFORE addTurn mutates it
         const prompt = buildMessages(query);
+        const previousInputTokens = state.totalInputTokens;
+        const historyTokens = state.history.reduce(
+          (sum, msg) => sum + estimateTokens(msg.content),
+          0,
+        );
 
         addTurn(
           state,
@@ -273,6 +284,8 @@ export const createChatSession = ({ provider, model, temperature }) => {
             state,
             userMessage: query,
             prompt,
+            previousInputTokens,
+            historyTokens,
             firstTokenTime,
             startTime,
           }),

@@ -154,6 +154,22 @@ const QueryInfo = ({
             </ul>
           </${Fragment}>
         `}
+        ${chunks &&
+        html`
+          <${Fragment}>
+            <div>
+              <strong>Chunks:</strong>
+            </div>
+            <ul>
+              <li>
+                Count: ${formatInt(chunks.numChunks)} chunks
+              </li>
+              <li>
+                Similarity: ${formatFloat(chunks.similarityMin)} - ${formatFloat(chunks.similarityMax)} (avg: ${formatFloat(chunks.similarityAvg)})
+              </li>
+            </ul>
+          </${Fragment}>
+        `}
         ${usage &&
         html`
           <${Fragment}>
@@ -185,22 +201,6 @@ const QueryInfo = ({
             </ul>
           </${Fragment}>
         `}
-        ${chunks &&
-        html`
-          <${Fragment}>
-            <div>
-              <strong>Chunks:</strong>
-            </div>
-            <ul>
-              <li>
-                Count: ${formatInt(chunks.numChunks)} chunks
-              </li>
-              <li>
-                Similarity: ${formatFloat(chunks.similarityMin)} - ${formatFloat(chunks.similarityMax)} (avg: ${formatFloat(chunks.similarityAvg)})
-              </li>
-            </ul>
-          </${Fragment}>
-        `}
         ${context &&
         html`
           <${Fragment}>
@@ -210,6 +210,7 @@ const QueryInfo = ({
             <ul>
               <li>Base prompt: ${formatInt(context.basePromptTokens)} tokens (est)</li>
               <li>Chunks: ${formatInt(context.chunkCount)} chunks, ${formatInt(context.chunksTokens)} tokens (est)</li>
+              ${context.historyTokens > 0 && html`<li>History: ${formatInt(context.historyTokens)} tokens (est)</li>`}
               <li>User query: ${formatInt(context.queryTokens)} tokens (est)</li>
               <li>Total: ${formatInt(context.totalTokens)} tokens (est)</li>
             </ul>
