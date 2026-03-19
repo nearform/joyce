@@ -189,6 +189,14 @@ export const ChatSubmitButton = ({
   `;
 };
 
+const handleQueryKeyDown = (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    const value = e.target.value.trim();
+    if (value) e.target.form.requestSubmit();
+  }
+};
+
 export const QueryField = ({ placeholder = "Ask anything" }) => html`
   <fieldset>
     <textarea
@@ -196,6 +204,7 @@ export const QueryField = ({ placeholder = "Ask anything" }) => html`
       placeholder=${placeholder}
       className="pure-input-1"
       rows="3"
+      onKeyDown=${handleQueryKeyDown}
     ></textarea>
   </fieldset>
 `;
