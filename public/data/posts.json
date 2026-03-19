@@ -21853,5 +21853,33 @@
       "primary": "none",
       "others": []
     }
+  },
+  "digital-community-why-plan-mode-is-not-enough-better-outcomes-with-spec-driven-development": {
+    "href": "https://nearform.com/digital-community/why-plan-mode-is-not-enough-better-outcomes-with-spec-driven-development/",
+    "postType": "blog",
+    "slug": "digital-community-why-plan-mode-is-not-enough-better-outcomes-with-spec-driven-development",
+    "date": "2026-03-18",
+    "title": "Why plan mode is not enough: better outcomes with spec-driven development",
+    "authors": [
+      "LUCA LANZIANI"
+    ],
+    "content": [
+      "If, like most of us in Nearform, you have been testing coding agents, you have seen that pretty much all of the modern coding tools have added the plan mode by early 2025.\n\nThe idea behind plan mode is to use an agent to help define a plan for the implementation, then task another agent with implementing it. This is a simple step forward from the previous approach, in which the agent would create a to-do list before starting the work. For a quick primer on plan mode and a comparison of the feature in popular AI tools, see our article here.\n\nIn this article, I will share my thoughts on why plan mode is often not enough and why we need to go beyond it to plan full products and not just feature implementations.",
+      "Plan mode is a very attractive feature\n\nWe (yes, I'll include myself in this) developers love to jump into action, we love to see the results of the work, and get to the MVP (minimum viable product) stage as soon as possible.\n\nThere's nothing wrong with that, having been taught that to get to a working solution as soon as possible to validate the idea, to get feedback from the users, and to improve the solution based on the feedback.\n\nAnd most of the time, we know what we want to build, and we have been trusted for years with half-baked stories that left us with a lot of freedom to define the scope of the work and the deliverables.\n\nSo, plan mode is a very attractive feature for developers; we can take half-baked stories or ideas in our head, work hand in hand with the planning agent, and get a working solution as soon as possible.\n\nVery attractive indeed, but is it enough?",
+      "Planning the implementation is not enough; we want to plan the product\n\nLet me repeat, plan mode is great, we are not going to argue about that.\n\nPlan mode is great for building a feature. Plan mode is great for building a library. Plan mode is great for building a tool. Plan mode is great for building an MVP. Plan mode is great for building a simple application.\n\nHowever, what we often find is that plan mode is not enough to plan a product. What do we mean by that?\n\nWhen building a product, the features, the libraries, and the tools have to be composed together into a meaningful whole. And the meaningful whole is something that should be defined by the product owner, the business owner, the team, and the stakeholders.\n\nWe are not just producing code; we are producing a solution to a problem, creating value for the users, and building a business.\n\nFrom what we have seen so far, plan mode is often not enough to define the meaningful whole and the work to be done to build the product.",
+      "Plan mode is for developers, BMAD is for the team\n\nThe plan mode concept enables a process called Spec-Driven Development (”SDD”), and the industry is recognising that in many situations SDD reliably produces better code, and it finds a natural fit for developers.\n\nBut software development is just one of the activities a product team does, and numerous steps precede and follow it.\n\nThat's where BMAD comes in.\n\nBMAD Method (Breakthrough Method of Agile AI Driven Development) is an AI-driven development framework that helps you build software faster and smarter. It provides specialised AI agents, guided workflows, and intelligent planning that adapts to your project’s complexity.\n\nBMAD provides a set of specialised agent personas that are specifically tuned to solve their tasks and nothing more. For example:\n\nYou are an expert ... and your job is ..., make sure you use a ... language and never ....\n\nBMAD isn't just for developers; it is for the whole team. BMAD works for:\n\nProduct Managers who can use the Analyst agent (Mary) to brainstorm ideas and create a Product Brief Document, and additionally use the Product Manager Agent (John) to create the Product Requirements Document.\nArchitects who can use Winston the Architect Agent to create an architecture document with the right patterns and technology selection.\nScrum Masters who can use the Scrum Master Agent (John) to create epics and stories.\nDevelopers who can use the Developer Agent (Amelia) to create the implementation plan and the code, and the QA agent (Quinn) to create tests and validate the implementation.\n\nAnd of course, there are more workflows and agents that extend to tasks beyond development (like the brainstorming module) and help you drive deep brainstorming sessions.\n\nBMAD is also customisable, allowing you to create your own agents and workflows to better fit your team and your project.",
+      "Conclusion\n\nThere is no doubt that plan mode is a great feature, but in my experience, it might not be the optimal approach when building a product.\n\nWe can see plan mode working well in many organisations, depending on their level of sophistication and AI maturity. Our experience has been that when we wanted to scale the use of AI across more roles and more activities in the SDLC, we found that a more comprehensive approach was needed, and that is what BMAD offers.\n\nIf your organization is on a similar path towards AI-native engineering and is looking for guidance or tips from the trenches that can accelerate your journey, please reach out to the Nearform team! We'd love to talk about plan mode, spec-driven development, or any other modern AI tools or processes that could help you deliver products faster and better."
+    ],
+    "categories": {
+      "primary": "ai",
+      "others": [
+        "product",
+        "design"
+      ]
+    },
+    "verticals": {
+      "primary": "none",
+      "others": []
+    }
   }
 }
