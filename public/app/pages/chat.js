@@ -37,16 +37,16 @@ import {
 } from "../../config.js";
 
 const SUGGESTIONS = [
-  "Tell me 2 sentences about Nearform's expertise in using AI for software development.",
-  "Give me a single paragraph about Nearform's React and React Native expertise.",
-  "What case studies show Nearform building design systems for global brands?",
-  "How does Nearform approach accessibility in mobile applications?",
-  "Summarize Nearform's work with Node.js in enterprise companies.",
-  "What open source tools has Nearform contributed to the React ecosystem?",
-  "Explain in 2 sentences how Nearform uses GraphQL in their projects.",
-  "What are Nearform's recommendations for choosing between open and closed AI models?",
-  "Give me a brief overview of Nearform's serverless and cloud expertise.",
-  "How has Nearform helped companies modernize their frontend architectures?",
+  "How did Nearform help Walmart transform their checkout experience?",
+  "What AI-powered transformation did Nearform deliver for the executive search consultancy?",
+  "How was Nomo, the digital-only bank, launched in under 9 months?",
+  "What is AI-native engineering and how does it change product development?",
+  "How did Nearform scale Puma's e-commerce platform globally?",
+  "What are best practices for implementing MCP servers?",
+  "How is Nearform using on-device AI and browser-based vector search?",
+  "How did Nearform help PUMA unify their fragmented regional e-commerce platforms?",
+  "What should enterprises consider when choosing open vs closed LLMs?",
+  "How did Nearform help Starbucks build their progressive web app?",
 ];
 
 // Randomly select N items from an array using Fisher-Yates shuffle
