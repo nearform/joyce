@@ -141,6 +141,7 @@ const AskButton = ({ isFetching, title = "Ask" }) => html`
   <button
     type="submit"
     title=${title}
+    disabled=${isFetching}
     className="pure-button pure-button-primary chat-submit-icon-btn ${isFetching
       ? "pure-button-disabled"
       : ""}"

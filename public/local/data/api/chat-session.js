@@ -90,6 +90,8 @@ const addTurn = (
 ) => {
   state.history.push({ role: "user", content: userMessage });
   state.history.push({ role: "assistant", content: assistantContent });
+  // Overwrite (not accumulate): both providers report cumulative input tokens
+  // (web-llm sends full history each request; Chrome tracks session context usage)
   state.totalInputTokens = inputTokens;
   state.totalOutputTokens += outputTokens;
 };
