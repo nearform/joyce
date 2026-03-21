@@ -251,44 +251,25 @@ const QueryInfo = ({
   `;
 };
 
-const AnswerContainer = ({
-  children,
-  isDeveloperMode,
-  isRaw,
-  setIsRaw,
-}) => html`
-  <div className="answer" style=${{ position: "relative" }}>
-    <${Fragment}>
-      <div
-        className="pure-button-group"
-        role="group"
-      >
-        ${
-          isDeveloperMode &&
-          html`
-          <${Fragment}>
-            <button
-              onClick=${() => setIsRaw(false)}
-              className=${`pure-button ${!isRaw ? "pure-button-active" : ""}`}
-            >
-              <i className="iconoir-empty-page"></i>
-              HTML
-            </button>
-            <button
-              onClick=${() => setIsRaw(true)}
-              className=${`pure-button ${isRaw ? "pure-button-active" : ""}`}
-            >
-              <i className="iconoir-code"></i>
-              Raw
-            </button>
-          </${Fragment}>
-        `
-        }
-      </div>
-    </${Fragment}>
-    ${children}
-  </div>
-`;
+/* global navigator:false, setTimeout:false */
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return html`
+    <button
+      className="answer-actions-btn"
+      onClick=${handleCopy}
+      title=${copied ? "Copied!" : "Copy to clipboard"}
+    >
+      <i className=${copied ? "iconoir-check" : "iconoir-copy"}></i>
+    </button>
+  `;
+};
 
 export const Answer = ({ answer, queryInfo, onNewConversation }) => {
   const [isRaw, setIsRaw] = useState(false);
@@ -303,7 +284,6 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
         .map((par, i) => html`<p key=${`answer-par-${i}`}>${par}</p>`)}
     </div>`;
   } else {
-    // Sanitize and render markdown
     const renderedHtml = marked.parse(answer, { breaks: true, gfm: true });
     const sanitizedHtml = DOMPurify.sanitize(renderedHtml);
     answerSection = html`
@@ -316,14 +296,29 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
 
   return html`
     <${Fragment}>
-      <${AnswerContainer} ...${{ isDeveloperMode, isRaw, setIsRaw }}>
+      <div className="answer">
         ${answerSection}
-      </${AnswerContainer}>
+      </div>
+      <div className="answer-actions">
+        ${isDeveloperMode && queryInfo && html`<${QueryInfo} ...${queryInfo} />`}
+        ${
+          isDeveloperMode &&
+          html`
+            <button
+              className="answer-actions-btn"
+              onClick=${() => setIsRaw((v) => !v)}
+              title=${isRaw ? "Show formatted" : "Show raw markdown"}
+            >
+              <i className=${isRaw ? "iconoir-align-left" : "iconoir-code"}></i>
+            </button>
+          `
+        }
+        <${CopyButton} text=${answer} />
+      </div>
       <${ContextLimitWarning}
         finishReason=${queryInfo?.finishReason}
         onNewConversation=${onNewConversation}
       />
-      ${isDeveloperMode && queryInfo && html`<${QueryInfo} ...${queryInfo} />`}
     </${Fragment}>
   `;
 };
