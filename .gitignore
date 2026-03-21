@@ -33,3 +33,6 @@ tmp-*
 
 # Analytics data
 .data/analytics/
+
+# AI
+.claude/settings*

@@ -82,15 +82,25 @@
   padding-right: 4px;
 }
 #main .header {
+  display: none;
   margin-top: 0;
   padding-top: 12px;
   border: none;
 }
 #main .header h1 {
-  color: var(--color-text-primary);
-  margin-top: 0;
-  padding-top: 0;
-  font-size: 2em;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding: 0;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+#main .header h1 i {
+  margin-bottom: -2px;
+}
+@media (max-width: 48em) {
+  #main .header {
+    display: block;
+  }
 }
 #main .content {
   line-height: 1.4;
@@ -98,6 +108,11 @@
 #main .content-subhead {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
+  font-size: 1rem;
+  font-weight: 600;
+}
+#main .content-subhead:first-child {
+  margin-top: 1em;
 }
 #main a,
 #main a:visited,
@@ -123,30 +138,27 @@
   max-width: 90%;
   box-shadow: 0 1px 2px var(--color-overlay-very-light);
 }
-#main .answer .pure-button-group {
-  float: right;
-  margin-top: 12px;
+/* Answer actions row (below the bubble) */
+.answer-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: 90%;
+  margin-top: 4px;
 }
-/* Button group button styling to respect outer border radius */
-#main .answer .pure-button-group .pure-button {
-  padding: 6px 10px;
-  border-radius: 0; /* Remove default border radius from all buttons */
-  background-color: var(--color-bg-light);
+.answer-actions-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 2px;
+  font-weight: bold;
+  font-size: 1.08em;
+  margin-top: 15px;
+  transition: margin-top 0.2s ease;
 }
-#main .answer .pure-button-group .pure-button:first-child {
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
-}
-#main .answer .pure-button-group .pure-button:last-child {
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
-}
-#main .answer .pure-button-group .pure-button i {
-  margin: 0;
-  padding: 0;
-  margin-bottom: -2px;
-  margin-right: 4px;
-  font-size: 14px;
+.answer-actions:has(.query-info[open]) .answer-actions-btn {
+  margin-top: 23px;
 }
 
 .conversation-entry {

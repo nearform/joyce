@@ -173,7 +173,7 @@ export const Chat = () => {
   });
 
   return html`
-    <${Page} name="Chat">
+    <${Page} name="Chat" icon="iconoir-chat-bubble">
       <p>
         Use fancy AI to generate answers / text from our blogs / case
         studies / services. You can filter the content we use

@@ -146,7 +146,7 @@ const AskButton = ({ isFetching, title = "Ask" }) => html`
       ? "pure-button-disabled"
       : ""}"
   >
-    <i className="iconoir-arrow-up"></i>
+    <i className="iconoir-send"></i>
   </button>
 `;
 
@@ -191,7 +191,7 @@ export const ChatSubmitButton = ({
 };
 
 const handleQueryKeyDown = (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     const value = e.target.value.trim();
     if (value) e.target.form.requestSubmit();

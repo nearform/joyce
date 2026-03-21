@@ -265,7 +265,7 @@ export const Data = () => {
   const [activeTab, setActiveTab] = useState("resources");
 
   return html`
-    <${Page} name="Data & Models">
+    <${Page} name="Data & Models" icon="iconoir-cpu">
       <p>Data, system information, and AI models used by the app.</p>
       <${Tabs} tabs=${TABS} activeTab=${activeTab} onTabChange=${setActiveTab} />
       ${

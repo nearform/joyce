@@ -10,7 +10,7 @@ export const Home = () => {
   const { isDeveloperMode } = settings;
 
   return html`
-    <${Page} name="Joyce">
+    <${Page} name="Joyce" icon="iconoir-glasses">
       ${
         !isDeveloperMode &&
         html`
