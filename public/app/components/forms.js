@@ -146,7 +146,7 @@ const AskButton = ({ isFetching, title = "Ask" }) => html`
       ? "pure-button-disabled"
       : ""}"
   >
-    <i className="iconoir-arrow-up"></i>
+    <i className="iconoir-send"></i>
   </button>
 `;
 
