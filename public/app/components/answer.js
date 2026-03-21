@@ -255,16 +255,21 @@ const QueryInfo = ({
 
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard write failed (e.g. permissions denied)
+    }
   };
   return html`
     <button
       className="answer-actions-btn"
       onClick=${handleCopy}
       title=${copied ? "Copied!" : "Copy to clipboard"}
+      aria-label=${copied ? "Copied!" : "Copy to clipboard"}
     >
       <i className=${copied ? "iconoir-check" : "iconoir-copy"}></i>
     </button>
@@ -308,6 +313,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
               className="answer-actions-btn"
               onClick=${() => setIsRaw((v) => !v)}
               title=${isRaw ? "Show formatted" : "Show raw markdown"}
+              aria-label=${isRaw ? "Show formatted" : "Show raw markdown"}
             >
               <i className=${isRaw ? "iconoir-align-left" : "iconoir-code"}></i>
             </button>

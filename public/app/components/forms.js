@@ -191,7 +191,7 @@ export const ChatSubmitButton = ({
 };
 
 const handleQueryKeyDown = (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     const value = e.target.value.trim();
     if (value) e.target.form.requestSubmit();
