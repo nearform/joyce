@@ -34,7 +34,11 @@ const prettifyXml = (xmlString) => {
 const PromptDataLink = ({ data }) => {
   if (!data) return null;
 
-  const handleOpen = () => openTextInNewWindow(JSON.stringify(data, null, 2));
+  const handleOpen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openTextInNewWindow(JSON.stringify(data, null, 2));
+  };
 
   return html`
     <span onClick=${handleOpen} title="Open full prompt as JSON">
@@ -49,7 +53,11 @@ const PromptDataLink = ({ data }) => {
 const ContextDataLink = ({ data }) => {
   if (!data) return null;
 
-  const handleOpen = () => openTextInNewWindow(prettifyXml(data));
+  const handleOpen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openTextInNewWindow(prettifyXml(data));
+  };
 
   return html`
     <span onClick=${handleOpen} title="Open full context as XML">
