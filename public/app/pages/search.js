@@ -80,7 +80,7 @@ export const Search = () => {
   };
 
   return html`
-    <${Page} name="Search">
+    <${Page} name="Search" icon="iconoir-doc-magnifying-glass-in">
       <p>
         Search (and filter) the most similar blog posts that match a query.
         ${" "}

@@ -67,7 +67,7 @@ export const Posts = () => {
   };
 
   return html`
-    <${Page} name="Posts">
+    <${Page} name="Posts" icon="iconoir-multiple-pages-empty">
       <p>
         List (and filter) blog / case study / services
         pages${isDeveloperMode && ", without querying a database or service"}.

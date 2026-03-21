@@ -36,7 +36,7 @@ export const Settings = () => {
   };
 
   return html`
-    <${Page} name="Settings">
+    <${Page} name="Settings" icon="iconoir-tools">
       <p>
         Configure application-wide settings and preferences.
         ${" "}<button

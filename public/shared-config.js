@@ -14,7 +14,7 @@ export const CHROME_ANY_API_POSSIBLE =
 export const CHROME_DEFAULT_TOP_K = 40;
 
 const BASE_PAGES = [
-  { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-home-simple" },
+  { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-glasses" },
   { name: "Posts", to: "/posts", icon: "iconoir-multiple-pages-empty" },
   { name: "Search", to: "/search", icon: "iconoir-doc-magnifying-glass-in" },
   { name: "Chat", to: "/chat", icon: "iconoir-chat-bubble" },
