@@ -41,9 +41,14 @@ const PromptDataLink = ({ data }) => {
   };
 
   return html`
-    <span onClick=${handleOpen} title="Open full prompt as JSON">
-      <i className="ui-icon-button iconoir-message-text"></i>
-    </span>
+    <button
+      className="answer-actions-btn"
+      onClick=${handleOpen}
+      title="Open full prompt as JSON"
+      aria-label="Open full prompt as JSON"
+    >
+      <i className="iconoir-message-text"></i>
+    </button>
   `;
 };
 
@@ -60,9 +65,14 @@ const ContextDataLink = ({ data }) => {
   };
 
   return html`
-    <span onClick=${handleOpen} title="Open full context as XML">
-      <i className="ui-icon-button iconoir-page"></i>
-    </span>
+    <button
+      className="answer-actions-btn"
+      onClick=${handleOpen}
+      title="Open full context as XML"
+      aria-label="Open full context as XML"
+    >
+      <i className="iconoir-page"></i>
+    </button>
   `;
 };
 
@@ -77,8 +87,6 @@ const QueryInfo = ({
   context,
   internal,
   turnNumber,
-  prompt,
-  rawContext,
 } = {}) => {
   if (!elapsed && !usage && !model && !chunks && !context) return null;
 
@@ -110,9 +118,7 @@ const QueryInfo = ({
         <em>Query Info</em> (
         ${model && html`${model}${(totalElapsed || usage) && ", "}`}
         ${totalElapsed && html`${totalElapsed}${hasCost && ", "}`}
-        ${hasCost && html`$${totalCost}`}) ${" "}
-        <${PromptDataLink} data=${prompt} />
-        <${ContextDataLink} data=${rawContext} />
+        ${hasCost && html`$${totalCost}`})
       </summary>
 
       <div>
@@ -314,6 +320,8 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
       </div>
       <div className="answer-actions">
         ${isDeveloperMode && queryInfo && html`<${QueryInfo} ...${queryInfo} />`}
+        ${isDeveloperMode && queryInfo?.prompt && html`<${PromptDataLink} data=${queryInfo.prompt} />`}
+        ${isDeveloperMode && queryInfo?.rawContext && html`<${ContextDataLink} data=${queryInfo.rawContext} />`}
         ${
           isDeveloperMode &&
           html`
