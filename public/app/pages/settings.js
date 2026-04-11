@@ -116,6 +116,16 @@ export const Settings = () => {
               </${Checkbox}>
 
               <${Checkbox}
+                id="experimental-chat-context-size"
+                label="Context Size Override"
+                checked=${pendingSettings.experimentalChatContextSize}
+                onChange=${handleSettingChange("experimentalChatContextSize")}
+              >
+                Allow overriding the max context tokens in Chat.
+                Higher values use more VRAM and may cause errors.
+              </${Checkbox}>
+
+              <${Checkbox}
                 id="display-model-stats"
                 label="Display Model Stats"
                 checked=${pendingSettings.displayModelStats}

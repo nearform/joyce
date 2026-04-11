@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   // Experimental settings
   experimentalChat: false,
   experimentalChatConversations: false,
+  experimentalChatContextSize: false,
   experimentalWebgpuEmbeddings: false,
 };
 

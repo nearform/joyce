@@ -781,6 +781,70 @@ export const TemperatureDropdown = ({
   `;
 };
 
+// Context size control (max tokens for RAG context)
+const CONTEXT_SIZE_TITLE =
+  "Max context tokens for RAG (higher = more context, more VRAM)";
+
+const ContextSize = ({
+  value,
+  defaultValue,
+  max,
+  onChange,
+  id = "contextSize",
+}) => {
+  return html`
+    <label
+      title=${CONTEXT_SIZE_TITLE}
+      className="form-dropdown-input-box"
+      style=${{ whiteSpace: "nowrap" }}
+    >
+      Context:${" "}<input
+        id=${id}
+        type="number"
+        min=${1024}
+        max=${max}
+        step=${1024}
+        defaultValue=${value || defaultValue}
+        onChange=${(e) => onChange(parseInt(getTargetValue(e), 10))}
+      />${" "}/ ${max.toLocaleString()}
+    </label>
+  `;
+};
+
+export const ContextSizeDropdown = ({
+  hidden,
+  value,
+  defaultValue,
+  max,
+  onChange = () => {},
+  disabled = false,
+}) => {
+  const [hasChanged, setHasChanged] = useState(false);
+
+  const handleChange = (val) => {
+    setHasChanged(val !== defaultValue);
+    onChange(val);
+  };
+
+  return html`
+    <${DropdownWrapper}
+      icon="iconoir-scale-frame-enlarge"
+      iconTitle=${disabled ? "Context size (locked)" : CONTEXT_SIZE_TITLE}
+      className="form-dropdown-hideable"
+      isChanged=${hasChanged}
+      hidden=${hidden}
+      disabled=${disabled}
+    >
+      <${ContextSize}
+        value=${value}
+        defaultValue=${defaultValue}
+        max=${max}
+        onChange=${handleChange}
+      />
+    </${DropdownWrapper}>
+  `;
+};
+
 const MIN_DATE_TITLE = "Filter to posts published on/before this date";
 
 export const PostMinDate = ({ value, setValue, className }) => html`

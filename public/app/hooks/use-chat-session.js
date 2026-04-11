@@ -28,6 +28,7 @@ const setQueryValue = getQuerySetter("query");
 export const useChatSession = ({
   modelObj,
   temperature,
+  contextSize,
   minDate,
   selectedPostTypes,
   selectedCategoryPrimary,
@@ -193,6 +194,7 @@ export const useChatSession = ({
         provider: modelObj.provider,
         model: modelObj.model,
         temperature,
+        maxTokensOverride: contextSize,
       });
 
       let usage = null;

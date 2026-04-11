@@ -95,9 +95,10 @@ export const buildContextFromChunks = async ({
   maxChunks,
   forMultiTurn = false,
   isFirstTurn = false,
+  maxTokens: maxTokensOverride,
 }) => {
   const modelCfg = getModelCfg({ provider, model });
-  const maxTokens = modelCfg.maxTokens;
+  const maxTokens = maxTokensOverride ?? modelCfg.maxTokens;
   const cushion = forMultiTurn
     ? getMultiTurnCushion(maxTokens)
     : TOKEN_CUSHION_CHAT;
@@ -306,6 +307,7 @@ export const rebuildContextWithLimit = async ({
   provider,
   model,
   targetChunkCount,
+  maxTokens,
 }) => {
   const effectiveMax = Math.max(targetChunkCount, MIN_CONTEXT_CHUNKS);
   return buildContextFromChunks({
@@ -316,6 +318,7 @@ export const rebuildContextWithLimit = async ({
     maxChunks: effectiveMax,
     forMultiTurn: true,
     isFirstTurn: false, // Context reduction happens after first turn
+    maxTokens,
   });
 };
 

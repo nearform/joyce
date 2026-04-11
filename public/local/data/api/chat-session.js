@@ -195,10 +195,15 @@ const buildUsageMessage = ({
  * @param {number} options.temperature - Sampling temperature
  * @returns {ChatSession}
  */
-export const createChatSession = ({ provider, model, temperature }) => {
+export const createChatSession = ({
+  provider,
+  model,
+  temperature,
+  maxTokensOverride,
+}) => {
   const capabilities = getProviderCapabilities(provider, model);
   const modelCfg = getModelCfg({ provider, model });
-  const maxTokens = modelCfg.maxTokens ?? Infinity;
+  const maxTokens = maxTokensOverride ?? modelCfg.maxTokens ?? Infinity;
 
   const state = createSessionState({
     maxTokens,
@@ -333,6 +338,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
         provider,
         model,
         supportsMultiTurn: capabilities.supportsMultiTurn,
+        maxTokens,
       });
 
       state.searchData = searchData;
@@ -398,6 +404,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
         contextState: state.contextState,
         provider,
         model,
+        maxTokens,
       });
       if (newContextState) {
         state.contextState = newContextState;

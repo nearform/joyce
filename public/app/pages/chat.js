@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { Link } from "react-router";
 import { html } from "../util/html.js";
@@ -6,6 +6,7 @@ import { Page } from "../components/page.js";
 import {
   ModelChatSelectDropdown,
   TemperatureDropdown,
+  ContextSizeDropdown,
   PostMinDateDropdown,
   PostTypeSelectDropdown,
   PostCategoryPrimarySelectDropdown,
@@ -125,6 +126,16 @@ export const Chat = () => {
   const [temperature, setTemperature] = useState(DEFAULT_TEMPERATURE);
   const [minDate, setMinDate] = useState("");
 
+  // Context size: user-overridable maxTokens for models with specMaxTokens
+  const modelCfg = getModelCfg(modelObj);
+  const specMaxTokens = modelCfg.specMaxTokens ?? null;
+  const [contextSize, setContextSize] = useState(modelCfg.maxTokens);
+
+  // Reset context size when model changes
+  useEffect(() => {
+    setContextSize(getModelCfg(modelObj).maxTokens);
+  }, [modelObj]);
+
   // Settings and config
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
@@ -160,6 +171,7 @@ export const Chat = () => {
   } = useChatSession({
     modelObj,
     temperature,
+    contextSize,
     minDate,
     selectedPostTypes,
     selectedCategoryPrimary,
@@ -259,6 +271,14 @@ export const Chat = () => {
           hidden=${!isDeveloperMode}
           value=${temperature}
           onChange=${setTemperature}
+          disabled=${formInputsLocked}
+        />
+        <${ContextSizeDropdown}
+          hidden=${!specMaxTokens || !settings.experimentalChatContextSize}
+          value=${contextSize}
+          defaultValue=${modelCfg.maxTokens}
+          max=${specMaxTokens ?? 0}
+          onChange=${setContextSize}
           disabled=${formInputsLocked}
         />
       </${ChatInputForm}>

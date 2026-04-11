@@ -27,6 +27,7 @@ export const performRagSearch = async ({
   provider,
   model,
   supportsMultiTurn,
+  maxTokens,
 }) => {
   const startTime = Date.now();
 
@@ -51,6 +52,7 @@ export const performRagSearch = async ({
     model,
     forMultiTurn: supportsMultiTurn,
     isFirstTurn: true,
+    maxTokens,
   });
 
   // Enrich metadata with context info
@@ -88,7 +90,12 @@ export const performRagSearch = async ({
  * @param {string} options.model - Model ID
  * @returns {Promise<Object|null>} New context state or null if reduction not possible
  */
-export const reduceContext = async ({ contextState, provider, model }) => {
+export const reduceContext = async ({
+  contextState,
+  provider,
+  model,
+  maxTokens,
+}) => {
   const { rawChunks, chunkCount, initialQuery } = contextState;
 
   if (!rawChunks?.length || chunkCount <= MIN_CONTEXT_CHUNKS) {
@@ -104,6 +111,7 @@ export const reduceContext = async ({ contextState, provider, model }) => {
       provider,
       model,
       targetChunkCount: targetChunks,
+      maxTokens,
     });
 
     return {
