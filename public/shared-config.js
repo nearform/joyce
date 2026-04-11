@@ -144,6 +144,30 @@ const config = {
       ],
     },
   },
+  // Transformers.js — Gemma 4 ONNX models via WebGPU
+  // See: https://huggingface.co/onnx-community
+  transformersJs: {
+    models: {
+      chat: [
+        {
+          model: "onnx-community/gemma-4-E2B-it-ONNX",
+          modelShortName: "Gemma 4 E2B",
+          shortOption: "Gemma Fast",
+          maxTokens: 4096,
+          vramMb: 3000,
+          quantization: "q4f16",
+        },
+        {
+          model: "onnx-community/gemma-4-E4B-it-ONNX",
+          modelShortName: "Gemma 4 E4B",
+          shortOption: "Gemma Best",
+          maxTokens: 4096,
+          vramMb: 5000,
+          quantization: "q4f16",
+        },
+      ],
+    },
+  },
 };
 
 // Default embedding chunk size (uses the MEDIUM size from dataChunkSizes)
@@ -153,6 +177,7 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
   webLlm: "web-llm",
+  transformersJs: "Transformers.js",
 };
 
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({

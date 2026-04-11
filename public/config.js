@@ -27,15 +27,29 @@ for (const modelObj of config.webLlm.models.chat) {
 // ======================================================
 // Helper functions
 // ======================================================
-export const MODELS = prebuiltAppConfig.model_list
-  .map((model) => ({
-    model: model.model_id,
-    modelUrl: model.model,
-    quantization: model.model_id.match(QUANTIZATION_REGEX)?.[0] ?? null,
-    maxTokens: model.overrides?.context_window_size ?? null,
-    vramMb: model.vram_required_MB ?? null,
-  }))
-  .sort((a, b) => (a.vramMb ?? 0) - (b.vramMb ?? 0));
+// Build unified MODELS list from all sources for info display
+const webLlmModels = prebuiltAppConfig.model_list.map((model) => ({
+  model: model.model_id,
+  modelUrl: model.model,
+  quantization: model.model_id.match(QUANTIZATION_REGEX)?.[0] ?? null,
+  maxTokens: model.overrides?.context_window_size ?? null,
+  vramMb: model.vram_required_MB ?? null,
+}));
+
+// Include transformers.js models (metadata is in shared-config, not prebuiltAppConfig)
+export const TRANSFORMERS_JS_MODELS = (
+  config.transformersJs?.models?.chat ?? []
+).map((m) => ({
+  model: m.model,
+  modelUrl: `https://huggingface.co/${m.model}`,
+  quantization: m.quantization ?? null,
+  maxTokens: m.maxTokens ?? null,
+  vramMb: m.vramMb ?? null,
+}));
+
+export const MODELS = [...webLlmModels, ...TRANSFORMERS_JS_MODELS].sort(
+  (a, b) => (a.vramMb ?? 0) - (b.vramMb ?? 0),
+);
 
 /**
  * Dynamically add a model to the chat models list (session only, not persisted).

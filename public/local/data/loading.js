@@ -24,10 +24,19 @@ const createLlmResource = (provider, modelId) => ({
   checkCached: () => isLlmCached(provider, modelId),
 });
 
-// Generate LLM resource key from model ID (e.g., "SmolLM2-360M-Instruct-q4f16_1-MLC" -> "LLM_SMOLLM2_360M_INSTRUCT")
+// Generate LLM resource key from model ID
+// e.g., "SmolLM2-360M-Instruct-q4f16_1-MLC" -> "LLM_SMOLLM2_360M_INSTRUCT"
+// e.g., "onnx-community/gemma-4-E2B-it-ONNX" -> "LLM_ONNX_COMMUNITY_GEMMA_4_E2B_IT_ONNX"
 const modelToResourceKey = (modelId) => {
   const baseName = modelId.split("-q4f16")[0];
-  return "LLM_" + baseName.toUpperCase().replace(/-/g, "_").replace(/\./g, "_");
+  return (
+    "LLM_" +
+    baseName
+      .toUpperCase()
+      .replace(/\//g, "_")
+      .replace(/-/g, "_")
+      .replace(/\./g, "_")
+  );
 };
 
 // Dynamically create LLM resources from ALL providers (web-llm AND chrome)

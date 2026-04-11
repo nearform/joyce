@@ -93,7 +93,7 @@ const StatusIcon = ({ status, onLoad, progress }) => {
   `;
 };
 
-export const ModelsTable = ({ models = [] }) => {
+export const ModelsTable = ({ models = [], provider = "webLlm" }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
   const { getStatus, getProgress, startLoading } = useLoading();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -181,8 +181,7 @@ export const ModelsTable = ({ models = [] }) => {
               ) => {
                 const handleLoad = () => {
                   // Register model in chat config so it appears in model selector
-                  // Note: models-table is currently web-llm specific
-                  addChatModel("webLlm", model);
+                  addChatModel(provider, model);
                   startLoading(resourceId);
                 };
                 return html`

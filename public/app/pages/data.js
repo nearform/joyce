@@ -4,7 +4,12 @@ import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
 import { useConfig } from "../contexts/config.js";
-import { MODELS, getModelCfg, getProviderForModel } from "../../config.js";
+import {
+  MODELS,
+  TRANSFORMERS_JS_MODELS,
+  getModelCfg,
+  getProviderForModel,
+} from "../../config.js";
 import { formatBytes } from "../../shared-util.js";
 import {
   CHROME_ANY_API_POSSIBLE,
@@ -254,7 +259,24 @@ const ModelsPanel = ({ experimentalChat }) => {
         the model is loaded in memory, currently loading, or available for
         download.
       </p>
-      <${ModelsTable} models=${MODELS} />
+      <${ModelsTable} models=${MODELS} provider="webLlm" />
+
+      <h3>Transformers.js</h3>
+      <p>
+        Gemma 4 ONNX models via${" "}
+        <a
+          href="https://huggingface.co/docs/transformers.js"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          @huggingface/transformers
+        </a>
+        ${" "}with WebGPU acceleration.
+      </p>
+      <${ModelsTable}
+        models=${TRANSFORMERS_JS_MODELS}
+        provider="transformersJs"
+      />
     </div>
   `;
 };
