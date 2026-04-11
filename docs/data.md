@@ -68,6 +68,26 @@ At 4,096 tokens the peak fits within Chrome's ~4-6 GB budget. At 6,288 tokens th
 - The HuggingFace Gemma 4 WebGPU demo uses `max_new_tokens: 512`
 - Google's own LiteRT benchmarks use 1024 prefill tokens with 2048 context length
 
+### Unaligned Access Error (~5000-6000 tokens)
+
+A separate error occurs in the ~5000-6000 token range, distinct from the OOM at ~6288:
+
+```
+RuntimeError: operation does not support unaligned accesses
+```
+
+This is a **WebAssembly error**, not a WebGPU error. ONNX Runtime Web runs a hybrid architecture: GPU kernels on WebGPU, but orchestration and memory management in Emscripten-compiled WASM with pthreads. The WASM spec mandates that atomic operations (used by pthread mutexes) must be naturally aligned -- misaligned atomics trap immediately.
+
+**Root cause**: WASM heap memory corruption under pressure from larger tensors. At higher sequence lengths, intermediate buffers grow, WASM heap grows via `ALLOW_MEMORY_GROWTH`, and Emscripten's pthreads + memory growth combination is [documented as "especially tricky"](https://emscripten.org/docs/porting/pthreads.html). When heap corruption garbles a mutex pointer, the next atomic operation at that address traps. This pattern was confirmed in [emscripten#19040](https://github.com/emscripten-core/emscripten/issues/19040).
+
+**Known related fixes**:
+
+- [onnxruntime#23677](https://github.com/microsoft/onnxruntime/issues/23677) -- incorrect alignment for u32 in uniform buffer (fixed Feb 2025)
+- [onnxruntime#23663](https://github.com/microsoft/onnxruntime/pull/23663) -- MatMulNBits prefill shader race condition
+- [onnxruntime#26732](https://github.com/microsoft/onnxruntime/issues/26732) -- q4f16 Gemma models produce invalid outputs on WebGPU
+
+**Practical takeaway**: The 4096 default stays safely below both the OOM ceiling (~6288 tokens) and the unaligned access threshold (~5000-6000 tokens). These are upstream ONNX Runtime bugs that may improve with future releases.
+
 ### Potential Future Improvements
 
 - **Float16 PLE tensors** -- would halve the ~140 MB to ~70 MB at 4096 tokens (requires upstream ONNX export changes)
