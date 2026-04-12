@@ -185,15 +185,16 @@ const config = {
         // Outperforms Llama-3.2-3B and Qwen2.5-3B. Thinking mode supported.
         // ~1.5-2 GB q4f16. Official WebGPU demo: HuggingFaceTB/SmolLM3-3B-WebGPU.
         // Desktop-class; too large for mobile.
-        {
-          model: "HuggingFaceTB/SmolLM3-3B-ONNX",
-          modelShortName: "SmolLM3 3B",
-          shortOption: "SmolLM3",
-          maxTokens: 4096,
-          specMaxTokens: 128000,
-          vramMb: 2000,
-          quantization: "q4f16",
-        },
+        // DISABLED: produces gibberish output as of Apr 2026.
+        // {
+        //   model: "HuggingFaceTB/SmolLM3-3B-ONNX",
+        //   modelShortName: "SmolLM3 3B",
+        //   shortOption: "SmolLM3",
+        //   maxTokens: 4096,
+        //   specMaxTokens: 128000,
+        //   vramMb: 2000,
+        //   quantization: "q4f16",
+        // },
         // SmolLM2 360M Instruct — Ultra-light, runs on any device including mobile.
         // HellaSwag 52.1%, ARC 43.7%. Confirmed WebGPU by Xenova (TJS creator).
         // ~250 MB q4f16. 8K context only — limiting for RAG but adequate for short Q&A.
