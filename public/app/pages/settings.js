@@ -134,7 +134,7 @@ export const Settings = () => {
                 Show model token limits and info in the UI.
               </${Checkbox}>
 
-              <h4>Embeddings</h4>
+              <h4>WebGPU</h4>
 
               <${Checkbox}
                 id="experimental-webgpu-embeddings"
@@ -143,6 +143,16 @@ export const Settings = () => {
                 onChange=${handleSettingChange("experimentalWebgpuEmbeddings")}
               >
                 Use WebGPU for embeddings extraction when available.
+              </${Checkbox}>
+
+              <${Checkbox}
+                id="experimental-webgpu-chat"
+                label="WebGPU Chat"
+                checked=${pendingSettings.experimentalWebgpuChat}
+                onChange=${handleSettingChange("experimentalWebgpuChat")}
+              >
+                Use WebGPU for Transformers.js chat models when available.
+                On mobile iOS, chat defaults to CPU — enable this to override.
               </${Checkbox}>
             `
           }

@@ -19,6 +19,7 @@ const dateToNumber = (date) => Date.parse(date);
 export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
 
+  // Default WASM; opt in to WebGPU via settings (works on all platforms including iOS).
   let device = null;
   if (getSettings().experimentalWebgpuEmbeddings && "gpu" in navigator) {
     try {

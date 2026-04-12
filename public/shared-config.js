@@ -1,6 +1,16 @@
+/* global navigator:false */
 /**
  * Shared client configuration. (No secrets, Node.js compatible).
  */
+
+// Platform detection — iOS Safari/Chrome/etc. all use WebKit under the hood.
+// iPads with "Request Desktop Website" report "Macintosh" but have touch.
+export const IS_MOBILE_IOS = (() => {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/iPhone|iPod|iPad/.test(ua)) return true;
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+})();
 
 // Chrome Built-in AI feature detection
 // ## Enabling in Chrome

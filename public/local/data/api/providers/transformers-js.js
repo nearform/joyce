@@ -1,4 +1,4 @@
-/* global caches:false */
+/* global caches:false, localStorage:false, navigator:false */
 // Transformers.js provider implementation
 // Uses @huggingface/transformers for ONNX models via WebGPU
 // Supports Gemma 4 (multimodal) and text-only models (Qwen, SmolLM, etc.)
@@ -10,8 +10,72 @@ import {
   TextStreamer,
 } from "@huggingface/transformers";
 import { CHAT_MODELS_MAP } from "../../../../config.js";
+import { IS_MOBILE_IOS } from "../../../../shared-config.js";
+import { getSettings } from "../../../../app/hooks/use-settings.js";
 
 const isGemmaModel = (model) => model.toLowerCase().includes("gemma");
+
+// ---------------------------------------------------------------------------
+// Crash tracking
+// ---------------------------------------------------------------------------
+// Before model load or generation we write a marker to localStorage. If the
+// browser tab crashes (OOM, WebGPU device lost, etc.) the marker survives and
+// is detected on the next page load. On success we promote it to "last crash"
+// history and clear the pending marker.
+const CRASH_KEY = "tjs_crash_pending";
+const CRASH_HISTORY_KEY = "tjs_crash_last";
+
+const setCrashMarker = (model, phase) => {
+  try {
+    localStorage.setItem(
+      CRASH_KEY,
+      JSON.stringify({ model, phase, ts: new Date().toISOString() }),
+    );
+  } catch {
+    /* best-effort */
+  }
+};
+
+const clearCrashMarker = () => {
+  try {
+    localStorage.removeItem(CRASH_KEY);
+  } catch {
+    /* best-effort */
+  }
+};
+
+/**
+ * Check for a crash from a previous session.
+ * If a pending marker exists, the previous session crashed during model
+ * load or generation. Promote it to crash history and clear the marker.
+ * @returns {{ model: string, phase: string, ts: string } | null}
+ */
+export const checkCrash = () => {
+  try {
+    const pending = localStorage.getItem(CRASH_KEY);
+    if (pending) {
+      localStorage.setItem(CRASH_HISTORY_KEY, pending);
+      localStorage.removeItem(CRASH_KEY);
+      return JSON.parse(pending);
+    }
+    const last = localStorage.getItem(CRASH_HISTORY_KEY);
+    return last ? JSON.parse(last) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Clear crash history (e.g. from a "dismiss" button).
+ */
+export const clearCrashHistory = () => {
+  try {
+    localStorage.removeItem(CRASH_HISTORY_KEY);
+    localStorage.removeItem(CRASH_KEY);
+  } catch {
+    /* best-effort */
+  }
+};
 
 // Map of model -> { processorOrTokenizerPromise, modelPromise, progressCallback, isGemma }
 const engines = new Map();
@@ -70,6 +134,29 @@ const getQuantization = (model) =>
   CHAT_MODELS_MAP.transformersJs?.[model]?.quantization ?? "q4f16";
 
 /**
+ * Resolve the device for model inference.
+ * - Desktop (non-iOS): always "webgpu"
+ * - Mobile iOS: defaults to CPU (no device option), unless the user
+ *   enables the "WebGPU Chat" experimental setting AND WebGPU is available.
+ * @returns {Promise<string|null>} "webgpu" or null (WASM/CPU fallback)
+ */
+const resolveDevice = async () => {
+  if (!IS_MOBILE_IOS) return "webgpu";
+
+  // On iOS, only use WebGPU if the user explicitly opts in
+  if (!getSettings().experimentalWebgpuChat) return null;
+
+  // Check if WebGPU is actually available
+  if (!("gpu" in navigator)) return null;
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    return adapter ? "webgpu" : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Get or create a model engine (processor/tokenizer + generation model).
  * @param {string} model - The model ID
  * @returns {Promise<Object>} Engine with { generationModel } and either { processor } or { tokenizer }
@@ -86,15 +173,21 @@ export const getLlmEngine = async (model) => {
 
   if (!entry.modelPromise) {
     const progressCallback = makeProgressCallback(entry);
-    const opts = {
-      dtype,
-      device: "webgpu",
-      progress_callback: progressCallback,
-    };
 
-    entry.modelPromise = entry.isGemma
-      ? Gemma4ForConditionalGeneration.from_pretrained(model, opts)
-      : AutoModelForCausalLM.from_pretrained(model, opts);
+    entry.modelPromise = resolveDevice().then(async (device) => {
+      setCrashMarker(model, "load");
+      const opts = {
+        dtype,
+        ...(device ? { device } : {}),
+        progress_callback: progressCallback,
+      };
+
+      const result = entry.isGemma
+        ? await Gemma4ForConditionalGeneration.from_pretrained(model, opts)
+        : await AutoModelForCausalLM.from_pretrained(model, opts);
+      clearCrashMarker();
+      return result;
+    });
   }
 
   const [processorOrTokenizer, generationModel] = await Promise.all([
@@ -217,6 +310,7 @@ export const createHandler = async ({
       });
 
       // Start generation in background
+      setCrashMarker(model, "generate");
       const generatePromise = engine.generationModel
         .generate({
           ...inputs,
@@ -226,6 +320,7 @@ export const createHandler = async ({
           streamer,
         })
         .then((output) => {
+          clearCrashMarker();
           streamDone = true;
           enqueue(null); // null sentinel = done
           return output;

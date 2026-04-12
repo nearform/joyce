@@ -26,6 +26,11 @@ import {
 import { useLoading } from "../../local/app/context/loading.js";
 import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
+import {
+  checkCrash,
+  clearCrashHistory,
+} from "../../local/data/api/providers/transformers-js.js";
+import { IS_MOBILE_IOS } from "../../shared-config.js";
 
 const TABS = [
   { id: "resources", label: "Resources", icon: "iconoir-database" },
@@ -104,6 +109,7 @@ const SystemPanel = ({ systemInfo }) => {
   const extractor =
     extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
   const device = extractor?._device ?? null;
+  const [crashInfo, setCrashInfo] = useState(() => checkCrash());
 
   const embeddingsBadge =
     device === "webgpu"
@@ -121,6 +127,10 @@ const SystemPanel = ({ systemInfo }) => {
         ? { label: "Fallback (Software)", className: "status-warning" }
         : { label: "Available", className: "status-supported" };
 
+  const platformBadge = IS_MOBILE_IOS
+    ? { label: "iOS", className: "status-warning" }
+    : { label: "Desktop", className: "status-supported" };
+
   return html`
     <div
       className="tabs-panel"
@@ -129,6 +139,17 @@ const SystemPanel = ({ systemInfo }) => {
       aria-labelledby="tab-system"
     >
       <div className="system-info">
+        <div className="system-info-row">
+          <strong>Platform:</strong>
+          <span className=${`status-badge ${platformBadge.className}`}>
+            ${platformBadge.label}
+          </span>
+          ${IS_MOBILE_IOS &&
+          html`<span className="gpu-info"
+            >Chat defaults to CPU (override in Settings)</span
+          >`}
+        </div>
+
         <div className="system-info-row">
           <strong>WebGPU:</strong>
           <span className=${`status-badge ${webgpuStatus.className}`}>
@@ -148,6 +169,30 @@ const SystemPanel = ({ systemInfo }) => {
           </span>
         </div>
 
+        ${crashInfo &&
+        html`
+          <div className="system-info-row" style=${{ marginTop: "0.5em" }}>
+            <span className="status-badge status-unsupported">
+              Last Crash
+            </span>
+            <span className="gpu-info">
+              Model: ${crashInfo.model} (${crashInfo.phase})
+              ${crashInfo.ts &&
+              ` at ${new Date(crashInfo.ts).toLocaleString()}`}
+            </span>
+            <button
+              type="button"
+              className="pure-button"
+              style=${{ marginLeft: "0.5em", fontSize: "0.8em" }}
+              onClick=${() => {
+                clearCrashHistory();
+                setCrashInfo(null);
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        `}
         ${webgpu.adapterAvailable &&
         html`
           <details className="system-info-limits">
