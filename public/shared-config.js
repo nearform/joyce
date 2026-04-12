@@ -71,9 +71,9 @@ export const CHUNK_DEDUP_MODE = "combine";
 export const CHUNK_COMBINE_SEPARATOR = "\n\n...\n\n";
 
 // TODO(CHAT): Can we programmatically get these values?
-export const CHROME_GEMINI_NANO_MAX_TOKENSMAX_TOKENS = 32768;
-export const CHROME_GEMINI_NANO_MAX_TOKENSMAX_TOKENS_ADJUSTED_PROMPT = 8192; // Session max input is much smaller, like around 9K on my mac.
-export const CHROME_GEMINI_NANO_MAX_TOKENSMAX_TOKENS_ADJUSTED_WRITER = 5000; // Session max input around 6K on my mac.
+export const CHROME_GEMINI_NANO_MAX_TOKEN = 32768;
+export const CHROME_GEMINI_NANO_MAX_TOKEN_ADJUSTED_PROMPT = 8192; // Session max input is much smaller, like around 9K on my mac.
+export const CHROME_GEMINI_NANO_MAX_TOKEN_ADJUSTED_WRITER = 5000; // Session max input around 6K on my mac.
 
 const config = {
   pages: {
@@ -99,7 +99,7 @@ const config = {
           modelShortName: "Gemini Nano (Prompt)",
           shortOption: "Flexible",
           api: "prompt",
-          maxTokens: CHROME_GEMINI_NANO_MAX_TOKENSMAX_TOKENS_ADJUSTED_PROMPT,
+          maxTokens: CHROME_GEMINI_NANO_MAX_TOKEN_ADJUSTED_PROMPT,
           default: CHROME_HAS_PROMPT_API,
         },
         {
@@ -107,7 +107,7 @@ const config = {
           modelShortName: "Gemini Nano (Writer)",
           shortOption: "Writing",
           api: "writer",
-          maxTokens: CHROME_GEMINI_NANO_MAX_TOKENSMAX_TOKENS_ADJUSTED_WRITER,
+          maxTokens: CHROME_GEMINI_NANO_MAX_TOKEN_ADJUSTED_WRITER,
           default: !CHROME_HAS_PROMPT_API && CHROME_HAS_WRITER_API,
         },
       ],
