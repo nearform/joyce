@@ -243,6 +243,23 @@ const ModelsPanel = ({ experimentalChat }) => {
         </div>
       </div>
 
+      <h3>Transformers.js</h3>
+      <p>
+        ONNX models via${" "}
+        <a
+          href="https://huggingface.co/docs/transformers.js"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          @huggingface/transformers
+        </a>
+        ${" "}with WebGPU acceleration.
+      </p>
+      <${ModelsTable}
+        models=${TRANSFORMERS_JS_MODELS}
+        provider="transformersJs"
+      />
+
       <h3>web-llm</h3>
       <div className="system-info">
         <div className="system-info-row">
@@ -260,23 +277,6 @@ const ModelsPanel = ({ experimentalChat }) => {
         download.
       </p>
       <${ModelsTable} models=${MODELS} provider="webLlm" />
-
-      <h3>Transformers.js</h3>
-      <p>
-        Gemma 4 ONNX models via${" "}
-        <a
-          href="https://huggingface.co/docs/transformers.js"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          @huggingface/transformers
-        </a>
-        ${" "}with WebGPU acceleration.
-      </p>
-      <${ModelsTable}
-        models=${TRANSFORMERS_JS_MODELS}
-        provider="transformersJs"
-      />
     </div>
   `;
 };

@@ -1,22 +1,28 @@
 /* global caches:false */
 // Transformers.js provider implementation
-// Uses @huggingface/transformers for Gemma 4 ONNX models via WebGPU
-// See: https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX
+// Uses @huggingface/transformers for ONNX models via WebGPU
+// Supports Gemma 4 (multimodal) and text-only models (Qwen, SmolLM, etc.)
 import {
+  AutoModelForCausalLM,
   AutoProcessor,
+  AutoTokenizer,
   Gemma4ForConditionalGeneration,
   TextStreamer,
 } from "@huggingface/transformers";
+import { CHAT_MODELS_MAP } from "../../../../config.js";
 
-// Map of model -> { processorPromise, modelPromise, progressCallback }
+const isGemmaModel = (model) => model.toLowerCase().includes("gemma");
+
+// Map of model -> { processorOrTokenizerPromise, modelPromise, progressCallback, isGemma }
 const engines = new Map();
 
 const getEntry = (model) => {
   if (!engines.has(model)) {
     engines.set(model, {
-      processorPromise: null,
+      processorOrTokenizerPromise: null,
       modelPromise: null,
       progressCallback: null,
+      isGemma: isGemmaModel(model),
     });
   }
   return engines.get(model);
@@ -32,57 +38,73 @@ export const setLlmProgressCallback = (model, cb) => {
 };
 
 /**
- * Get or create a model engine (processor + generation model).
- * @param {string} model - The model ID (e.g., "onnx-community/gemma-4-E2B-it-ONNX")
- * @returns {Promise<{ processor: AutoProcessor, generationModel: Gemma4ForConditionalGeneration }>}
+ * Build a progress_callback for model download tracking.
+ * Shared by both Gemma and text-only loading paths.
+ */
+const makeProgressCallback = (entry) => {
+  const fileProgress = new Map();
+  return (info) => {
+    if (info.status === "progress" && info.total) {
+      fileProgress.set(info.file, { loaded: info.loaded, total: info.total });
+      let totalLoaded = 0;
+      let totalSize = 0;
+      for (const f of fileProgress.values()) {
+        totalLoaded += f.loaded;
+        totalSize += f.total;
+      }
+      const pct = totalSize > 0 ? totalLoaded / totalSize : 0;
+      entry.progressCallback?.({
+        text: `Downloading model: ${Math.round(pct * 100)}%`,
+        progress: pct,
+      });
+    } else if (info.status === "done" && fileProgress.size > 0) {
+      entry.progressCallback?.({ text: "Model loaded", progress: 1 });
+    }
+  };
+};
+
+/**
+ * Look up quantization from config, falling back to "q4f16".
+ */
+const getQuantization = (model) =>
+  CHAT_MODELS_MAP.transformersJs?.[model]?.quantization ?? "q4f16";
+
+/**
+ * Get or create a model engine (processor/tokenizer + generation model).
+ * @param {string} model - The model ID
+ * @returns {Promise<Object>} Engine with { generationModel } and either { processor } or { tokenizer }
  */
 export const getLlmEngine = async (model) => {
   const entry = getEntry(model);
+  const dtype = getQuantization(model);
 
-  if (!entry.processorPromise) {
-    entry.processorPromise = AutoProcessor.from_pretrained(model);
+  if (!entry.processorOrTokenizerPromise) {
+    entry.processorOrTokenizerPromise = entry.isGemma
+      ? AutoProcessor.from_pretrained(model)
+      : AutoTokenizer.from_pretrained(model);
   }
 
   if (!entry.modelPromise) {
-    // Track per-file bytes to compute aggregate download progress
-    const fileProgress = new Map(); // file -> { loaded, total }
-
-    entry.modelPromise = Gemma4ForConditionalGeneration.from_pretrained(model, {
-      dtype: "q4f16",
+    const progressCallback = makeProgressCallback(entry);
+    const opts = {
+      dtype,
       device: "webgpu",
-      progress_callback: (info) => {
-        if (info.status === "progress" && info.total) {
-          fileProgress.set(info.file, {
-            loaded: info.loaded,
-            total: info.total,
-          });
-          let totalLoaded = 0;
-          let totalSize = 0;
-          for (const f of fileProgress.values()) {
-            totalLoaded += f.loaded;
-            totalSize += f.total;
-          }
-          const pct = totalSize > 0 ? totalLoaded / totalSize : 0;
-          entry.progressCallback?.({
-            text: `Downloading model: ${Math.round(pct * 100)}%`,
-            progress: pct,
-          });
-        } else if (info.status === "done" && fileProgress.size > 0) {
-          entry.progressCallback?.({
-            text: "Model loaded",
-            progress: 1,
-          });
-        }
-      },
-    });
+      progress_callback: progressCallback,
+    };
+
+    entry.modelPromise = entry.isGemma
+      ? Gemma4ForConditionalGeneration.from_pretrained(model, opts)
+      : AutoModelForCausalLM.from_pretrained(model, opts);
   }
 
-  const [processor, generationModel] = await Promise.all([
-    entry.processorPromise,
+  const [processorOrTokenizer, generationModel] = await Promise.all([
+    entry.processorOrTokenizerPromise,
     entry.modelPromise,
   ]);
 
-  return { processor, generationModel };
+  return entry.isGemma
+    ? { processor: processorOrTokenizer, generationModel }
+    : { tokenizer: processorOrTokenizer, generationModel };
 };
 
 /**
@@ -113,7 +135,7 @@ export const getCapabilities = () => ({
 });
 
 /**
- * Create a conversation handler for transformers.js Gemma 4 models.
+ * Create a conversation handler for transformers.js models.
  * Yields unified events: { type: "data", content } and { type: "done", finishReason, usage }
  *
  * @param {Object} options
@@ -127,7 +149,8 @@ export const createHandler = async ({
   temperature,
   maxOutputTokens,
 }) => {
-  const { processor, generationModel } = await getLlmEngine(model);
+  const engine = await getLlmEngine(model);
+  const gemma = isGemmaModel(model);
 
   return {
     /**
@@ -136,17 +159,23 @@ export const createHandler = async ({
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(messages) {
-      // Build prompt using the processor's chat template
-      const prompt = processor.apply_chat_template(messages, {
-        enable_thinking: false,
+      // Build prompt using the appropriate chat template
+      const templateOpts = {
         add_generation_prompt: true,
-      });
+        ...(gemma ? { enable_thinking: false } : { tokenize: false }),
+      };
 
-      // Tokenize (text-only: pass null for image and audio)
-      const inputs = await processor(prompt, null, null, {
-        add_special_tokens: false,
-      });
-      const inputLength = inputs.input_ids.dims.at(-1);
+      let prompt, inputs, inputLength;
+      if (gemma) {
+        prompt = engine.processor.apply_chat_template(messages, templateOpts);
+        inputs = await engine.processor(prompt, null, null, {
+          add_special_tokens: false,
+        });
+      } else {
+        prompt = engine.tokenizer.apply_chat_template(messages, templateOpts);
+        inputs = engine.tokenizer(prompt, { add_special_tokens: false });
+      }
+      inputLength = inputs.input_ids.dims.at(-1);
 
       // Set up token streaming via Promise-based queue
       // TextStreamer uses callbacks; we bridge to the async generator pattern.
@@ -176,7 +205,10 @@ export const createHandler = async ({
         });
       };
 
-      const streamer = new TextStreamer(processor.tokenizer, {
+      const tokenizerRef = gemma
+        ? engine.processor.tokenizer
+        : engine.tokenizer;
+      const streamer = new TextStreamer(tokenizerRef, {
         skip_prompt: true,
         skip_special_tokens: true,
         callback_function: (text) => {
@@ -185,7 +217,7 @@ export const createHandler = async ({
       });
 
       // Start generation in background
-      const generatePromise = generationModel
+      const generatePromise = engine.generationModel
         .generate({
           ...inputs,
           max_new_tokens: maxOutputTokens,

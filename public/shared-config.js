@@ -167,6 +167,46 @@ const config = {
           vramMb: 5000,
           quantization: "q4f16",
         },
+        // Qwen3.5 0.8B — Latest generation (Feb-Mar 2026), best sub-1B quality.
+        // Hybrid architecture (Gated Delta Networks + MoE), 262K context.
+        // ~400-500 MB q4f16. 11K+ downloads/month.
+        // Risks: q4f16 ~3x slower decode on WebGPU (TJS #1599),
+        //   possible rotary attention errors (#1416). Only use onnx-community version.
+        {
+          model: "onnx-community/Qwen3.5-0.8B-ONNX",
+          modelShortName: "Qwen3.5 0.8B",
+          shortOption: "Qwen Small",
+          maxTokens: 4096,
+          specMaxTokens: 262144,
+          vramMb: 500,
+          quantization: "q4f16",
+        },
+        // SmolLM3 3B — HuggingFace's latest (2026), 128K context, 6 languages.
+        // Outperforms Llama-3.2-3B and Qwen2.5-3B. Thinking mode supported.
+        // ~1.5-2 GB q4f16. Official WebGPU demo: HuggingFaceTB/SmolLM3-3B-WebGPU.
+        // Desktop-class; too large for mobile.
+        {
+          model: "HuggingFaceTB/SmolLM3-3B-ONNX",
+          modelShortName: "SmolLM3 3B",
+          shortOption: "SmolLM3",
+          maxTokens: 4096,
+          specMaxTokens: 128000,
+          vramMb: 2000,
+          quantization: "q4f16",
+        },
+        // SmolLM2 360M Instruct — Ultra-light, runs on any device including mobile.
+        // HellaSwag 52.1%, ARC 43.7%. Confirmed WebGPU by Xenova (TJS creator).
+        // ~250 MB q4f16. 8K context only — limiting for RAG but adequate for short Q&A.
+        // ONNX lives in HuggingFaceTB repo /onnx subfolder (no onnx-community version).
+        {
+          model: "HuggingFaceTB/SmolLM2-360M-Instruct",
+          modelShortName: "SmolLM2 360M",
+          shortOption: "SmolLM2 Tiny",
+          maxTokens: 4096,
+          specMaxTokens: 8192,
+          vramMb: 350,
+          quantization: "q4f16",
+        },
       ],
     },
   },
@@ -178,8 +218,8 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
-  webLlm: "web-llm",
   transformersJs: "Transformers.js",
+  webLlm: "web-llm",
 };
 
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({
