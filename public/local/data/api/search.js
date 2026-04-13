@@ -5,6 +5,11 @@ import { pipeline } from "@huggingface/transformers";
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
 import { getSettings } from "../../../app/hooks/use-settings.js";
+import {
+  beginCheckpoint,
+  endCheckpoint,
+  failCheckpoint,
+} from "../crash-monitor.js";
 import { dequantizeEmbedding } from "../embeddings.js";
 import { getPosts, getPostsEmbeddings } from "./posts.js";
 
@@ -18,6 +23,7 @@ const dateToNumber = (date) => Date.parse(date);
 // WASM can consume more space, but webgpu isn't as available.
 export const getExtractor = getAndCache(async () => {
   const { model } = config.embeddings;
+  const cpId = `embeddings:load:${model}`;
 
   // Default WASM; opt in to WebGPU via settings (works on all platforms including iOS).
   let device = null;
@@ -30,6 +36,7 @@ export const getExtractor = getAndCache(async () => {
     }
   }
 
+  beginCheckpoint(cpId, { model, phase: "load", device: device ?? "wasm" });
   try {
     const extractor = await pipeline(
       "feature-extraction",
@@ -37,12 +44,26 @@ export const getExtractor = getAndCache(async () => {
       device ? { device } : undefined,
     );
     extractor._device = device ?? "wasm";
+    endCheckpoint(cpId);
     return extractor;
-  } catch {
+  } catch (err) {
     // WebGPU pipeline failed, fall back to WASM
-    const extractor = await pipeline("feature-extraction", model);
-    extractor._device = "wasm";
-    return extractor;
+    failCheckpoint(cpId, `WebGPU failed, falling back: ${err?.message}`);
+    const fallbackCpId = `embeddings:load-fallback:${model}`;
+    beginCheckpoint(fallbackCpId, {
+      model,
+      phase: "load-fallback",
+      device: "wasm",
+    });
+    try {
+      const extractor = await pipeline("feature-extraction", model);
+      extractor._device = "wasm";
+      endCheckpoint(fallbackCpId);
+      return extractor;
+    } catch (err2) {
+      failCheckpoint(fallbackCpId, err2?.message ?? String(err2));
+      throw err2;
+    }
   }
 });
 

@@ -26,10 +26,7 @@ import {
 import { useLoading } from "../../local/app/context/loading.js";
 import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
-import {
-  checkCrash,
-  clearCrashHistory,
-} from "../../local/data/api/providers/transformers-js.js";
+import { getCrashLog, clearCrashLog } from "../../local/data/crash-monitor.js";
 import { IS_MOBILE_IOS } from "../../shared-config.js";
 
 const TABS = [
@@ -109,7 +106,7 @@ const SystemPanel = ({ systemInfo }) => {
   const extractor =
     extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
   const device = extractor?._device ?? null;
-  const [crashInfo, setCrashInfo] = useState(() => checkCrash());
+  const [crashLog, setCrashLog] = useState(() => getCrashLog());
 
   const embeddingsBadge =
     device === "webgpu"
@@ -169,29 +166,52 @@ const SystemPanel = ({ systemInfo }) => {
           </span>
         </div>
 
-        ${crashInfo &&
+        ${crashLog.length > 0 &&
         html`
-          <div className="system-info-row" style=${{ marginTop: "0.5em" }}>
-            <span className="status-badge status-unsupported">
-              Last Crash
-            </span>
-            <span className="gpu-info">
-              Model: ${crashInfo.model} (${crashInfo.phase})
-              ${crashInfo.ts &&
-              ` at ${new Date(crashInfo.ts).toLocaleString()}`}
-            </span>
+          <details className="system-info-limits" open>
+            <summary>
+              <span className="status-badge status-unsupported"
+                >Crash Log (${crashLog.length})</span
+              >
+            </summary>
+            <table className="limits-table">
+              <thead>
+                <tr>
+                  <td><strong>Phase</strong></td>
+                  <td><strong>Model</strong></td>
+                  <td><strong>Device</strong></td>
+                  <td><strong>Time</strong></td>
+                </tr>
+              </thead>
+              <tbody>
+                ${crashLog.map(
+                  (c, i) => html`
+                    <tr key=${i}>
+                      <td>${c.phase ?? c.id}</td>
+                      <td>${c.model ?? "—"}</td>
+                      <td>${c.device ?? "—"}</td>
+                      <td>
+                        ${c.startedAt
+                          ? new Date(c.startedAt).toLocaleString()
+                          : "—"}
+                      </td>
+                    </tr>
+                  `,
+                )}
+              </tbody>
+            </table>
             <button
               type="button"
               className="pure-button"
-              style=${{ marginLeft: "0.5em", fontSize: "0.8em" }}
+              style=${{ marginTop: "0.5em", fontSize: "0.8em" }}
               onClick=${() => {
-                clearCrashHistory();
-                setCrashInfo(null);
+                clearCrashLog();
+                setCrashLog([]);
               }}
             >
-              Dismiss
+              Clear Log
             </button>
-          </div>
+          </details>
         `}
         ${webgpu.adapterAvailable &&
         html`

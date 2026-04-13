@@ -91,6 +91,14 @@
       import { init } from "./local/data/loading.js";
       import { getSystemInfo } from "./local/data/util.js";
       import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
+      import {
+        detectCrashes,
+        installCleanExitHandler,
+      } from "./local/data/crash-monitor.js";
+
+      // Detect crashes from previous session and install clean-exit tracking.
+      const startupCrashes = detectCrashes();
+      installCleanExitHandler();
 
       // Initialize loaders early and get system info.
       init();
@@ -99,6 +107,7 @@
       // TODO(LOCAL): Add config or remove.
       const config = {
         systemInfo,
+        startupCrashes,
         // TODO(CHAT): Move somewhere else?
         providers: {
           webLlm: {

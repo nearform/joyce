@@ -1,4 +1,4 @@
-/* global caches:false, localStorage:false, navigator:false */
+/* global caches:false, navigator:false */
 // Transformers.js provider implementation
 // Uses @huggingface/transformers for ONNX models via WebGPU
 // Supports Gemma 4 (multimodal) and text-only models (Qwen, SmolLM, etc.)
@@ -12,70 +12,13 @@ import {
 import { CHAT_MODELS_MAP } from "../../../../config.js";
 import { IS_MOBILE_IOS } from "../../../../shared-config.js";
 import { getSettings } from "../../../../app/hooks/use-settings.js";
+import {
+  beginCheckpoint,
+  endCheckpoint,
+  failCheckpoint,
+} from "../../crash-monitor.js";
 
 const isGemmaModel = (model) => model.toLowerCase().includes("gemma");
-
-// ---------------------------------------------------------------------------
-// Crash tracking
-// ---------------------------------------------------------------------------
-// Before model load or generation we write a marker to localStorage. If the
-// browser tab crashes (OOM, WebGPU device lost, etc.) the marker survives and
-// is detected on the next page load. On success we promote it to "last crash"
-// history and clear the pending marker.
-const CRASH_KEY = "tjs_crash_pending";
-const CRASH_HISTORY_KEY = "tjs_crash_last";
-
-const setCrashMarker = (model, phase) => {
-  try {
-    localStorage.setItem(
-      CRASH_KEY,
-      JSON.stringify({ model, phase, ts: new Date().toISOString() }),
-    );
-  } catch {
-    /* best-effort */
-  }
-};
-
-const clearCrashMarker = () => {
-  try {
-    localStorage.removeItem(CRASH_KEY);
-  } catch {
-    /* best-effort */
-  }
-};
-
-/**
- * Check for a crash from a previous session.
- * If a pending marker exists, the previous session crashed during model
- * load or generation. Promote it to crash history and clear the marker.
- * @returns {{ model: string, phase: string, ts: string } | null}
- */
-export const checkCrash = () => {
-  try {
-    const pending = localStorage.getItem(CRASH_KEY);
-    if (pending) {
-      localStorage.setItem(CRASH_HISTORY_KEY, pending);
-      localStorage.removeItem(CRASH_KEY);
-      return JSON.parse(pending);
-    }
-    const last = localStorage.getItem(CRASH_HISTORY_KEY);
-    return last ? JSON.parse(last) : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Clear crash history (e.g. from a "dismiss" button).
- */
-export const clearCrashHistory = () => {
-  try {
-    localStorage.removeItem(CRASH_HISTORY_KEY);
-    localStorage.removeItem(CRASH_KEY);
-  } catch {
-    /* best-effort */
-  }
-};
 
 // Map of model -> { processorOrTokenizerPromise, modelPromise, progressCallback, isGemma }
 const engines = new Map();
@@ -174,19 +117,25 @@ export const getLlmEngine = async (model) => {
   if (!entry.modelPromise) {
     const progressCallback = makeProgressCallback(entry);
 
+    const cpId = `chat:load:${model}`;
     entry.modelPromise = resolveDevice().then(async (device) => {
-      setCrashMarker(model, "load");
+      beginCheckpoint(cpId, { model, phase: "load", device: device ?? "cpu" });
       const opts = {
         dtype,
         ...(device ? { device } : {}),
         progress_callback: progressCallback,
       };
 
-      const result = entry.isGemma
-        ? await Gemma4ForConditionalGeneration.from_pretrained(model, opts)
-        : await AutoModelForCausalLM.from_pretrained(model, opts);
-      clearCrashMarker();
-      return result;
+      try {
+        const result = entry.isGemma
+          ? await Gemma4ForConditionalGeneration.from_pretrained(model, opts)
+          : await AutoModelForCausalLM.from_pretrained(model, opts);
+        endCheckpoint(cpId);
+        return result;
+      } catch (err) {
+        failCheckpoint(cpId, err?.message ?? String(err));
+        throw err;
+      }
     });
   }
 
@@ -310,7 +259,8 @@ export const createHandler = async ({
       });
 
       // Start generation in background
-      setCrashMarker(model, "generate");
+      const genCpId = `chat:generate:${model}`;
+      beginCheckpoint(genCpId, { model, phase: "generate" });
       const generatePromise = engine.generationModel
         .generate({
           ...inputs,
@@ -320,7 +270,7 @@ export const createHandler = async ({
           streamer,
         })
         .then((output) => {
-          clearCrashMarker();
+          endCheckpoint(genCpId);
           streamDone = true;
           enqueue(null); // null sentinel = done
           return output;
