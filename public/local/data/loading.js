@@ -1,4 +1,4 @@
-/* global performance:false */
+/* global performance:false, console:false */
 import { getPosts, getPostsEmbeddings } from "./api/posts.js";
 import { getDb, getExtractor } from "./api/search.js";
 import {
@@ -7,6 +7,7 @@ import {
   isLlmCached,
 } from "./api/llm.js";
 import { ALL_CHAT_MODELS } from "../../config.js";
+import { getCrashLog } from "./crash-monitor.js";
 
 // ==============================
 // Loading Management
@@ -248,18 +249,46 @@ export const startLoading = async (resource) => {
 };
 
 /**
+ * Check whether a previous @huggingface/transformers crash was detected.
+ * When true, skip auto-loading the extractor (embeddings) and any
+ * transformers.js LLM models — leave them for lazy/manual use so the
+ * user isn't stuck in a crash loop.
+ */
+const hadTransformersCrash = () => {
+  const log = getCrashLog();
+  if (log.length === 0) return false;
+  const latest = log[0];
+  // Crash in embeddings, chat load, module-init, or generate
+  const phases = ["load", "load-fallback", "generate", "module-init"];
+  return phases.some((p) => latest.phase === p);
+};
+
+/**
  * Initialize loading system and start default loads
  */
 export const init = () => {
   startLoading(RESOURCES.POSTS_DATA);
   startLoading(RESOURCES.POSTS_EMBEDDINGS);
+
+  const skipTransformers = hadTransformersCrash();
+  if (skipTransformers) {
+    console.warn(
+      "[joyce] Skipping auto-load of @huggingface/transformers resources " +
+        "due to a previous crash. Load manually from the Data page.",
+    );
+  }
+
   startLoading(RESOURCES.DB);
-  startLoading(RESOURCES.EXTRACTOR);
+  if (!skipTransformers) {
+    startLoading(RESOURCES.EXTRACTOR);
+  }
 
   // Auto-load LLM models that have autoLoad: true (from all providers)
-  ALL_CHAT_MODELS.forEach(({ models }) => {
+  ALL_CHAT_MODELS.forEach(({ provider, models }) => {
     models.forEach((modelCfg) => {
       if (modelCfg.autoLoad) {
+        // Skip transformers.js models after a crash
+        if (skipTransformers && provider === "transformersJs") return;
         const resourceKey = modelToResourceKey(modelCfg.model);
         startLoading(RESOURCES[resourceKey]);
       }
