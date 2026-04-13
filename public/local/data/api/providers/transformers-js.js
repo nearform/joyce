@@ -2,13 +2,10 @@
 // Transformers.js provider implementation
 // Uses @huggingface/transformers for ONNX models via WebGPU
 // Supports Gemma 4 (multimodal) and text-only models (Qwen, SmolLM, etc.)
-import {
-  AutoModelForCausalLM,
-  AutoProcessor,
-  AutoTokenizer,
-  Gemma4ForConditionalGeneration,
-  TextStreamer,
-} from "@huggingface/transformers";
+//
+// IMPORTANT: @huggingface/transformers is loaded lazily (dynamic import)
+// so that crash-monitor checkpoints fire BEFORE the library initializes.
+// The library can crash the tab during import on iOS (WebGPU probing).
 import { CHAT_MODELS_MAP } from "../../../../config.js";
 import { IS_MOBILE_IOS } from "../../../../shared-config.js";
 import { getSettings } from "../../../../app/hooks/use-settings.js";
@@ -19,6 +16,15 @@ import {
 } from "../../crash-monitor.js";
 
 const isGemmaModel = (model) => model.toLowerCase().includes("gemma");
+
+// Lazy-loaded @huggingface/transformers classes (populated on first use)
+let _tjs = null;
+const getTjs = async () => {
+  if (!_tjs) {
+    _tjs = await import("@huggingface/transformers");
+  }
+  return _tjs;
+};
 
 // Map of model -> { processorOrTokenizerPromise, modelPromise, progressCallback, isGemma }
 const engines = new Map();
@@ -109,9 +115,11 @@ export const getLlmEngine = async (model) => {
   const dtype = getQuantization(model);
 
   if (!entry.processorOrTokenizerPromise) {
-    entry.processorOrTokenizerPromise = entry.isGemma
-      ? AutoProcessor.from_pretrained(model)
-      : AutoTokenizer.from_pretrained(model);
+    entry.processorOrTokenizerPromise = getTjs().then((tjs) =>
+      entry.isGemma
+        ? tjs.AutoProcessor.from_pretrained(model)
+        : tjs.AutoTokenizer.from_pretrained(model),
+    );
   }
 
   if (!entry.modelPromise) {
@@ -120,6 +128,7 @@ export const getLlmEngine = async (model) => {
     const cpId = `chat:load:${model}`;
     entry.modelPromise = resolveDevice().then(async (device) => {
       beginCheckpoint(cpId, { model, phase: "load", device: device ?? "cpu" });
+      const tjs = await getTjs();
       const opts = {
         dtype,
         ...(device ? { device } : {}),
@@ -128,8 +137,11 @@ export const getLlmEngine = async (model) => {
 
       try {
         const result = entry.isGemma
-          ? await Gemma4ForConditionalGeneration.from_pretrained(model, opts)
-          : await AutoModelForCausalLM.from_pretrained(model, opts);
+          ? await tjs.Gemma4ForConditionalGeneration.from_pretrained(
+              model,
+              opts,
+            )
+          : await tjs.AutoModelForCausalLM.from_pretrained(model, opts);
         endCheckpoint(cpId);
         return result;
       } catch (err) {
@@ -193,6 +205,7 @@ export const createHandler = async ({
 }) => {
   const engine = await getLlmEngine(model);
   const gemma = isGemmaModel(model);
+  const tjs = await getTjs();
 
   return {
     /**
@@ -207,14 +220,20 @@ export const createHandler = async ({
         ...(gemma ? { enable_thinking: false } : { tokenize: false }),
       };
 
-      let prompt, inputs, inputLength;
+      let inputs, inputLength;
       if (gemma) {
-        prompt = engine.processor.apply_chat_template(messages, templateOpts);
+        const prompt = engine.processor.apply_chat_template(
+          messages,
+          templateOpts,
+        );
         inputs = await engine.processor(prompt, null, null, {
           add_special_tokens: false,
         });
       } else {
-        prompt = engine.tokenizer.apply_chat_template(messages, templateOpts);
+        const prompt = engine.tokenizer.apply_chat_template(
+          messages,
+          templateOpts,
+        );
         inputs = engine.tokenizer(prompt, { add_special_tokens: false });
       }
       inputLength = inputs.input_ids.dims.at(-1);
@@ -250,7 +269,7 @@ export const createHandler = async ({
       const tokenizerRef = gemma
         ? engine.processor.tokenizer
         : engine.tokenizer;
-      const streamer = new TextStreamer(tokenizerRef, {
+      const streamer = new tjs.TextStreamer(tokenizerRef, {
         skip_prompt: true,
         skip_special_tokens: true,
         callback_function: (text) => {

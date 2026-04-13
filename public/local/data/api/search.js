@@ -1,6 +1,12 @@
 /* global navigator:false,performance:false */
 import { create, insertMultiple, search as oramaSearch } from "@orama/orama";
-import { pipeline } from "@huggingface/transformers";
+
+// @huggingface/transformers is loaded lazily so crash-monitor checkpoints
+// fire BEFORE the library initializes (can crash iOS tabs on import).
+const lazyPipeline = async (...args) => {
+  const { pipeline } = await import("@huggingface/transformers");
+  return pipeline(...args);
+};
 
 import { getAndCache } from "../../../shared-util.js";
 import config from "../../../config.js";
@@ -38,7 +44,7 @@ export const getExtractor = getAndCache(async () => {
 
   beginCheckpoint(cpId, { model, phase: "load", device: device ?? "wasm" });
   try {
-    const extractor = await pipeline(
+    const extractor = await lazyPipeline(
       "feature-extraction",
       model,
       device ? { device } : undefined,
@@ -56,7 +62,7 @@ export const getExtractor = getAndCache(async () => {
       device: "wasm",
     });
     try {
-      const extractor = await pipeline("feature-extraction", model);
+      const extractor = await lazyPipeline("feature-extraction", model);
       extractor._device = "wasm";
       endCheckpoint(fallbackCpId);
       return extractor;

@@ -83,6 +83,87 @@
         }
       }
     </script>
+    <!--
+      Early crash detection: runs BEFORE module imports resolve.
+      HuggingFace Transformers.js can crash the tab during module init
+      (WebGPU probing, WASM compilation). This plain script executes
+      synchronously before any module loading begins, so the checkpoint
+      and clean-exit markers are already in place.
+    -->
+    <script>
+      (function () {
+        var CP = "tjs_checkpoints";
+        var EXIT = "tjs_clean_exit";
+        var SESSION = "tjs_session_active";
+        var LOG = "tjs_crash_log";
+
+        function read(s, k) {
+          try {
+            var v = s.getItem(k);
+            return v ? JSON.parse(v) : null;
+          } catch (e) {
+            return null;
+          }
+        }
+        function write(s, k, v) {
+          try {
+            s.setItem(k, JSON.stringify(v));
+          } catch (e) {
+            /* best-effort */
+          }
+        }
+
+        // --- Detect crashes from previous session ---
+        var hadCleanExit = read(localStorage, EXIT) === true;
+        var sessionWasActive = read(sessionStorage, SESSION) === true;
+        var checkpoints = read(localStorage, CP) || {};
+        var crashes = [];
+        for (var id in checkpoints) {
+          if (checkpoints[id].status === "in-progress") {
+            crashes.push(
+              Object.assign({}, checkpoints[id], {
+                id: id,
+                cleanExit: hadCleanExit,
+                sessionCrash: sessionWasActive,
+                detectedAt: new Date().toISOString(),
+              }),
+            );
+          }
+        }
+        if (crashes.length > 0) {
+          var log = read(localStorage, LOG) || [];
+          log = crashes.concat(log).slice(0, 10);
+          write(localStorage, LOG, log);
+        }
+
+        // --- Reset state for this session ---
+        write(localStorage, CP, {});
+        try {
+          localStorage.removeItem(EXIT);
+        } catch (e) {
+          /* best-effort */
+        }
+        write(sessionStorage, SESSION, true);
+
+        // --- Mark page-load as a checkpoint (catches import-time crashes) ---
+        write(localStorage, CP, {
+          "app:module-init": {
+            phase: "module-init",
+            startedAt: new Date().toISOString(),
+            status: "in-progress",
+          },
+        });
+
+        // --- Clean-exit handler ---
+        window.addEventListener("beforeunload", function () {
+          write(localStorage, EXIT, true);
+          write(localStorage, CP, {});
+        });
+
+        // Expose for the module script to read
+        window.__startupCrashes = crashes;
+      })();
+    </script>
     <script type="module">
       import React from "react";
       import ReactDOM from "react-dom/client";
@@ -91,14 +172,12 @@
       import { init } from "./local/data/loading.js";
       import { getSystemInfo } from "./local/data/util.js";
       import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
-      import {
-        detectCrashes,
-        installCleanExitHandler,
-      } from "./local/data/crash-monitor.js";
+      import { endCheckpoint } from "./local/data/crash-monitor.js";
 
-      // Detect crashes from previous session and install clean-exit tracking.
-      const startupCrashes = detectCrashes();
-      installCleanExitHandler();
+      // Module imports resolved successfully — clear the module-init checkpoint.
+      endCheckpoint("app:module-init");
+
+      const startupCrashes = window.__startupCrashes || [];
 
       // Initialize loaders early and get system info.
       init();

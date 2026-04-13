@@ -1,4 +1,4 @@
-/* global localStorage:false, sessionStorage:false, window:false */
+/* global localStorage:false */
 /**
  * Crash monitor for HuggingFace Transformers operations.
  *
@@ -6,46 +6,43 @@
  * via localStorage checkpoints. If a checkpoint is "in-progress" on the
  * next page load, the previous session crashed during that phase.
  *
- * Detection layers:
+ * Detection layers (see inline script in index.html):
  *  1. **Checkpoints** — written BEFORE each risky phase, cleared AFTER.
  *     Incomplete checkpoints on next load = crash during that phase.
  *  2. **beforeunload** — marks clean exits so we can distinguish a crash
- *     (no clean-exit flag) from normal navigation.
+ *     from normal navigation (no clean-exit flag = crash).
  *  3. **sessionStorage session flag** — persists across same-tab reloads
  *     but not tab close. Detects "tab crashed and auto-reloaded" on iOS.
+ *  4. **app:module-init checkpoint** — set by the inline script BEFORE
+ *     ES module resolution. If the tab dies during @huggingface/transformers
+ *     import (WebGPU probe, WASM compile), this checkpoint remains.
+ *
+ * Crash detection + clean-exit handler + session flag are all handled
+ * by a plain <script> in index.html that runs BEFORE module imports.
+ * This module only provides the checkpoint API and crash-log readers.
  */
 
 const CHECKPOINT_KEY = "tjs_checkpoints";
-const CLEAN_EXIT_KEY = "tjs_clean_exit";
-const SESSION_KEY = "tjs_session_active";
 const CRASH_LOG_KEY = "tjs_crash_log";
 
 // -----------------------------------------------------------------------
 // Internal helpers
 // -----------------------------------------------------------------------
 
-const readJSON = (storage, key) => {
+const readJSON = (key) => {
   try {
-    const raw = storage.getItem(key);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 };
 
-const writeJSON = (storage, key, value) => {
+const writeJSON = (key, value) => {
   try {
-    storage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {
     /* best-effort — storage may be full or unavailable */
-  }
-};
-
-const removeKey = (storage, key) => {
-  try {
-    storage.removeItem(key);
-  } catch {
-    /* best-effort */
   }
 };
 
@@ -63,13 +60,13 @@ const removeKey = (storage, key) => {
  * @param {Object} [meta] - Optional metadata (model, phase, etc.)
  */
 export const beginCheckpoint = (id, meta = {}) => {
-  const checkpoints = readJSON(localStorage, CHECKPOINT_KEY) ?? {};
+  const checkpoints = readJSON(CHECKPOINT_KEY) ?? {};
   checkpoints[id] = {
     ...meta,
     startedAt: new Date().toISOString(),
     status: "in-progress",
   };
-  writeJSON(localStorage, CHECKPOINT_KEY, checkpoints);
+  writeJSON(CHECKPOINT_KEY, checkpoints);
 };
 
 /**
@@ -77,9 +74,9 @@ export const beginCheckpoint = (id, meta = {}) => {
  * @param {string} id - Same id passed to beginCheckpoint
  */
 export const endCheckpoint = (id) => {
-  const checkpoints = readJSON(localStorage, CHECKPOINT_KEY) ?? {};
+  const checkpoints = readJSON(CHECKPOINT_KEY) ?? {};
   delete checkpoints[id];
-  writeJSON(localStorage, CHECKPOINT_KEY, checkpoints);
+  writeJSON(CHECKPOINT_KEY, checkpoints);
 };
 
 /**
@@ -88,92 +85,32 @@ export const endCheckpoint = (id) => {
  * @param {string} error - Error message
  */
 export const failCheckpoint = (id, error) => {
-  const checkpoints = readJSON(localStorage, CHECKPOINT_KEY) ?? {};
+  const checkpoints = readJSON(CHECKPOINT_KEY) ?? {};
   if (checkpoints[id]) {
     checkpoints[id].status = "error";
     checkpoints[id].error = error;
     checkpoints[id].failedAt = new Date().toISOString();
   }
-  writeJSON(localStorage, CHECKPOINT_KEY, checkpoints);
+  writeJSON(CHECKPOINT_KEY, checkpoints);
 };
 
 // -----------------------------------------------------------------------
-// Crash detection (run once on page load)
+// Crash log (populated by inline script in index.html)
 // -----------------------------------------------------------------------
-
-/**
- * Detect crashes from the previous session.
- * Call once at app startup. Returns an array of crash records
- * (incomplete checkpoints from the previous session) and archives
- * them to crash history.
- *
- * @returns {Array<{ id: string, model?: string, phase?: string, startedAt: string, cleanExit: boolean, sessionCrash: boolean }>}
- */
-export const detectCrashes = () => {
-  const crashes = [];
-  const hadCleanExit = readJSON(localStorage, CLEAN_EXIT_KEY) === true;
-  const sessionWasActive = readJSON(sessionStorage, SESSION_KEY) === true;
-
-  // Check for incomplete checkpoints
-  const checkpoints = readJSON(localStorage, CHECKPOINT_KEY) ?? {};
-  for (const [id, cp] of Object.entries(checkpoints)) {
-    if (cp.status === "in-progress") {
-      crashes.push({
-        id,
-        ...cp,
-        cleanExit: hadCleanExit,
-        // sessionStorage survives same-tab reload but not close+reopen.
-        // If session was active AND we have an incomplete checkpoint,
-        // the tab crashed and was reloaded (common on iOS).
-        sessionCrash: sessionWasActive,
-      });
-    }
-  }
-
-  if (crashes.length > 0) {
-    // Archive to crash log (keep last 5)
-    const log = readJSON(localStorage, CRASH_LOG_KEY) ?? [];
-    log.unshift(
-      ...crashes.map((c) => ({ ...c, detectedAt: new Date().toISOString() })),
-    );
-    writeJSON(localStorage, CRASH_LOG_KEY, log.slice(0, 5));
-  }
-
-  // Reset state for this session
-  writeJSON(localStorage, CHECKPOINT_KEY, {});
-  removeKey(localStorage, CLEAN_EXIT_KEY);
-  writeJSON(sessionStorage, SESSION_KEY, true);
-
-  return crashes;
-};
 
 /**
  * Get the crash log (previous crashes, most recent first).
  * @returns {Array<Object>}
  */
-export const getCrashLog = () => readJSON(localStorage, CRASH_LOG_KEY) ?? [];
+export const getCrashLog = () => readJSON(CRASH_LOG_KEY) ?? [];
 
 /**
  * Clear the crash log.
  */
-export const clearCrashLog = () => removeKey(localStorage, CRASH_LOG_KEY);
-
-// -----------------------------------------------------------------------
-// Clean-exit tracking
-// -----------------------------------------------------------------------
-
-/**
- * Install the beforeunload handler that marks clean navigation.
- * Call once at app startup. When the page unloads normally
- * (navigation, refresh, tab close) this fires and sets the flag.
- * On a true crash, beforeunload never fires — so the flag stays unset.
- */
-export const installCleanExitHandler = () => {
-  if (typeof window === "undefined") return;
-  window.addEventListener("beforeunload", () => {
-    writeJSON(localStorage, CLEAN_EXIT_KEY, true);
-    // Also clear any in-progress checkpoints on clean exit so they
-    // don't show as false-positive crashes on next load.
-    writeJSON(localStorage, CHECKPOINT_KEY, {});
-  });
+export const clearCrashLog = () => {
+  try {
+    localStorage.removeItem(CRASH_LOG_KEY);
+  } catch {
+    /* best-effort */
+  }
 };
