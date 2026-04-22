@@ -17,6 +17,7 @@
     "dep:check": "npx npm-check-updates"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@huggingface/transformers": "4.0.1",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",

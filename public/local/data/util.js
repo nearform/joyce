@@ -18,7 +18,9 @@ export const fetchWrapper = async (url) => {
   try {
     response = await fetch(resolvedUrl);
   } catch (err) {
-    throw new Error(`Failed to fetch posts data: ${err.message}`);
+    throw new Error(`Failed to fetch posts data: ${err.message}`, {
+      cause: err,
+    });
   }
   if (!response.ok) {
     throw new Error(
@@ -28,7 +30,9 @@ export const fetchWrapper = async (url) => {
   try {
     return await response.json();
   } catch (err) {
-    throw new Error(`Failed to parse posts data: ${err.message}`);
+    throw new Error(`Failed to parse posts data: ${err.message}`, {
+      cause: err,
+    });
   }
 };
 
