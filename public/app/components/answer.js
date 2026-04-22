@@ -295,7 +295,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
 
-  let answerSection = null;
+  let answerSection;
   if (isRaw && isDeveloperMode) {
     answerSection = html`<div className="answer-raw">
       ${answer

@@ -461,7 +461,7 @@ export const ModelChatSelect = ({
     return `${label} ${statsString ? `(${statsString})` : ""}`;
   };
 
-  let options = [];
+  let options;
   if (isDeveloperMode) {
     options = ALL_CHAT_MODELS.filter(({ provider }) =>
       providers.has(provider),
