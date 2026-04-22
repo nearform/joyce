@@ -13,13 +13,14 @@
     "pretty:fix": "prettier . --write",
     "pretty:check": "prettier . --check",
     "check": "npm run lint:check && npm run pretty:check",
-    "format": "npm run lint:fix && npm run pretty:fix"
+    "format": "npm run lint:fix && npm run pretty:fix",
+    "dep:check": "npx npm-check-updates"
   },
   "devDependencies": {
-    "@xenova/transformers": "2.17.2",
-    "eslint": "^9.39.2",
+    "@xenova/transformers": "^2.0.1",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "llm-splitter": "^0.2.0",
-    "prettier": "^3.7.4"
+    "prettier": "^3.8.3"
   }
 }
