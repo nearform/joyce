@@ -286,6 +286,7 @@
 .pure-form textarea {
   margin-bottom: 0;
   resize: none;
+  border: 1px solid rgba(0, 230, 164, 0.25);
 }
 .pure-form textarea::placeholder {
   font-style: italic;
@@ -312,6 +313,17 @@ table.pure-table-bordered {
   border-radius: 8px;
   border-left-width: 0px;
 }
+
+table.pure-table-bordered th {
+  background-color: rgba(0, 14, 56, 0.85);
+  color: var(--color-text-on-dark);
+  border-bottom: 2px solid var(--color-accent-green);
+}
+
+table.pure-table-bordered tbody tr:nth-child(odd) {
+  background-color: rgba(0, 14, 56, 0.03);
+}
+
 table.pure-table-bordered tr:last-child td:first-child {
   border-bottom-left-radius: 8px;
 }
@@ -337,6 +349,11 @@ table.pure-table-bordered tr:first-child th:last-child {
   font-weight: bold;
   font-size: 1.2em;
   cursor: pointer;
+}
+
+table.pure-table-bordered .ui-icon-button {
+  color: var(--color-text-on-dark);
+  border-bottom-color: rgba(245, 245, 245, 0.4);
 }
 /* Base Label Styles */
 .ui-category-label,
@@ -630,7 +647,7 @@ table.pure-table-bordered tr:first-child th:last-child {
   padding: 8px 16px;
   pointer-events: auto;
 
-  border: 1px solid var(--color-border-medium);
+  border: 1px solid rgba(0, 230, 164, 0.25);
   background: var(--color-bg-white);
   border-radius: 12px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -1241,9 +1258,9 @@ button.loading-status-icon-button {
 }
 
 .status-supported {
-  background-color: var(--color-success-bg);
-  color: var(--color-success-text);
-  border: 1px solid var(--color-success-border);
+  background-color: var(--color-accent-green-light);
+  color: var(--color-accent-green-hover);
+  border: 1px solid var(--color-accent-green);
 }
 
 .status-warning {
