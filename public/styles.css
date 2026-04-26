@@ -4,10 +4,10 @@
   --color-text-on-dark: #f5f5f5;
   --color-bg-light: #f5f5f5;
   --color-bg-white: #fff;
-  --color-bg-dark: #2a2a2a;
-  --color-bg-dark-hover: #4a4a4a;
-  --color-bg-dropdown: #4a4a4a;
-  --color-bg-hover: #5a5a5a;
+  --color-bg-dark: #000e38;
+  --color-bg-dark-hover: #1a2d54;
+  --color-bg-dropdown: #0c2a4e;
+  --color-bg-hover: #07a06f;
 
   /* Grey Scale */
   --color-border-light: #e8e8e8;
@@ -37,7 +37,7 @@
   --color-warning-bg: #fff8e6;
   --color-warning-text: #8a6914;
   --color-warning-border: #f0d77a;
-  --color-primary: #007bff;
+  --color-primary: #00e6a4;
 
   /* Status Colors (for icons/indicators) */
   --color-status-idle: #999;
@@ -45,11 +45,31 @@
   --color-status-success: #28a745;
   --color-status-error: var(--color-error-text);
 
+  /* Nearform Accent Colors */
+  --color-accent-green: #00e6a4;
+  --color-accent-green-hover: #07a06f;
+  --color-accent-green-light: rgba(0, 230, 164, 0.1);
+  --color-accent-green-border: color-mix(
+    in srgb,
+    var(--color-accent-green) 20%,
+    transparent
+  );
+  --color-accent-green-border-hover: color-mix(
+    in srgb,
+    var(--color-accent-green) 35%,
+    transparent
+  );
+  --color-accent-green-separator: color-mix(
+    in srgb,
+    var(--color-accent-green) 15%,
+    transparent
+  );
+
   /* Transparency/Overlay */
   --color-overlay-dark: rgba(0, 0, 0, 0.5);
   --color-overlay-light: rgba(0, 0, 0, 0.1);
   --color-overlay-very-light: rgba(0, 0, 0, 0.05);
-  --color-bg-dark-transparent: rgba(42, 42, 42, 0.9);
+  --color-bg-dark-transparent: rgba(0, 14, 56, 0.9);
 
   /* Chat Message Colors */
   --color-chat-query-bg: #f0f0f0;
@@ -525,7 +545,7 @@ table.pure-table-bordered tr:first-child th:last-child {
 .bubble-button-list {
   list-style: none;
   margin: 0;
-  padding: 8px 0;
+  padding: 8px 4px;
 }
 
 .suggested-query-item {
@@ -533,9 +553,10 @@ table.pure-table-bordered tr:first-child th:last-child {
 }
 
 .suggested-query-button {
-  width: 100%;
+  width: calc(100% - 6px);
+  margin-left: 3px;
   text-align: left;
-  padding: 12px 16px;
+  padding: 12px;
   background: none;
   border: none;
   color: var(--color-text-on-dark);
@@ -543,7 +564,7 @@ table.pure-table-bordered tr:first-child th:last-child {
   line-height: 1.4;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  border-radius: 0;
+  border-radius: 6px;
   white-space: normal;
   word-wrap: break-word;
 }
@@ -555,16 +576,6 @@ table.pure-table-bordered tr:first-child th:last-child {
 .suggested-query-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.suggested-query-button:first-child {
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-}
-
-.suggested-query-button:last-child {
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
 }
 
 /* Scenario: Menu is collapsed */
@@ -1003,20 +1014,20 @@ table.pure-table-bordered tr:first-child th:last-child {
 /* Expanded state - styled container */
 .query-info[open] {
   background-color: var(--color-bg-modal);
-  border: 1px solid var(--color-border-query);
+  border: 1px solid var(--color-accent-green-border);
   padding: 8px 12px;
   box-shadow: 0 2px 4px var(--color-overlay-very-light);
 }
 
 .query-info[open]:hover {
   box-shadow: 0 4px 8px var(--color-overlay-light);
-  border-color: var(--color-border-query-hover);
+  border-color: var(--color-accent-green-border-hover);
 }
 
 .query-info > div {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--color-border-query);
+  border-top: 1px solid var(--color-accent-green-separator);
   color: var(--color-text-query);
 }
 
@@ -1328,8 +1339,8 @@ button.loading-status-icon-button {
 
 .tabs-tab-active {
   color: var(--color-text-primary);
-  border-bottom-color: var(--color-text-primary);
-  background-color: var(--color-overlay-very-light);
+  border-bottom-color: var(--color-accent-green);
+  background-color: var(--color-accent-green-light);
 }
 
 .tabs-panel {
