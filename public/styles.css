@@ -215,6 +215,11 @@
   font-family: "Courier New", Courier, monospace;
 }
 
+#main p code {
+  font-family: "Menlo", "Monaco", "Courier New", monospace;
+  font-size: 1em;
+}
+
 #main .status {
   color: var(--color-text-muted);
   font-style: italic;
