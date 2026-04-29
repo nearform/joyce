@@ -36,3 +36,6 @@ tmp-*
 
 # AI
 .claude/settings*
+
+# OpenCode plans
+.opencode/plans/
