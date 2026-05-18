@@ -55,8 +55,8 @@
   --color-bg-dark-transparent: rgba(42, 42, 42, 0.9);
 
   /* Chat Message Colors */
-  --color-chat-query-bg: #f0f0f0;
-  --color-chat-query-border: #e0e0e0;
+  --color-chat-query-bg: rgba(214, 230, 255, 0.5);
+  --color-chat-query-border: rgba(11, 28, 48, 0.25);
   --color-chat-answer-bg: #ffffff;
   --color-chat-answer-border: #e8e8e8;
 }
@@ -498,6 +498,13 @@ table.pure-table-bordered tbody tr:hover {
 
 .context-message button {
   align-self: flex-start;
+  background-color: rgba(214, 230, 255, 0.5);
+  color: var(--color-text-primary);
+  border: 1px solid rgba(214, 230, 255, 0.8);
+}
+
+.context-message button:hover {
+  background-color: rgba(214, 230, 255, 0.8);
 }
 
 .alert-details {
