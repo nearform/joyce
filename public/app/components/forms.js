@@ -184,8 +184,8 @@ export const ChatSubmitButton = ({
 
   return html`
     <div className="pure-button-group" role="group">
-      <${AskButton} isFetching=${isFetching} title="Continue conversation" />
       <${ResetButton} isFetching=${isFetching} onReset=${onReset} />
+      <${AskButton} isFetching=${isFetching} title="Continue conversation" />
     </div>
   `;
 };

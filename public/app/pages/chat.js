@@ -102,7 +102,7 @@ const DescriptionButton = () => {
           html`
             <li>
               <i className="iconoir-temperature-high"></i>
-              <strong>Temperature</strong>: Control the creativity and
+              ${" "}<strong>Temperature</strong>: Control the creativity and
               randomness of AI responses, from 0 (more focused and
               deterministic) to 1 (more creative and varied).
             </li>
