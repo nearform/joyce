@@ -4,10 +4,13 @@
   --color-text-on-dark: #f5f5f5;
   --color-bg-light: #f5f5f5;
   --color-bg-white: #fff;
-  --color-bg-dark: #2a2a2a;
-  --color-bg-dark-hover: #4a4a4a;
-  --color-bg-dropdown: #4a4a4a;
-  --color-bg-hover: #5a5a5a;
+  --color-bg-dark: #0b1c30;
+  --color-bg-dark-hover: #172846;
+  --color-bg-dropdown: #172846;
+  --color-bg-hover: #1e3350;
+
+  /* Nearform Brand */
+  --color-nf-green: #55ff99;
 
   /* Grey Scale */
   --color-border-light: #e8e8e8;
@@ -37,7 +40,7 @@
   --color-warning-bg: #fff8e6;
   --color-warning-text: #8a6914;
   --color-warning-border: #f0d77a;
-  --color-primary: #007bff;
+  --color-primary: var(--color-nf-green);
 
   /* Status Colors (for icons/indicators) */
   --color-status-idle: #999;
@@ -64,6 +67,29 @@
 }
 #menu {
   background: var(--color-bg-dark);
+}
+
+/* Nearform-style nav link hover underline */
+#menu .pure-menu-link {
+  position: relative;
+  text-decoration: none;
+}
+
+#menu .pure-menu-link::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 0;
+  height: 2px;
+  background: var(--color-nf-green);
+  transition: all 0.3s ease-in-out;
+}
+
+#menu .pure-menu-selected .pure-menu-link::after,
+#menu .pure-menu-link:hover::after {
+  width: 100%;
 }
 #menu .pure-menu-heading:hover {
   color: var(--color-text-on-dark);
@@ -120,10 +146,11 @@
 #main a:active {
   color: var(--color-text-primary);
   text-underline-offset: 0.2em;
-  text-decoration-color: var(--color-text-muted);
+  text-decoration-color: transparent;
 }
 #main a:hover {
-  text-decoration-color: var(--color-text-primary);
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--color-nf-green);
 }
 #main .pure-button-primary {
   background: var(--color-bg-dark);
