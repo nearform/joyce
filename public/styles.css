@@ -11,6 +11,7 @@
 
   /* Nearform Brand */
   --color-nf-green: #55ff99;
+  --color-nf-navy: #0b1c30;
 
   /* Grey Scale */
   --color-border-light: #e8e8e8;
@@ -40,7 +41,7 @@
   --color-warning-bg: #fff8e6;
   --color-warning-text: #8a6914;
   --color-warning-border: #f0d77a;
-  --color-primary: var(--color-nf-green);
+  --color-primary: #007bff;
 
   /* Status Colors (for icons/indicators) */
   --color-status-idle: #999;
