@@ -687,13 +687,6 @@ table.pure-table-bordered tbody tr:hover {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-/* Float the button group or single submit button to the right */
-.chat-input-container-inner .pure-button-group,
-.chat-input-container-inner > form > button[type="submit"] {
-  float: right;
-  margin: 0;
-}
-
 /* Remove margins from buttons inside the group */
 .chat-input-container-inner .pure-button-group button {
   margin: 0;
@@ -739,13 +732,24 @@ table.pure-table-bordered tbody tr:hover {
 }
 
 .chat-input-container-inner .pure-button-group .pure-button:first-child {
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
 }
 
 .chat-input-container-inner .pure-button-group .pure-button:last-child {
-  border-top-right-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Float the button group to the right */
+.chat-input-container-inner .pure-button-group {
+  float: right;
+  margin: 0;
+}
+
+.chat-input-container-inner > form > button[type="submit"] {
+  float: right;
+  margin: 0;
 }
 
 /* Chat Submit Icon Buttons */
