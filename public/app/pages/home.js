@@ -47,7 +47,7 @@ export const Home = () => {
           </p>
           <p>
             We scrape all blog and work/case study post data directly from our websites and first store
-            as JSON on local disk and add embeddings using a small embeddings
+            as JSON on local disk and add embeddings using a small text embedding
             model (currently <a href="https://huggingface.co/Xenova/gte-small"><code>gte-small</code></a>).
             Then we load the data into an <a href="https://docs.oramasearch.com/docs/orama-js">Orama</a> database,
             where we store basic metadata and embeddings for each post. (This allows us to perform similarity searches).
