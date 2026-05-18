@@ -145,12 +145,24 @@
 #main a:hover,
 #main a:active {
   color: var(--color-text-primary);
+  text-decoration-line: underline;
+  text-decoration-color: var(--color-nf-navy);
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
-  text-decoration-color: transparent;
 }
 #main a:hover {
-  text-decoration-thickness: 2px;
   text-decoration-color: var(--color-nf-green);
+  text-decoration-thickness: 2px;
+}
+
+#main .markdown-body a {
+  text-decoration-color: var(--color-nf-navy);
+  text-decoration-thickness: 1px;
+}
+
+#main .markdown-body a:hover {
+  text-decoration-color: var(--color-nf-green);
+  text-decoration-thickness: 2px;
 }
 #main .pure-button-primary {
   background: var(--color-bg-dark);
@@ -330,6 +342,29 @@ table.pure-table-bordered tr:first-child th:first-child {
 }
 table.pure-table-bordered tr:first-child th:last-child {
   border-top-right-radius: 8px;
+}
+
+/* Documents table subtle enhancements */
+table.pure-table-bordered thead {
+  background-color: rgba(214, 230, 255, 0.5);
+}
+
+table.pure-table-bordered thead th {
+  border-bottom-color: var(--color-nf-green);
+}
+
+table.pure-table-bordered tbody tr:nth-child(even) {
+  background-color: rgba(11, 28, 48, 0.03);
+}
+
+table.pure-table-bordered tbody tr:hover {
+  background-color: rgba(11, 28, 48, 0.06);
+}
+
+.ui-category-label:hover,
+.ui-vertical-label:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .menu-link {
   background: var(--color-bg-dark-transparent);
@@ -1356,7 +1391,7 @@ button.loading-status-icon-button {
 .tabs-tab-active {
   color: var(--color-text-primary);
   border-bottom-color: var(--color-text-primary);
-  background-color: var(--color-overlay-very-light);
+  background-color: rgba(214, 230, 255, 0.5);
 }
 
 .tabs-panel {
