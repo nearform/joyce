@@ -148,6 +148,8 @@ export const Chat = () => {
     posts,
     searchData,
     analyticsDates,
+    usedChunks,
+    chunkTexts,
     err,
     contextExceededErr,
     isLoadingModelForChat,
@@ -185,7 +187,7 @@ export const Chat = () => {
 
       <${DescriptionButton} />
       <${SuggestedQueries} ...${{ suggestions: displayedSuggestions, isFetching }} />
-      ${posts && html`<${PostsFound} ...${{ posts, analyticsDates }} />`}
+      ${posts && html`<${PostsFound} ...${{ posts, analyticsDates, usedChunks, chunkTexts }} />`}
 
       ${err && html`<${Alert} type="error" err=${err}>${err.toString()}</${Alert}>`}
 

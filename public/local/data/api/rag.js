@@ -73,6 +73,8 @@ export const performRagSearch = async ({
     chunkCount: contextResult.chunkCount,
     tokenBreakdown: contextResult.tokenBreakdown,
     rawChunks: chunks,
+    usedChunks: contextResult.usedChunks,
+    chunkTexts: contextResult.chunkTexts,
     initialQuery: query,
   };
 
@@ -111,6 +113,8 @@ export const reduceContext = async ({ contextState, provider, model }) => {
       chunkCount: result.chunkCount,
       tokenBreakdown: result.tokenBreakdown,
       rawChunks,
+      usedChunks: result.usedChunks,
+      chunkTexts: result.chunkTexts,
       initialQuery,
     };
   } catch (err) {

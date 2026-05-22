@@ -85,7 +85,7 @@ export const BASE_TOKEN_ESTIMATE = estimateTokens(
  * @param {number} [options.maxChunks] - Optional max number of chunks to include
  * @param {boolean} [options.forMultiTurn=false] - Use larger cushion for multi-turn
  * @param {boolean} [options.isFirstTurn=false] - Skip ratio on first turn to maximize initial context
- * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
+ * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, chunkTexts: Object, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
  */
 export const buildContextFromChunks = async ({
   chunks,
@@ -163,6 +163,7 @@ export const buildContextFromChunks = async ({
   // Each entry: { url, content, tokenCount }
   const contextEntries = [];
   const seenSlugs = new Map(); // slug -> index in contextEntries
+  const chunkTexts = {}; // {slug:start:end} -> text excerpt
 
   for (const chunk of chunksToProcess) {
     const post = await getPost(chunk.slug);
@@ -192,6 +193,7 @@ export const buildContextFromChunks = async ({
         entry.content += CHUNK_COMBINE_SEPARATOR + chunkText;
         totalContextTokensEst += chunkTokensEst;
         usedChunks.push(chunk);
+        chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
         continue;
       }
       // "duplicate" mode falls through to add as new entry
@@ -228,6 +230,7 @@ export const buildContextFromChunks = async ({
     // Accumulate tokens and track chunk
     totalContextTokensEst += chunkTokensEst;
     usedChunks.push(chunk);
+    chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
 
     if (DEBUG_TOKENS) {
       // eslint-disable-next-line no-undef
@@ -278,6 +281,7 @@ export const buildContextFromChunks = async ({
     context,
     usedChunks,
     chunkCount: usedChunks.length,
+    chunkTexts,
     tokenEstimate: totalContextTokensEst,
     // Granular token breakdown for UI display
     tokenBreakdown: {
@@ -298,7 +302,7 @@ export const buildContextFromChunks = async ({
  * @param {string} options.provider - LLM provider key
  * @param {string} options.model - Model ID
  * @param {number} options.targetChunkCount - Target number of chunks (will be clamped to MIN_CONTEXT_CHUNKS)
- * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
+ * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, chunkTexts: Object, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
  */
 export const rebuildContextWithLimit = async ({
   chunks,

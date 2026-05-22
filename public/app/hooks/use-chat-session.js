@@ -54,6 +54,8 @@ export const useChatSession = ({
     start: null,
     end: null,
   });
+  const [usedChunks, setUsedChunks] = useState([]);
+  const [chunkTexts, setChunkTexts] = useState({});
 
   // Error state
   const [err, setErr] = useState(null);
@@ -110,6 +112,8 @@ export const useChatSession = ({
     setPosts(null);
     setSearchData(null);
     setAnalyticsDates({ start: null, end: null });
+    setUsedChunks([]);
+    setChunkTexts({});
     setErr(null);
     setContextExceededErr(null);
     // Clean up chat session
@@ -216,6 +220,8 @@ export const useChatSession = ({
           } = event.message;
           searchMetadata = metadata;
           setSearchData({ posts: fetchedPosts, chunks, metadata });
+          setUsedChunks(chatSessionRef.current.getUsedChunks());
+          setChunkTexts(chatSessionRef.current.getChunkTexts());
           setPosts(displayPosts);
           setAnalyticsDates(metadata?.analytics?.dates);
         } else if (event.type === "data") {
@@ -373,6 +379,8 @@ export const useChatSession = ({
     posts,
     searchData,
     analyticsDates,
+    usedChunks,
+    chunkTexts,
     err,
     contextExceededErr,
     isLoadingModelForChat,
