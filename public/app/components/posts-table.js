@@ -35,8 +35,7 @@ export const PostsTable = ({
     ? { ...BASE_HEADINGS, ...ANALYTICS_HEADINGS }
     : BASE_HEADINGS;
 
-  const colSpan =
-    1 + Object.keys(headings).length + (settings.displayAnalytics ? 4 : 0);
+  const colSpan = 1 + Object.keys(headings).length;
 
   const analyticsTitle =
     analyticsDates.start !== null && analyticsDates.end !== null
@@ -45,10 +44,12 @@ export const PostsTable = ({
 
   const getChunksForSlug = (slug) => {
     const chunks = [];
-    for (const key of Object.keys(chunkTexts)) {
-      if (key.startsWith(`${slug}:`)) {
-        const [, start, end] = key.split(":");
-        chunks.push({ key, text: chunkTexts[key], start, end });
+    const slugChunks = usedChunks.filter((c) => c.slug === slug);
+    for (const chunk of slugChunks) {
+      const key = `${chunk.slug}:${chunk.start}:${chunk.end}`;
+      const text = chunkTexts[key];
+      if (text) {
+        chunks.push({ key, text, start: chunk.start, end: chunk.end });
       }
     }
     return chunks;

@@ -170,7 +170,6 @@ export const buildContextFromChunks = async ({
     const chunkText = getChunk(post.content, chunk.start, chunk.end).join(
       "\n\n",
     );
-    chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
     // TODO(ESTIMATE): Per-chunk estimate affects which chunks are included.
     // Use markup factor since chunks will be wrapped in XML tags
     // (<CHUNK><URL>...</URL><TITLE>...</TITLE><CONTENT>...</CONTENT></CHUNK>)
@@ -194,6 +193,7 @@ export const buildContextFromChunks = async ({
         entry.content += CHUNK_COMBINE_SEPARATOR + chunkText;
         totalContextTokensEst += chunkTokensEst;
         usedChunks.push(chunk);
+        chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
         continue;
       }
       // "duplicate" mode falls through to add as new entry
@@ -230,6 +230,7 @@ export const buildContextFromChunks = async ({
     // Accumulate tokens and track chunk
     totalContextTokensEst += chunkTokensEst;
     usedChunks.push(chunk);
+    chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
 
     if (DEBUG_TOKENS) {
       // eslint-disable-next-line no-undef
