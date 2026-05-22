@@ -111,6 +111,7 @@ export const useChatSession = ({
     setPosts(null);
     setSearchData(null);
     setAnalyticsDates({ start: null, end: null });
+    setUsedChunks([]);
     setErr(null);
     setContextExceededErr(null);
     // Clean up chat session
