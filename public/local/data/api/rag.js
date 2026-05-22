@@ -74,6 +74,7 @@ export const performRagSearch = async ({
     tokenBreakdown: contextResult.tokenBreakdown,
     rawChunks: chunks,
     usedChunks: contextResult.usedChunks,
+    chunkTexts: contextResult.chunkTexts,
     initialQuery: query,
   };
 

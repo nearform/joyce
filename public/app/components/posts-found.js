@@ -3,7 +3,12 @@ import { Modal } from "./modal.js";
 import { PostsTable } from "./posts-table.js";
 import { html } from "../util/html.js";
 
-export const PostsFound = ({ posts = [], analyticsDates, usedChunks = [] }) => {
+export const PostsFound = ({
+  posts = [],
+  analyticsDates,
+  usedChunks = [],
+  chunkTexts = {},
+}) => {
   const [isSimilarPostsModalOpen, setIsSimilarPostsModalOpen] = useState(false);
 
   return html`
@@ -25,7 +30,7 @@ export const PostsFound = ({ posts = [], analyticsDates, usedChunks = [] }) => {
         onClose=${() => setIsSimilarPostsModalOpen(false)}
         title="Similar Posts"
       >
-        ${(posts && html`<${PostsTable} posts=${posts} analyticsDates=${analyticsDates} usedChunks=${usedChunks} />`) || html`<p className="status">No results.</p>`}
+        ${(posts && html`<${PostsTable} posts=${posts} analyticsDates=${analyticsDates} usedChunks=${usedChunks} chunkTexts=${chunkTexts} />`) || html`<p className="status">No results.</p>`}
       </${Modal}>
     </${Fragment}>
   `;

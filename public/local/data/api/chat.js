@@ -85,7 +85,7 @@ export const BASE_TOKEN_ESTIMATE = estimateTokens(
  * @param {number} [options.maxChunks] - Optional max number of chunks to include
  * @param {boolean} [options.forMultiTurn=false] - Use larger cushion for multi-turn
  * @param {boolean} [options.isFirstTurn=false] - Skip ratio on first turn to maximize initial context
- * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
+ * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, chunkTexts: Object, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
  */
 export const buildContextFromChunks = async ({
   chunks,
@@ -163,12 +163,14 @@ export const buildContextFromChunks = async ({
   // Each entry: { url, content, tokenCount }
   const contextEntries = [];
   const seenSlugs = new Map(); // slug -> index in contextEntries
+  const chunkTexts = {}; // {slug:start:end} -> text excerpt
 
   for (const chunk of chunksToProcess) {
     const post = await getPost(chunk.slug);
     const chunkText = getChunk(post.content, chunk.start, chunk.end).join(
       "\n\n",
     );
+    chunkTexts[`${chunk.slug}:${chunk.start}:${chunk.end}`] = chunkText;
     // TODO(ESTIMATE): Per-chunk estimate affects which chunks are included.
     // Use markup factor since chunks will be wrapped in XML tags
     // (<CHUNK><URL>...</URL><TITLE>...</TITLE><CONTENT>...</CONTENT></CHUNK>)
@@ -278,6 +280,7 @@ export const buildContextFromChunks = async ({
     context,
     usedChunks,
     chunkCount: usedChunks.length,
+    chunkTexts,
     tokenEstimate: totalContextTokensEst,
     // Granular token breakdown for UI display
     tokenBreakdown: {
@@ -298,7 +301,7 @@ export const buildContextFromChunks = async ({
  * @param {string} options.provider - LLM provider key
  * @param {string} options.model - Model ID
  * @param {number} options.targetChunkCount - Target number of chunks (will be clamped to MIN_CONTEXT_CHUNKS)
- * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
+ * @returns {Promise<{context: string, usedChunks: Array, chunkCount: number, chunkTexts: Object, tokenEstimate: number, tokenBreakdown: {basePromptTokens: number, queryTokens: number, chunksTokens: number, totalTokens: number}}>}
  */
 export const rebuildContextWithLimit = async ({
   chunks,

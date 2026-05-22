@@ -1,3 +1,4 @@
+import { Fragment, useState } from "react";
 import { html } from "../util/html.js";
 import { Category } from "./category.js";
 import { Vertical } from "./vertical.js";
@@ -23,25 +24,40 @@ export const PostsTable = ({
   posts = [],
   analyticsDates = { start: null, end: null },
   usedChunks = [],
+  chunkTexts = {},
 }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
   const [settings] = useSettings();
+  const [expandedSlug, setExpandedSlug] = useState(null);
   const usedChunkSlugs = new Set(usedChunks.map((c) => c.slug));
 
-  // Short-circuit.
-  if (posts.length === 0) {
-    return html`<div />`;
-  }
-
-  // Get the appropriate headings based on settings
   const headings = settings.displayAnalytics
     ? { ...BASE_HEADINGS, ...ANALYTICS_HEADINGS }
     : BASE_HEADINGS;
+
+  const colSpan =
+    1 + Object.keys(headings).length + (settings.displayAnalytics ? 4 : 0);
 
   const analyticsTitle =
     analyticsDates.start !== null && analyticsDates.end !== null
       ? `Analytics from ${new Date(analyticsDates.start).toLocaleDateString()} to ${new Date(analyticsDates.end).toLocaleDateString()}`
       : "";
+
+  const getChunksForSlug = (slug) => {
+    const chunks = [];
+    for (const key of Object.keys(chunkTexts)) {
+      if (key.startsWith(`${slug}:`)) {
+        const [, start, end] = key.split(":");
+        chunks.push({ key, text: chunkTexts[key], start, end });
+      }
+    }
+    return chunks;
+  };
+
+  // Short-circuit.
+  if (posts.length === 0) {
+    return html`<div />`;
+  }
 
   return html`
     <div>
@@ -81,39 +97,81 @@ export const PostsTable = ({
               },
               i,
             ) => {
+              const isExpanded = expandedSlug === slug;
+              const chunksForPost = getChunksForSlug(slug);
               return html`
-                <tr key=${`post-item-${i}`}>
-                  <td>
-                    ${usedChunkSlugs.has(slug) &&
-                    html`<i className="iconoir-quote"></i>`}
-                  </td>
-                  <td style=${{ minWidth: "90px" }}>
-                    ${date ? new Date(date).toISOString().substring(0, 10) : ""}
-                  </td>
-                  <td
-                    title=${JSON.stringify({
-                      embeddingNumTokens,
-                      similarity,
-                    })}
-                  >
-                    <a href="${href}">${title}</a>
-                  </td>
-                  <td>${Category({ category: categories.primary })}</td>
-                  <td>
-                    ${verticals?.primary &&
-                    Vertical({ vertical: verticals.primary })}
-                  </td>
-                  ${settings.displayAnalytics
-                    ? html`
-                        <td key="views">${analytics.views}</td>
-                        <td key="users">${analytics.users}</td>
-                        <td key="time">${analytics.time.toFixed(2)}</td>
-                        <td key="bounceRate">
-                          ${(analytics.bounceRate * 100).toFixed(0)}%
+                <${Fragment}>
+                  <tr key=${`post-item-${i}`}>
+                    <td>
+                      ${
+                        usedChunkSlugs.has(slug) &&
+                        html`<i
+                          class="iconoir-quote"
+                          style=${{ cursor: "pointer" }}
+                          onClick=${() =>
+                            setExpandedSlug(isExpanded ? null : slug)}
+                          title=${isExpanded
+                            ? "Click to collapse chunk excerpts"
+                            : "Click to view chunk excerpts"}
+                        ></i>`
+                      }
+                    </td>
+                    <td style=${{ minWidth: "90px" }}>
+                      ${date ? new Date(date).toISOString().substring(0, 10) : ""}
+                    </td>
+                    <td
+                      title=${JSON.stringify({
+                        embeddingNumTokens,
+                        similarity,
+                      })}
+                    >
+                      <a href="${href}">${title}</a>
+                    </td>
+                    <td>${Category({ category: categories.primary })}</td>
+                    <td>
+                      ${
+                        verticals?.primary &&
+                        Vertical({ vertical: verticals.primary })
+                      }
+                    </td>
+                    ${
+                      settings.displayAnalytics
+                        ? html`
+                            <td key="views">${analytics.views}</td>
+                            <td key="users">${analytics.users}</td>
+                            <td key="time">${analytics.time.toFixed(2)}</td>
+                            <td key="bounceRate">
+                              ${(analytics.bounceRate * 100).toFixed(0)}%
+                            </td>
+                          `
+                        : null
+                    }
+                  </tr>
+                  ${
+                    isExpanded &&
+                    html`
+                      <tr key=${`post-item-${i}-expansion`}>
+                        <td colspan=${colSpan} style=${{ padding: "0" }}>
+                          <div class="chunk-excerpts">
+                            ${chunksForPost.map(
+                              (chunk, idx) => html`
+                                <div class="chunk-excerpt">
+                                  <div class="chunk-label">
+                                    Chunk ${idx + 1} ${" "}<span
+                                      class="chunk-label-num"
+                                      >(${chunk.start}–${chunk.end})</span
+                                    >
+                                  </div>
+                                  <div class="chunk-text">${chunk.text}</div>
+                                </div>
+                              `,
+                            )}
+                          </div>
                         </td>
-                      `
-                    : null}
-                </tr>
+                      </tr>
+                    `
+                  }
+                </${Fragment}>
               `;
             },
           )}
