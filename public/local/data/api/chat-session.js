@@ -379,6 +379,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
     getCapabilities: () => ({ ...capabilities }),
     canContinue: () => state.history.length === 0 || canContinue(state),
     getSearchData: () => state.searchData,
+    getUsedChunks: () => state.contextState?.usedChunks ?? [],
     getModel: () => ({ provider, model }),
     getTokenUsage: () => getTokenUsage(state),
     getHistory: () => [...state.history],

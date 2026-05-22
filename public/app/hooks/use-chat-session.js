@@ -54,6 +54,7 @@ export const useChatSession = ({
     start: null,
     end: null,
   });
+  const [usedChunks, setUsedChunks] = useState([]);
 
   // Error state
   const [err, setErr] = useState(null);
@@ -216,6 +217,7 @@ export const useChatSession = ({
           } = event.message;
           searchMetadata = metadata;
           setSearchData({ posts: fetchedPosts, chunks, metadata });
+          setUsedChunks(chatSessionRef.current.getUsedChunks());
           setPosts(displayPosts);
           setAnalyticsDates(metadata?.analytics?.dates);
         } else if (event.type === "data") {
@@ -373,6 +375,7 @@ export const useChatSession = ({
     posts,
     searchData,
     analyticsDates,
+    usedChunks,
     err,
     contextExceededErr,
     isLoadingModelForChat,

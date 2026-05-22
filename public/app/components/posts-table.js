@@ -22,9 +22,11 @@ export const PostsTable = ({
   heading,
   posts = [],
   analyticsDates = { start: null, end: null },
+  usedChunks = [],
 }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
   const [settings] = useSettings();
+  const usedChunkSlugs = new Set(usedChunks.map((c) => c.slug));
 
   // Short-circuit.
   if (posts.length === 0) {
@@ -47,6 +49,9 @@ export const PostsTable = ({
       <table className="pure-table pure-table-bordered">
         <thead>
           <tr>
+            <th title="Included in prompt context">
+              <i className="iconoir-quote"></i>
+            </th>
             ${Object.entries(headings).map(
               ([key, label]) =>
                 html`<th
@@ -67,6 +72,7 @@ export const PostsTable = ({
                 date,
                 title,
                 href,
+                slug,
                 categories,
                 verticals,
                 analytics,
@@ -77,6 +83,10 @@ export const PostsTable = ({
             ) => {
               return html`
                 <tr key=${`post-item-${i}`}>
+                  <td>
+                    ${usedChunkSlugs.has(slug) &&
+                    html`<i className="iconoir-quote"></i>`}
+                  </td>
                   <td style=${{ minWidth: "90px" }}>
                     ${date ? new Date(date).toISOString().substring(0, 10) : ""}
                   </td>
