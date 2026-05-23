@@ -393,6 +393,8 @@ export const createChatSession = ({
     getCapabilities: () => ({ ...capabilities }),
     canContinue: () => state.history.length === 0 || canContinue(state),
     getSearchData: () => state.searchData,
+    getUsedChunks: () => state.contextState?.usedChunks ?? [],
+    getChunkTexts: () => state.contextState?.chunkTexts ?? {},
     getModel: () => ({ provider, model }),
     getTokenUsage: () => getTokenUsage(state),
     getHistory: () => [...state.history],

@@ -106,7 +106,7 @@ This is a **WebAssembly error**, not a WebGPU error. ONNX Runtime Web runs a hyb
 
 ## NPM Commands
 
-Regenerate embeddings files from posts.json. (Should be run whenever `posts.json` is updated). We presently use the `Xenova/gte-small` embeddings model. This generates multiple files based on chunk sizes configured in `shared-config.js`.
+Regenerate embeddings files from posts.json. (Should be run whenever `posts.json` is updated). We presently use the `Xenova/gte-small` text embedding model. This generates multiple files based on chunk sizes configured in `shared-config.js`.
 
 ```sh
 $ npm run data:embeddings
