@@ -29,13 +29,14 @@ export const PostsTable = ({
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
   const [settings] = useSettings();
   const [expandedSlug, setExpandedSlug] = useState(null);
+  const hasChunks = usedChunks.length > 0;
   const usedChunkSlugs = new Set(usedChunks.map((c) => c.slug));
 
   const headings = settings.displayAnalytics
     ? { ...BASE_HEADINGS, ...ANALYTICS_HEADINGS }
     : BASE_HEADINGS;
 
-  const colSpan = 1 + Object.keys(headings).length;
+  const colSpan = (hasChunks ? 1 : 0) + Object.keys(headings).length;
 
   const analyticsTitle =
     analyticsDates.start !== null && analyticsDates.end !== null
@@ -66,9 +67,10 @@ export const PostsTable = ({
       <table className="pure-table pure-table-bordered">
         <thead>
           <tr>
-            <th title="Included in prompt context">
+            ${hasChunks &&
+            html`<th title="Included in prompt context">
               <i className="iconoir-quote"></i>
-            </th>
+            </th>`}
             ${Object.entries(headings).map(
               ([key, label]) =>
                 html`<th
@@ -103,9 +105,10 @@ export const PostsTable = ({
               return html`
                 <${Fragment}>
                   <tr key=${`post-item-${i}`}>
-                    <td>
-                      ${
-                        usedChunkSlugs.has(slug) &&
+                    ${
+                      hasChunks &&
+                      html`<td>
+                        ${usedChunkSlugs.has(slug) &&
                         html`<i
                           class="iconoir-quote"
                           style=${{ cursor: "pointer" }}
@@ -114,9 +117,9 @@ export const PostsTable = ({
                           title=${isExpanded
                             ? "Click to collapse chunk excerpts"
                             : "Click to view chunk excerpts"}
-                        ></i>`
-                      }
-                    </td>
+                        ></i>`}
+                      </td>`
+                    }
                     <td style=${{ minWidth: "90px" }}>
                       ${date ? new Date(date).toISOString().substring(0, 10) : ""}
                     </td>
