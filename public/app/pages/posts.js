@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { PostsTable } from "../components/posts-table.js";
@@ -8,7 +9,16 @@ import {
   PostTypeSelect,
   PostCategoryPrimarySelect,
   PostVerticalPrimarySelect,
+  POST_TYPE_OPTIONS,
+  CATEGORY_OPTIONS,
+  VERTICAL_OPTIONS,
 } from "../components/forms.js";
+import {
+  parseMulti,
+  parseStringParam,
+  buildParams,
+  multiToValues,
+} from "../util/url-params.js";
 import {
   DownloadPostsCsv,
   JsonDataLink,
@@ -22,16 +32,25 @@ import {
 } from "../../local/app/components/loading/index.js";
 
 export const Posts = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState(null);
   const [postsData, setPostsData] = useState(null);
   const [analyticsDates, setAnalyticsDates] = useState({
     start: null,
     end: null,
   });
-  const [selectedPostTypes, setSelectedPostTypes] = useState([]);
-  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
-  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
-  const [minDate, setMinDate] = useState("");
+  const [selectedPostTypes, setSelectedPostTypes] = useState(() =>
+    parseMulti(searchParams, "postType", POST_TYPE_OPTIONS),
+  );
+  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState(() =>
+    parseMulti(searchParams, "categoryPrimary", CATEGORY_OPTIONS),
+  );
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState(() =>
+    parseMulti(searchParams, "verticalPrimary", VERTICAL_OPTIONS),
+  );
+  const [minDate, setMinDate] = useState(() =>
+    parseStringParam(searchParams, "minDate", ""),
+  );
   const [isFetching, setIsFetching] = useState(false);
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
@@ -59,6 +78,15 @@ export const Posts = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setSearchParams(
+      buildParams({
+        postType: multiToValues(selectedPostTypes),
+        categoryPrimary: multiToValues(selectedCategoryPrimary),
+        verticalPrimary: multiToValues(selectedVerticalPrimary),
+        minDate,
+      }),
+      { replace: true },
+    );
     setIsFetching(true);
     setPosts(null);
     setPostsData(null);
@@ -96,6 +124,7 @@ export const Posts = () => {
           html`<${PostsTable}
             posts=${posts}
             analyticsDates=${analyticsDates}
+            syncSortUrl=${true}
           />`) ||
         html`<${LoadingMessage}
           resourceId=${LOADING.POSTS_DATA}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import {
@@ -12,7 +12,18 @@ import {
   PostVerticalPrimarySelectDropdown,
   QueryField,
   ChatInputForm,
+  POST_TYPE_OPTIONS,
+  CATEGORY_OPTIONS,
+  VERTICAL_OPTIONS,
 } from "../components/forms.js";
+import {
+  parseMulti,
+  parseStringParam,
+  parseFloatParam,
+  parseModel,
+  buildParams,
+  multiToValues,
+} from "../util/url-params.js";
 import { Answer } from "../components/answer.js";
 import { PostsFound } from "../components/posts-found.js";
 import {
@@ -114,16 +125,30 @@ const DescriptionButton = () => {
 };
 
 export const Chat = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Randomly select 3 suggestions on mount (persists during session)
   const [displayedSuggestions] = useState(() => getRandomItems(SUGGESTIONS, 3));
 
-  // Form state
-  const [selectedPostTypes, setSelectedPostTypes] = useState([]);
-  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
-  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
-  const [modelObj, setModelObj] = useState(DEFAULT_CHAT_MODEL);
-  const [temperature, setTemperature] = useState(DEFAULT_TEMPERATURE);
-  const [minDate, setMinDate] = useState("");
+  // Form state — seeded from URL search params on first render only.
+  const [selectedPostTypes, setSelectedPostTypes] = useState(() =>
+    parseMulti(searchParams, "postType", POST_TYPE_OPTIONS),
+  );
+  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState(() =>
+    parseMulti(searchParams, "categoryPrimary", CATEGORY_OPTIONS),
+  );
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState(() =>
+    parseMulti(searchParams, "verticalPrimary", VERTICAL_OPTIONS),
+  );
+  const [modelObj, setModelObj] = useState(() =>
+    parseModel(searchParams, "model", DEFAULT_CHAT_MODEL),
+  );
+  const [temperature, setTemperature] = useState(() =>
+    parseFloatParam(searchParams, "temperature", DEFAULT_TEMPERATURE),
+  );
+  const [minDate, setMinDate] = useState(() =>
+    parseStringParam(searchParams, "minDate", ""),
+  );
 
   // Settings and config
   const [settings] = useSettings();
@@ -157,7 +182,7 @@ export const Chat = () => {
     conversationsEnabled,
     formInputsLocked,
     placeholder,
-    handleSubmit,
+    handleSubmit: sessionHandleSubmit,
     handleReset,
   } = useChatSession({
     modelObj,
@@ -173,6 +198,21 @@ export const Chat = () => {
     modelStatus,
     conversationsEnabled: settings.experimentalChatConversations,
   });
+
+  const handleSubmit = (event) => {
+    setSearchParams(
+      buildParams({
+        postType: multiToValues(selectedPostTypes),
+        categoryPrimary: multiToValues(selectedCategoryPrimary),
+        verticalPrimary: multiToValues(selectedVerticalPrimary),
+        minDate,
+        model: modelObj,
+        temperature,
+      }),
+      { replace: true },
+    );
+    sessionHandleSubmit(event);
+  };
 
   return html`
     <${Page} name="Chat" icon="iconoir-chat-bubble">

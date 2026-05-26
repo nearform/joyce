@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { getElements, html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { PostsTable } from "../components/posts-table.js";
@@ -9,7 +10,16 @@ import {
   PostCategoryPrimarySelect,
   PostVerticalPrimarySelect,
   QueryField,
+  POST_TYPE_OPTIONS,
+  CATEGORY_OPTIONS,
+  VERTICAL_OPTIONS,
 } from "../components/forms.js";
+import {
+  parseMulti,
+  parseStringParam,
+  buildParams,
+  multiToValues,
+} from "../util/url-params.js";
 import {
   DownloadPostsCsv,
   JsonDataLink,
@@ -27,36 +37,55 @@ const suggestions = [
 ];
 
 export const Search = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchData, setSearchData] = useState(null);
   const [posts, setPosts] = useState(null);
-  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState([]);
-  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState([]);
-  const [selectedPostTypes, setSelectedPostTypes] = useState([]);
+  const [selectedCategoryPrimary, setSelectedCategoryPrimary] = useState(() =>
+    parseMulti(searchParams, "categoryPrimary", CATEGORY_OPTIONS),
+  );
+  const [selectedVerticalPrimary, setSelectedVerticalPrimary] = useState(() =>
+    parseMulti(searchParams, "verticalPrimary", VERTICAL_OPTIONS),
+  );
+  const [selectedPostTypes, setSelectedPostTypes] = useState(() =>
+    parseMulti(searchParams, "postType", POST_TYPE_OPTIONS),
+  );
   const [isFetching, setIsFetching] = useState(false);
   const [err, setErr] = useState(null);
   const [analyticsDates, setAnalyticsDates] = useState({
     start: null,
     end: null,
   });
-  const [minDate, setMinDate] = useState("");
+  const [minDate, setMinDate] = useState(() =>
+    parseStringParam(searchParams, "minDate", ""),
+  );
+  const initialQuery = parseStringParam(searchParams, "query", "");
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const { query } = getElements(event);
+  const runSearch = async (query) => {
     if (!query) {
       return;
     }
+
+    const postType = multiToValues(selectedPostTypes);
+    const categoryPrimary = multiToValues(selectedCategoryPrimary);
+    const verticalPrimary = multiToValues(selectedVerticalPrimary);
+
+    setSearchParams(
+      buildParams({
+        query,
+        postType,
+        categoryPrimary,
+        verticalPrimary,
+        minDate,
+      }),
+      { replace: true },
+    );
 
     setIsFetching(true);
     setSearchData(null);
     setPosts(null);
     setErr(null);
-
-    const postType = selectedPostTypes.map(({ value }) => value);
-    const categoryPrimary = selectedCategoryPrimary.map(({ value }) => value);
-    const verticalPrimary = selectedVerticalPrimary.map(({ value }) => value);
 
     try {
       const searchResults = await search({
@@ -79,6 +108,18 @@ export const Search = () => {
     }
   };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const { query } = getElements(event);
+    await runSearch(query);
+  };
+
+  useEffect(() => {
+    if (initialQuery) {
+      runSearch(initialQuery);
+    }
+  }, []);
+
   return html`
     <${Page} name="Search" icon="iconoir-doc-magnifying-glass-in">
       <p>
@@ -89,7 +130,7 @@ export const Search = () => {
       </p>
       ${!isDeveloperMode && html`<${SuggestedQueries} ...${{ suggestions }} />`}
       <${Form} ...${{ isFetching, handleSubmit, submitName: "Search" }}>
-        <${QueryField} />
+        <${QueryField} defaultValue=${initialQuery} />
         <${PostTypeSelect}
           selected=${selectedPostTypes}
           setSelected=${setSelectedPostTypes}

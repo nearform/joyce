@@ -19,17 +19,17 @@ import { useLoading } from "../../local/app/context/loading.js";
 import { useClickOutside } from "../hooks/use-click-outside.js";
 import { formatInt } from "../../shared-util.js";
 
-const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
+export const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
   label: category,
   value: category,
 }));
 
-const VERTICAL_OPTIONS = VERTICALS_LIST.map((vertical) => ({
+export const VERTICAL_OPTIONS = VERTICALS_LIST.map((vertical) => ({
   label: vertical,
   value: vertical,
 }));
 
-const POST_TYPE_OPTIONS = [
+export const POST_TYPE_OPTIONS = [
   { label: "Services", value: "service" },
   { label: "Work", value: "work" },
   { label: "Blogs", value: "blog" },
@@ -198,13 +198,17 @@ const handleQueryKeyDown = (e) => {
   }
 };
 
-export const QueryField = ({ placeholder = "Ask anything" }) => html`
+export const QueryField = ({
+  placeholder = "Ask anything",
+  defaultValue,
+}) => html`
   <fieldset>
     <textarea
       id="query"
       placeholder=${placeholder}
       className="pure-input-1"
       rows="3"
+      defaultValue=${defaultValue}
       onKeyDown=${handleQueryKeyDown}
     ></textarea>
   </fieldset>
