@@ -8,12 +8,17 @@ const isMatchingOption = (options, value) =>
 
 // Read repeated values from search params (e.g. `?postType=blog&postType=work`)
 // and map them back into the `{ label, value }` shape used by react-select.
-// Unknown values are dropped so a malformed URL can't inject garbage.
+// Unknown values and duplicates are dropped so a malformed URL can't inject
+// garbage or duplicated chips.
 export const parseMulti = (searchParams, key, options) => {
-  const raw = searchParams.getAll(key);
-  return raw
-    .filter((value) => isMatchingOption(options, value))
-    .map((value) => options.find((opt) => opt.value === value));
+  const seen = new Set();
+  const result = [];
+  for (const value of searchParams.getAll(key)) {
+    if (seen.has(value) || !isMatchingOption(options, value)) continue;
+    seen.add(value);
+    result.push(options.find((opt) => opt.value === value));
+  }
+  return result;
 };
 
 export const parseStringParam = (searchParams, key, fallback = "") => {
@@ -83,3 +88,29 @@ export const buildParams = (values) => {
 };
 
 export const multiToValues = (items) => (items || []).map(({ value }) => value);
+
+const isValidSortDir = (dir) => dir === "asc" || dir === "desc";
+
+export const parseSort = (
+  searchParams,
+  fallback = { key: null, direction: null },
+) => {
+  const key = searchParams.get("sortKey");
+  const direction = searchParams.get("sortDir");
+  if (key && isValidSortDir(direction)) {
+    return { key, direction };
+  }
+  return fallback;
+};
+
+export const applySortToParams = (params, { key, direction }) => {
+  const next = new URLSearchParams(params);
+  if (key && direction) {
+    next.set("sortKey", key);
+    next.set("sortDir", direction);
+  } else {
+    next.delete("sortKey");
+    next.delete("sortDir");
+  }
+  return next;
+};

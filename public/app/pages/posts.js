@@ -16,6 +16,8 @@ import {
 import {
   parseMulti,
   parseStringParam,
+  parseSort,
+  applySortToParams,
   buildParams,
   multiToValues,
 } from "../util/url-params.js";
@@ -51,7 +53,12 @@ export const Posts = () => {
   const [minDate, setMinDate] = useState(() =>
     parseStringParam(searchParams, "minDate", ""),
   );
+  const [initialSort] = useState(() => parseSort(searchParams));
   const [isFetching, setIsFetching] = useState(false);
+
+  const handleSortChange = (sort) => {
+    setSearchParams((prev) => applySortToParams(prev, sort), { replace: true });
+  };
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
   const { getStatus } = useLoading();
@@ -124,7 +131,8 @@ export const Posts = () => {
           html`<${PostsTable}
             posts=${posts}
             analyticsDates=${analyticsDates}
-            syncSortUrl=${true}
+            initialSort=${initialSort}
+            onSortChange=${handleSortChange}
           />`) ||
         html`<${LoadingMessage}
           resourceId=${LOADING.POSTS_DATA}

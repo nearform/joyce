@@ -25,11 +25,12 @@ export const PostsTable = ({
   analyticsDates = { start: null, end: null },
   usedChunks = [],
   chunkTexts = {},
-  syncSortUrl = false,
+  initialSort = { key: null, direction: null },
+  onSortChange,
 }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort(
-    { key: null, direction: null },
-    { syncUrl: syncSortUrl },
+    initialSort,
+    onSortChange,
   );
   const [settings] = useSettings();
   const [expandedSlug, setExpandedSlug] = useState(null);

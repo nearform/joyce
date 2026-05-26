@@ -1,14 +1,10 @@
-/* global URLSearchParams:false */
 import { useState } from "react";
-import { useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 
 const SORT_DIRS = {
   ASC: "asc",
   DESC: "desc",
 };
-
-const isValidDir = (dir) => dir === SORT_DIRS.ASC || dir === SORT_DIRS.DESC;
 
 const sortIconHtml = (className) =>
   html`<i title="Sort" className="ui-icon-button ${className ?? ""}"></i>`;
@@ -21,21 +17,9 @@ const SORT_CHARS = {
 
 export const useTableSort = (
   initialSort = { key: null, direction: null },
-  { syncUrl = false } = {},
+  onSortChange,
 ) => {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const seededSort = syncUrl
-    ? (() => {
-        const key = searchParams.get("sortKey");
-        const direction = searchParams.get("sortDir");
-        if (key && isValidDir(direction)) {
-          return { key, direction };
-        }
-        return initialSort;
-      })()
-    : initialSort;
-  const [sort, setSort] = useState(seededSort);
+  const [sort, setSort] = useState(initialSort);
 
   const getSortSymbol = (key) => {
     if (sort.key === key) {
@@ -58,24 +42,9 @@ export const useTableSort = (
       }
     }
 
-    setSort({ key, direction });
-
-    if (syncUrl) {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (key && direction) {
-            next.set("sortKey", key);
-            next.set("sortDir", direction);
-          } else {
-            next.delete("sortKey");
-            next.delete("sortDir");
-          }
-          return next;
-        },
-        { replace: true },
-      );
-    }
+    const next = { key, direction };
+    setSort(next);
+    onSortChange?.(next);
   };
 
   // Handle easy strings and numbers
