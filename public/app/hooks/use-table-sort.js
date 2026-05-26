@@ -15,7 +15,10 @@ const SORT_CHARS = {
   empty: sortIconHtml("iconoir-sort"),
 };
 
-export const useTableSort = (initialSort = { key: null, direction: null }) => {
+export const useTableSort = (
+  initialSort = { key: null, direction: null },
+  onSortChange,
+) => {
   const [sort, setSort] = useState(initialSort);
 
   const getSortSymbol = (key) => {
@@ -39,8 +42,9 @@ export const useTableSort = (initialSort = { key: null, direction: null }) => {
       }
     }
 
-    // Update state.
-    setSort({ key, direction });
+    const next = { key, direction };
+    setSort(next);
+    onSortChange?.(next);
   };
 
   // Handle easy strings and numbers

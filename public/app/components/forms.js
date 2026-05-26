@@ -19,17 +19,17 @@ import { useLoading } from "../../local/app/context/loading.js";
 import { useClickOutside } from "../hooks/use-click-outside.js";
 import { formatInt } from "../../shared-util.js";
 
-const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
+export const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
   label: category,
   value: category,
 }));
 
-const VERTICAL_OPTIONS = VERTICALS_LIST.map((vertical) => ({
+export const VERTICAL_OPTIONS = VERTICALS_LIST.map((vertical) => ({
   label: vertical,
   value: vertical,
 }));
 
-const POST_TYPE_OPTIONS = [
+export const POST_TYPE_OPTIONS = [
   { label: "Services", value: "service" },
   { label: "Work", value: "work" },
   { label: "Blogs", value: "blog" },
@@ -198,13 +198,17 @@ const handleQueryKeyDown = (e) => {
   }
 };
 
-export const QueryField = ({ placeholder = "Ask anything" }) => html`
+export const QueryField = ({
+  placeholder = "Ask anything",
+  defaultValue,
+}) => html`
   <fieldset>
     <textarea
       id="query"
       placeholder=${placeholder}
       className="pure-input-1"
       rows="3"
+      defaultValue=${defaultValue}
       onKeyDown=${handleQueryKeyDown}
     ></textarea>
   </fieldset>
@@ -236,24 +240,17 @@ export const PostTypeSelectDropdown = ({
   setSelected,
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleTypeChange = (selectedOptions) => {
-    setSelected(selectedOptions);
-    setHasChanged(selectedOptions.length > 0);
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-multiple-pages"
       iconTitle=${disabled ? "Post Types (locked)" : "Post Types"}
-      isChanged=${hasChanged}
+      isChanged=${selected.length > 0}
       hidden=${hidden}
       disabled=${disabled}
     >
       <${PostTypeSelect}
         selected=${selected}
-        setSelected=${handleTypeChange}
+        setSelected=${setSelected}
         menuPlacement="top"
       />
     </${DropdownWrapper}>
@@ -286,24 +283,17 @@ export const PostCategoryPrimarySelectDropdown = ({
   setSelected,
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleCategoryChange = (selectedOptions) => {
-    setSelected(selectedOptions);
-    setHasChanged(selectedOptions.length > 0);
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-list-select"
       iconTitle=${disabled ? "Categories (locked)" : "Primary Categories"}
-      isChanged=${hasChanged}
+      isChanged=${selected.length > 0}
       hidden=${hidden}
       disabled=${disabled}
     >
       <${PostCategoryPrimarySelect}
         selected=${selected}
-        setSelected=${handleCategoryChange}
+        setSelected=${setSelected}
         menuPlacement="top"
       />
     </${DropdownWrapper}>
@@ -336,24 +326,17 @@ export const PostVerticalPrimarySelectDropdown = ({
   setSelected,
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleVerticalChange = (selectedOptions) => {
-    setSelected(selectedOptions);
-    setHasChanged(selectedOptions.length > 0);
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-building"
       iconTitle=${disabled ? "Verticals (locked)" : "Industry Verticals"}
-      isChanged=${hasChanged}
+      isChanged=${selected.length > 0}
       hidden=${hidden}
       disabled=${disabled}
     >
       <${PostVerticalPrimarySelect}
         selected=${selected}
-        setSelected=${handleVerticalChange}
+        setSelected=${setSelected}
         menuPlacement="top"
       />
     </${DropdownWrapper}>
@@ -532,25 +515,18 @@ export const ModelChatSelectDropdown = ({
   providers,
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleModelChange = (modelObj) => {
-    setSelected(modelObj);
-    setHasChanged(!modelOptionsAreEqual(modelObj, defaultValue));
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-sparks"
       iconTitle=${disabled ? "Model (locked)" : "LLM Model (Chat)"}
-      isChanged=${hasChanged}
+      isChanged=${!!selected && !modelOptionsAreEqual(selected, defaultValue)}
       hidden=${hidden}
       disabled=${disabled}
     >
       <${ModelChatSelect}
         defaultValue=${defaultValue}
         selected=${selected}
-        setSelected=${handleModelChange}
+        setSelected=${setSelected}
         providers=${providers}
       />
     </${DropdownWrapper}>
@@ -757,25 +733,18 @@ export const TemperatureDropdown = ({
   onChange = () => {},
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleTemperatureChange = (value) => {
-    setHasChanged(value !== DEFAULT_TEMPERATURE);
-    onChange(value);
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-temperature-high"
       iconTitle=${disabled ? "Temperature (locked)" : TEMPERATURE_TITLE}
       className="form-dropdown-hideable"
-      isChanged=${hasChanged}
+      isChanged=${value !== DEFAULT_TEMPERATURE}
       hidden=${hidden}
       disabled=${disabled}
     >
       <${Temperature}
         value=${value}
-        onChange=${handleTemperatureChange}
+        onChange=${onChange}
       />
     </${DropdownWrapper}>
   `;
@@ -806,22 +775,15 @@ export const PostMinDateDropdown = ({
   onChange = () => {},
   disabled = false,
 }) => {
-  const [hasChanged, setHasChanged] = useState(false);
-
-  const handleChange = (value) => {
-    setHasChanged(!!value);
-    onChange(value);
-  };
-
   return html`
     <${DropdownWrapper}
       icon="iconoir-calendar"
       iconTitle=${disabled ? "Date (locked)" : MIN_DATE_TITLE}
-      isChanged=${hasChanged}
+      isChanged=${!!value}
       hidden=${hidden}
       disabled=${disabled}
     >
-      <${PostMinDate} className="form-dropdown-input-box" value=${value} setValue=${handleChange}/>
+      <${PostMinDate} className="form-dropdown-input-box" value=${value} setValue=${onChange}/>
     </${DropdownWrapper}>
   `;
 };
