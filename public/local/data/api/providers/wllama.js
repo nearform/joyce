@@ -19,7 +19,14 @@ import WasmFromCDN from "@reeselevine/wllama-webgpu/esm/wasm-from-cdn.js";
 import { Template } from "@huggingface/jinja";
 import { getModelCfg } from "../../../../config.js";
 import { estimateTokens } from "../../util.js";
-import { hasWebGPU } from "../capacity.js";
+import { hasWebGPU, isIOSBrowser } from "../capacity.js";
+
+// iOS Safari/Chrome share strict per-page memory caps (~512 MB WebGPU
+// maxBufferSize). Mirror llamas-on-the-web's iOS-safe load config so we
+// don't crash the tab during prefill — see the diagnosis table for context.
+const IOS_N_CTX = 1024;
+const IOS_N_BATCH = 256;
+const DEFAULT_N_BATCH = 256; // also smaller than llama.cpp's 512 default
 
 // ChatML-ish fallback when the model has no chat_template metadata.
 const DEFAULT_CHAT_TEMPLATE =
@@ -65,11 +72,18 @@ const buildEngine = async (model, entry) => {
 
   // The fork's `backend` defaults to 'cpu' — must explicitly opt into WebGPU.
   const backend = hasWebGPU() ? "webgpu" : "cpu";
-  dbg("constructing Wllama", { backend });
+  const ios = isIOSBrowser();
+  // On iOS we mirror llamas-on-the-web's iOS-safe load config; otherwise use
+  // the configured maxTokens (capped at 8192 for sanity).
+  const requestedNCtx = cfg.maxTokens ?? 4096;
+  const n_ctx = ios ? Math.min(requestedNCtx, IOS_N_CTX) : requestedNCtx;
+  const n_batch = ios ? IOS_N_BATCH : DEFAULT_N_BATCH;
+  dbg("constructing Wllama", { backend, ios, n_ctx, n_batch });
   const wllama = new Wllama(WasmFromCDN, { backend });
 
   await wllama.loadModelFromHF(cfg.repo, cfg.file, {
-    n_ctx: cfg.maxTokens ?? 8192,
+    n_ctx,
+    n_batch,
     progressCallback: ({ loaded, total }) => {
       if (!total) return;
       const ratio = loaded / total;
@@ -283,10 +297,21 @@ export const createHandler = async ({
         await generation; // ensure promise settles so we don't leak
       }
 
-      if (firstChunkAt === null) {
+      // Zero-token completion almost always means the prompt ate the entire
+      // n_ctx budget — the model had nothing left to generate. Throw an error
+      // whose message contains "ContextWindowSizeExceeded" so Joyce's existing
+      // ContextExceededError UI fires (see context-messages.js:9).
+      if (tokenCount === 0) {
         dbg(
-          "WARNING: createCompletion returned with zero tokens emitted via onNewToken",
+          "zero-token completion — prompt likely exceeded n_ctx; throwing ContextWindowSizeExceeded",
         );
+        const info = engine.getLoadedContextInfo?.();
+        const err = new Error(
+          `ContextWindowSizeExceeded: model produced no tokens. ` +
+            `Prompt was ${prompt.length} chars; n_ctx=${info?.n_ctx ?? "?"}.`,
+        );
+        err.name = "ContextWindowSizeExceeded";
+        throw err;
       }
 
       // Fork doesn't expose finish_reason. Heuristic: hitting the nPredict cap
