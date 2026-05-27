@@ -1455,6 +1455,10 @@ button.loading-status-icon-button {
   align-items: center;
 }
 
+.model-status-over-budget {
+  color: #b58900;
+}
+
 /* Chunk Excerpts */
 .chunk-excerpts {
   max-height: 400px;

@@ -14,10 +14,11 @@ import {
   DEFAULT_TEMPERATURE,
 } from "../../config.js";
 import { useSettings } from "../hooks/use-settings.js";
-import { useState, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { useLoading } from "../../local/app/context/loading.js";
 import { useClickOutside } from "../hooks/use-click-outside.js";
 import { formatInt } from "../../shared-util.js";
+import { getEffectiveBudgetMb } from "../../local/data/api/capacity.js";
 
 export const CATEGORY_OPTIONS = CATEGORIES_LIST.map((category) => ({
   label: category,
@@ -406,8 +407,25 @@ const ModelStatusIcon = ({ status }) => {
   `;
 };
 
-const modelStats = ({ vramMb, maxTokens }) =>
-  `Max Input: ${(maxTokens ?? 0).toLocaleString("en-US")} tokens, VRAM: ${(vramMb ?? 0).toLocaleString("en-US")} MB`;
+const OverBudgetIcon = ({ downloadSizeMb, budgetMb }) => html`
+  <span
+    className="model-status-icon model-status-over-budget"
+    title=${`Model is ${downloadSizeMb} MB but device WebGPU budget is ~${budgetMb} MB. May fail to load.`}
+  >
+    <i className="iconoir-warning-triangle"></i>
+  </span>
+`;
+
+const modelStats = ({ vramMb, maxTokens, downloadSizeMb }) => {
+  const parts = [
+    `Max Input: ${(maxTokens ?? 0).toLocaleString("en-US")} tokens`,
+    `VRAM: ${(vramMb ?? 0).toLocaleString("en-US")} MB`,
+  ];
+  if (downloadSizeMb != null) {
+    parts.push(`Download: ${downloadSizeMb.toLocaleString("en-US")} MB`);
+  }
+  return parts.join(", ");
+};
 
 const isNullish = (value) => value == null;
 
@@ -421,13 +439,24 @@ export const ModelChatSelect = ({
   const [settings] = useSettings();
   const { isDeveloperMode, displayModelStats } = settings;
   const { getStatus } = useLoading();
+  const [budgetMb, setBudgetMb] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEffectiveBudgetMb().then((mb) => {
+      if (!cancelled) setBudgetMb(mb);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const getLabel = (label, { provider, model }) => {
     if (!displayModelStats) {
       return label;
     }
 
-    const { quantization, vramMb, maxTokens } = getModelCfg({
+    const { quantization, vramMb, maxTokens, downloadSizeMb } = getModelCfg({
       provider,
       model,
     });
@@ -438,7 +467,15 @@ export const ModelChatSelect = ({
     const quantizationString = !isNullish(quantization)
       ? `Q: ${quantization}`
       : "";
-    const statsString = [maxTokensString, vramString, quantizationString]
+    const downloadString = !isNullish(downloadSizeMb)
+      ? `D: ${formatInt(downloadSizeMb)} MB`
+      : "";
+    const statsString = [
+      maxTokensString,
+      vramString,
+      downloadString,
+      quantizationString,
+    ]
       .filter(Boolean)
       .join(", ");
     return `${label} ${statsString ? `(${statsString})` : ""}`;
@@ -458,17 +495,22 @@ export const ModelChatSelect = ({
           label: getLabel(cfg.modelShortName, { provider, model }),
           value: modelObjToOption({ provider, model }),
           model, // Store model ID for status lookup
+          downloadSizeMb: cfg.downloadSizeMb,
         };
       }),
     }));
   } else {
     const provider = DEFAULT_CHAT_MODEL.provider;
-    options = getSimpleModelOptions(provider).map(({ label, model }) => ({
-      id: `${provider}-${model}`,
-      label: getLabel(label, { provider, model }),
-      value: modelObjToOption({ provider, model }),
-      model, // Store model ID for status lookup
-    }));
+    options = getSimpleModelOptions(provider).map(({ label, model }) => {
+      const cfg = getModelCfg({ provider, model });
+      return {
+        id: `${provider}-${model}`,
+        label: getLabel(label, { provider, model }),
+        value: modelObjToOption({ provider, model }),
+        model,
+        downloadSizeMb: cfg.downloadSizeMb,
+      };
+    });
   }
 
   // Manually set the selected state. (From doing object values).
@@ -479,9 +521,17 @@ export const ModelChatSelect = ({
   const formatOptionLabel = (option) => {
     const modelId = option.model;
     const status = modelId ? getStatus(`llm_${modelId}`) : "not_loaded";
+    const downloadSizeMb = option.downloadSizeMb;
+    const overBudget =
+      budgetMb != null && downloadSizeMb != null && downloadSizeMb > budgetMb;
     return html`
       <span className="model-option-label">
         <${ModelStatusIcon} status=${status} />
+        ${overBudget &&
+        html`<${OverBudgetIcon}
+          downloadSizeMb=${downloadSizeMb}
+          budgetMb=${budgetMb}
+        />`}
         <span>${option.label}</span>
       </span>
     `;

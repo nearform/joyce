@@ -113,6 +113,82 @@ const config = {
       ],
     },
   },
+  // wllama: llama.cpp WASM + WebGPU runtime, loads GGUFs directly from
+  // HuggingFace. Each model declares its HF { repo, file } and downloadSizeMb.
+  // All entries below are single-file GGUFs under 2 GB (the ArrayBuffer
+  // ceiling wllama enforces for non-split files).
+  wllama: {
+    models: {
+      chat: [
+        // Tiny — iOS-safe (fits within Safari's 512 MB maxBufferSize cap)
+        {
+          model: "wllama-gemma-3-270m-q4km",
+          modelShortName: "Gemma 3 270M",
+          shortOption: "Fast",
+          repo: "unsloth/gemma-3-270m-it-GGUF",
+          file: "gemma-3-270m-it-Q4_K_M.gguf",
+          downloadSizeMb: 253,
+          quantization: "Q4_K_M",
+          maxTokens: 4096,
+        },
+        // Small — MBA-friendly
+        {
+          model: "wllama-gemma-3-1b-q4km",
+          modelShortName: "Gemma 3 1B",
+          shortOption: "Better",
+          repo: "unsloth/gemma-3-1b-it-GGUF",
+          file: "gemma-3-1b-it-Q4_K_M.gguf",
+          downloadSizeMb: 806,
+          quantization: "Q4_K_M",
+          maxTokens: 4096,
+        },
+        // Medium
+        {
+          model: "wllama-qwen3-1_7b-q4km",
+          modelShortName: "Qwen3 1.7B",
+          shortOption: "Best",
+          repo: "unsloth/Qwen3-1.7B-GGUF",
+          file: "Qwen3-1.7B-Q4_K_M.gguf",
+          downloadSizeMb: 1135,
+          quantization: "Q4_K_M",
+          maxTokens: 4096,
+        },
+        // Large — single GGUF, near the 2 GB ArrayBuffer ceiling.
+        {
+          model: "wllama-qwen3-1_7b-q8",
+          modelShortName: "Qwen3 1.7B Q8",
+          shortOption: "Power",
+          repo: "unsloth/Qwen3-1.7B-GGUF",
+          file: "Qwen3-1.7B-Q8_0.gguf",
+          downloadSizeMb: 1830,
+          quantization: "Q8_0",
+          maxTokens: 4096,
+        },
+        // Big — reach the 4B-class via Unsloth Dynamic IQ2 (still under 2 GB).
+        {
+          model: "wllama-qwen3-4b-ud-iq2m",
+          modelShortName: "Qwen3 4B (UD-IQ2_M)",
+          shortOption: "Big",
+          repo: "unsloth/Qwen3-4B-GGUF",
+          file: "Qwen3-4B-UD-IQ2_M.gguf",
+          downloadSizeMb: 1530,
+          quantization: "UD-IQ2_M",
+          maxTokens: 4096,
+        },
+        // Bigger — Gemma 3 4B at Q2_K (heaviest single-file variant under 2 GB).
+        {
+          model: "wllama-gemma-3-4b-q2k",
+          modelShortName: "Gemma 3 4B (Q2_K)",
+          shortOption: "Bigger",
+          repo: "unsloth/gemma-3-4b-it-GGUF",
+          file: "gemma-3-4b-it-Q2_K.gguf",
+          downloadSizeMb: 1730,
+          quantization: "Q2_K",
+          maxTokens: 8192,
+        },
+      ],
+    },
+  },
   // web-llm model metadata (vramMb, maxTokens) is mutated into model objects at load time
   // from prebuiltAppConfig. See: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
   webLlm: {
@@ -153,6 +229,7 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
   webLlm: "web-llm",
+  wllama: "wllama (GGUF)",
 };
 
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({

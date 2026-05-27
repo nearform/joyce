@@ -2,11 +2,13 @@
 // Routes to provider-specific implementations based on provider parameter
 import * as webLlm from "./providers/web-llm.js";
 import * as chrome from "./providers/chrome.js";
+import * as wllama from "./providers/wllama.js";
 import { DEFAULT_CHAT_MODEL } from "../../../config.js";
 
 const PROVIDERS = {
   webLlm,
   chrome,
+  wllama,
 };
 
 /**
