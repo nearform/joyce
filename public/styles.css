@@ -1376,6 +1376,8 @@ button.loading-status-icon-button {
   gap: 0;
   border-bottom: 2px solid var(--color-border-light);
   margin-bottom: 1em;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabs-tab {
@@ -1391,6 +1393,8 @@ button.loading-status-icon-button {
   font-weight: 500;
   color: var(--color-text-muted);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     color 0.2s ease,
     border-color 0.2s ease;
