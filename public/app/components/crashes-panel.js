@@ -139,6 +139,7 @@ export const CrashesPanel = () => {
   const [, setTick] = useState(0);
   useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
 
+  const [inlineDump, setInlineDump] = useState(null);
   const record = recoveredCrash();
   const status = getStatus();
   const warnings = status?.warnings ?? [];
@@ -192,13 +193,37 @@ export const CrashesPanel = () => {
           Available on the global <code>window.__crashbox</code> handle:${" "}
           <code>dump()</code>, <code>clear()</code>, <code>recovered()</code>.
         </p>
-        <button
-          className="pure-button pure-button-xsmall"
-          onClick=${() => console.log(window.__crashbox?.dump())}
-          type="button"
-        >
-          Log dump to console
-        </button>
+        <div className="crashes-debug-buttons">
+          <button
+            className="pure-button pure-button-xsmall"
+            onClick=${() => console.log(window.__crashbox?.dump())}
+            type="button"
+          >
+            Log dump to console
+          </button>
+          <button
+            className="pure-button pure-button-xsmall"
+            onClick=${() => setInlineDump(window.__crashbox?.dump() ?? {})}
+            type="button"
+          >
+            Show dump below
+          </button>
+          ${inlineDump !== null &&
+          html`
+            <button
+              className="pure-button pure-button-xsmall"
+              onClick=${() => setInlineDump(null)}
+              type="button"
+            >
+              Hide
+            </button>
+          `}
+        </div>
+        ${inlineDump !== null &&
+        html`
+          <pre className="crashes-dump">
+<code>${JSON.stringify(inlineDump, null, 2)}</code></pre>
+        `}
       </details>
     </div>
   `;

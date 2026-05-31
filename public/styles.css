@@ -1414,6 +1414,43 @@ button.loading-status-icon-button {
   padding-top: 0.5em;
 }
 
+/* Crashes Panel */
+.crashes-debug-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-bottom: 0.75em;
+}
+
+.crashes-dump {
+  background: var(--color-bg-subtle, #f6f8fa);
+  border: 1px solid var(--color-border-light);
+  border-radius: 4px;
+  padding: 0.75em;
+  margin: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8em;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.crashes-dump code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .crashes-dump {
+    font-size: 0.72em;
+    padding: 0.5em;
+  }
+}
+
 /* Models Table Component */
 .models-table-container {
   overflow-x: auto;
