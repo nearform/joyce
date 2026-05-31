@@ -1,4 +1,4 @@
-/* global window:false,console:false */
+/* global window:false */
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
@@ -116,6 +116,26 @@ ${JSON.stringify(record.snapshot ?? {}, null, 2)}</pre
   `;
 };
 
+const isEmpty = (v) =>
+  v == null || (typeof v === "object" && Object.keys(v).length === 0);
+
+const InlineView = ({ view }) => {
+  if (isEmpty(view.payload)) {
+    return html`
+      <p
+        className="crashes-empty"
+        style=${{ color: "var(--color-text-muted)", fontStyle: "italic" }}
+      >
+        No data for "${view.label}" — nothing to show.
+      </p>
+    `;
+  }
+  return html`
+    <pre className="crashes-dump">
+<code>${JSON.stringify(view.payload, null, 2)}</code></pre>
+  `;
+};
+
 const WarningRow = ({ warning }) => {
   const cfg = WARNING_LABELS[warning.kind] ?? {
     label: warning.kind,
@@ -139,7 +159,9 @@ export const CrashesPanel = () => {
   const [, setTick] = useState(0);
   useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
 
-  const [inlineDump, setInlineDump] = useState(null);
+  // inlineView: null = nothing shown; { label, payload } = a button has been clicked.
+  // payload may itself be null/empty — that's how "no data" is rendered.
+  const [inlineView, setInlineView] = useState(null);
   const record = recoveredCrash();
   const status = getStatus();
   const warnings = status?.warnings ?? [];
@@ -196,34 +218,38 @@ export const CrashesPanel = () => {
         <div className="crashes-debug-buttons">
           <button
             className="pure-button pure-button-xsmall"
-            onClick=${() => console.log(window.__crashbox?.dump())}
+            onClick=${() =>
+              setInlineView({
+                label: "Full dump",
+                payload: window.__crashbox?.dump() ?? null,
+              })}
             type="button"
           >
-            Log dump to console
+            Show dump
           </button>
           <button
             className="pure-button pure-button-xsmall"
-            onClick=${() => setInlineDump(window.__crashbox?.dump() ?? {})}
+            onClick=${() =>
+              setInlineView({
+                label: "Recovered crash",
+                payload: window.__crashbox?.recovered() ?? null,
+              })}
             type="button"
           >
-            Show dump below
+            Show recovered
           </button>
-          ${inlineDump !== null &&
+          ${inlineView !== null &&
           html`
             <button
               className="pure-button pure-button-xsmall"
-              onClick=${() => setInlineDump(null)}
+              onClick=${() => setInlineView(null)}
               type="button"
             >
               Hide
             </button>
           `}
         </div>
-        ${inlineDump !== null &&
-        html`
-          <pre className="crashes-dump">
-<code>${JSON.stringify(inlineDump, null, 2)}</code></pre>
-        `}
+        ${inlineView !== null && html`<${InlineView} view=${inlineView} />`}
       </details>
     </div>
   `;
