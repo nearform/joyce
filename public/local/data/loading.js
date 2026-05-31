@@ -7,6 +7,7 @@ import {
   isLlmCached,
 } from "./api/llm.js";
 import { ALL_CHAT_MODELS } from "../../config.js";
+import { breadcrumb, mergeSnapshot } from "./telemetry.js";
 
 // ==============================
 // Loading Management
@@ -158,6 +159,12 @@ const setLoadingStatus = (
   { error = null, elapsed = null } = {},
 ) => {
   loadingStatus.set(resourceId, status);
+  breadcrumb(`load:${status}`, {
+    resource: resourceId,
+    ...(elapsed != null ? { elapsedMs: Math.round(elapsed) } : {}),
+    ...(error ? { error: String(error?.message ?? error).slice(0, 200) } : {}),
+  });
+  mergeSnapshot({ resources: Object.fromEntries(loadingStatus) });
   // Copy array before iterating to avoid issues if callbacks unsubscribe during iteration
   const callbacks = [...(loadingCallbacks.get(resourceId) || [])];
   callbacks.forEach((cb) => cb(status, { error, elapsed }));

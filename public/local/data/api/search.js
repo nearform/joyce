@@ -7,6 +7,7 @@ import config from "../../../config.js";
 import { getSettings } from "../../../app/hooks/use-settings.js";
 import { dequantizeEmbedding } from "../embeddings.js";
 import { getPosts, getPostsEmbeddings } from "./posts.js";
+import { wrap, attachGPUDevice } from "../telemetry.js";
 
 const MAX_CHUNKS = 50;
 const MIN_SIMILARITY = 0.8;
@@ -30,16 +31,27 @@ export const getExtractor = getAndCache(async () => {
   }
 
   try {
-    const extractor = await pipeline(
-      "feature-extraction",
-      model,
-      device ? { device } : undefined,
+    const extractor = await wrap(
+      `extractor.load.${device ?? "wasm"}`,
+      () =>
+        pipeline("feature-extraction", model, device ? { device } : undefined),
+      () => ({ model, device: device ?? "wasm" }),
     );
     extractor._device = device ?? "wasm";
+    // Best-effort: hand the GPU device to crashbox so the webgpu detector can wrap it.
+    // The shape isn't part of transformers.js's public API, so optional-chain everything.
+    const gpuDevice = extractor?.model?.session?._device;
+    if (gpuDevice && device === "webgpu") {
+      attachGPUDevice(gpuDevice);
+    }
     return extractor;
   } catch {
     // WebGPU pipeline failed, fall back to WASM
-    const extractor = await pipeline("feature-extraction", model);
+    const extractor = await wrap(
+      "extractor.load.wasm",
+      () => pipeline("feature-extraction", model),
+      () => ({ model, fallback: true }),
+    );
     extractor._device = "wasm";
     return extractor;
   }
@@ -167,10 +179,11 @@ export const search = async ({
 
   // Generate query embedding
   const start = performance.now();
-  const queryExtracted = await extractor(query, {
-    pooling: "mean",
-    normalize: true,
-  });
+  const queryExtracted = await wrap(
+    "extractor.query",
+    () => extractor(query, { pooling: "mean", normalize: true }),
+    () => ({ queryLen: query.length, device: extractor._device }),
+  );
   const queryEmbedding = Array.from(queryExtracted.data);
   queryExtracted.dispose?.(); // Keep resources free if possible.
   const embeddingQuery = performance.now() - start;
@@ -191,13 +204,18 @@ export const search = async ({
   }
 
   // Vector search on chunks DB
-  const results = oramaSearch(chunksDb, {
-    mode: "vector",
-    vector: { value: queryEmbedding, property: "embeddings" },
-    limit: MAX_CHUNKS,
-    similarity: MIN_SIMILARITY,
-    where: Object.keys(where).length > 0 ? where : undefined,
-  });
+  const results = await wrap(
+    "search.vector",
+    () =>
+      oramaSearch(chunksDb, {
+        mode: "vector",
+        vector: { value: queryEmbedding, property: "embeddings" },
+        limit: MAX_CHUNKS,
+        similarity: MIN_SIMILARITY,
+        where: Object.keys(where).length > 0 ? where : undefined,
+      }),
+    () => ({ embDim: queryEmbedding.length, limit: MAX_CHUNKS }),
+  );
   const databaseQuery = performance.now() - start;
 
   // Build posts map and chunks array

@@ -21,12 +21,18 @@ import {
 import { useLoading } from "../../local/app/context/loading.js";
 import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
+import { CrashesPanel } from "../components/crashes-panel.js";
 
-const TABS = [
+const BASE_TABS = [
   { id: "resources", label: "Resources", icon: "iconoir-database" },
   { id: "system", label: "System", icon: "iconoir-cpu" },
   { id: "models", label: "AI Models", icon: "iconoir-brain" },
 ];
+const CRASHES_TAB = {
+  id: "crashes",
+  label: "Crashes",
+  icon: "iconoir-warning-triangle",
+};
 
 // Get model short name from resource id (provider-agnostic)
 const modelShortName = (modelId) => {
@@ -264,10 +270,16 @@ export const Data = () => {
   const { systemInfo } = useConfig();
   const [activeTab, setActiveTab] = useState("resources");
 
+  // The Crashes tab is dev-mode-only; without dev mode the user wouldn't even reach
+  // this page (Data itself is dev-only), but gate the tab anyway so it's explicit.
+  const tabs = settings.isDeveloperMode
+    ? [...BASE_TABS, CRASHES_TAB]
+    : BASE_TABS;
+
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
       <p>Data, system information, and AI models used by the app.</p>
-      <${Tabs} tabs=${TABS} activeTab=${activeTab} onTabChange=${setActiveTab} />
+      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${setActiveTab} />
       ${
         activeTab === "resources" &&
         html`<${ResourcesPanel}
@@ -282,6 +294,7 @@ export const Data = () => {
         activeTab === "models" &&
         html`<${ModelsPanel} experimentalChat=${settings.experimentalChat} />`
       }
+      ${activeTab === "crashes" && settings.isDeveloperMode && html`<${CrashesPanel} />`}
     </${Page}>
   `;
 };

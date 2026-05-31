@@ -10,6 +10,7 @@ import {
 } from "../../../../config.js";
 import { buildBasePrompts } from "../chat.js";
 import { estimateTokens } from "../../util.js";
+import { wrap, breadcrumb } from "../../telemetry.js";
 
 const PROMPT_OPTIONS = {
   expectedInputs: [{ type: "text", languages: ["en"] }],
@@ -188,15 +189,20 @@ const createPromptHandler = async ({
 
   const initialPrompts = buildBasePrompts(systemContext);
 
-  const session = await LanguageModel.create({
-    ...PROMPT_OPTIONS,
-    topK: CHROME_DEFAULT_TOP_K,
-    temperature,
-    initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
-    monitor: progressCallback
-      ? createDownloadMonitor(progressCallback)
-      : undefined,
-  });
+  const session = await wrap(
+    "chrome.prompt.create",
+    () =>
+      LanguageModel.create({
+        ...PROMPT_OPTIONS,
+        topK: CHROME_DEFAULT_TOP_K,
+        temperature,
+        initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
+        monitor: progressCallback
+          ? createDownloadMonitor(progressCallback)
+          : undefined,
+      }),
+    () => ({ temperature, initialPromptCount: initialPrompts.length }),
+  );
 
   return {
     /**
@@ -205,15 +211,31 @@ const createPromptHandler = async ({
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(userMessage) {
+      breadcrumb("chrome.prompt.stream.start", {
+        msgLen: userMessage.length,
+        contextUsage: session.contextUsage ?? session.inputUsage ?? 0,
+      });
       const stream = session.promptStreaming(userMessage);
       let assistantContent = "";
 
-      for await (const chunk of stream) {
-        if (chunk) {
-          assistantContent += chunk;
-          yield { type: "data", content: chunk };
+      try {
+        for await (const chunk of stream) {
+          if (chunk) {
+            assistantContent += chunk;
+            yield { type: "data", content: chunk };
+          }
         }
+      } catch (err) {
+        breadcrumb("chrome.prompt.stream.error", {
+          name: err?.name,
+          message: String(err?.message ?? err).slice(0, 200),
+          tokensSoFar: assistantContent.length,
+        });
+        throw err;
       }
+      breadcrumb("chrome.prompt.stream.done", {
+        outputChars: assistantContent.length,
+      });
 
       yield {
         type: "done",
@@ -258,17 +280,22 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(userMessage) {
-      const writer = await Writer.create({
-        tone: "neutral",
-        length: "medium",
-        format: "markdown",
-        sharedContext: fullSharedContext,
-        ...WRITER_OPTIONS,
-        outputLanguage: "en",
-        monitor: progressCallback
-          ? createDownloadMonitor(progressCallback)
-          : undefined,
-      });
+      const writer = await wrap(
+        "chrome.writer.create",
+        () =>
+          Writer.create({
+            tone: "neutral",
+            length: "medium",
+            format: "markdown",
+            sharedContext: fullSharedContext,
+            ...WRITER_OPTIONS,
+            outputLanguage: "en",
+            monitor: progressCallback
+              ? createDownloadMonitor(progressCallback)
+              : undefined,
+          }),
+        () => ({ contextLen: fullSharedContext.length }),
+      );
 
       try {
         // New API: measureContextUsage, old: measureInputUsage
@@ -278,15 +305,31 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
         const inputTokens = await measureUsage.call(writer, userMessage, {
           context: "",
         });
+        breadcrumb("chrome.writer.stream.start", {
+          msgLen: userMessage.length,
+          inputTokens,
+        });
         const stream = writer.writeStreaming(userMessage, { context: "" });
         let assistantContent = "";
 
-        for await (const chunk of stream) {
-          if (chunk) {
-            assistantContent += chunk;
-            yield { type: "data", content: chunk };
+        try {
+          for await (const chunk of stream) {
+            if (chunk) {
+              assistantContent += chunk;
+              yield { type: "data", content: chunk };
+            }
           }
+        } catch (err) {
+          breadcrumb("chrome.writer.stream.error", {
+            name: err?.name,
+            message: String(err?.message ?? err).slice(0, 200),
+            tokensSoFar: assistantContent.length,
+          });
+          throw err;
         }
+        breadcrumb("chrome.writer.stream.done", {
+          outputChars: assistantContent.length,
+        });
 
         yield {
           type: "done",
