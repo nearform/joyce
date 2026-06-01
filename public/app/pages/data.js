@@ -384,9 +384,10 @@ export const Data = () => {
 
   // The Crashes tab is dev-mode-only; without dev mode the user wouldn't even reach
   // this page (Data itself is dev-only), but gate the tab anyway so it's explicit.
-  const tabs = settings.isDeveloperMode
-    ? [...BASE_TABS, CRASHES_TAB]
-    : BASE_TABS;
+  // Also gated on the experimentalCrashbox flag — when off, bootstrap() is skipped at
+  // app boot so there's no telemetry to show.
+  const crashboxOn = settings.isDeveloperMode && settings.experimentalCrashbox;
+  const tabs = crashboxOn ? [...BASE_TABS, CRASHES_TAB] : BASE_TABS;
 
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
@@ -414,7 +415,7 @@ export const Data = () => {
           deviceInfo=${deviceInfo}
         />`
       }
-      ${activeTab === "crashes" && settings.isDeveloperMode && html`<${CrashesPanel} />`}
+      ${activeTab === "crashes" && crashboxOn && html`<${CrashesPanel} />`}
     </${Page}>
   `;
 };

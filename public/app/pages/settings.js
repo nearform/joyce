@@ -5,6 +5,7 @@ import { Page } from "../components/page.js";
 import { Form, Checkbox } from "../components/forms.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { Alert } from "../components/alert.js";
+import { getStatus as getCrashboxStatus } from "../../local/data/telemetry.js";
 
 // Duration to show success message (in milliseconds)
 const SUCCESS_MESSAGE_DURATION = 3000;
@@ -14,6 +15,9 @@ export const Settings = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [pendingSettings, setPendingSettings] = useState(settings);
+  // Reflects the actual booted state, not the pending toggle — `getStatus()` is null
+  // until `bootstrap()` runs at app load (and that gate is read once from localStorage).
+  const crashboxActive = getCrashboxStatus() !== null;
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -133,6 +137,24 @@ export const Settings = () => {
                 onChange=${handleSettingChange("experimentalWebgpuEmbeddings")}
               >
                 Use WebGPU for embeddings extraction when available.
+              </${Checkbox}>
+
+              <h4>Diagnostics</h4>
+
+              <${Checkbox}
+                id="experimental-crashbox"
+                label="Crash Detection"
+                checked=${pendingSettings.experimentalCrashbox}
+                onChange=${handleSettingChange("experimentalCrashbox")}
+              >
+                Capture browser crashes, WebGPU device-loss events, and
+                breadcrumbs for recovery on next load. Stores session state in
+                localStorage. Reload required to take effect.${" "}
+                <span
+                  className=${`status-badge ${crashboxActive ? "status-supported" : "status-unsupported"}`}
+                >
+                  ${crashboxActive ? "Active" : "Inactive"}
+                </span>
               </${Checkbox}>
             `
           }

@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
   experimentalChat: false,
   experimentalChatConversations: false,
   experimentalWebgpuEmbeddings: false,
+  experimentalCrashbox: false,
 };
 
 /**

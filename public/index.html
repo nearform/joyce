@@ -86,10 +86,15 @@
     </script>
     <script type="module">
       import { bootstrap, breadcrumb } from "./local/data/telemetry.js";
+      import { getSettings } from "./app/hooks/use-settings.js";
       // Must run before anything else so the previous session is recovered and a fresh
-      // session is recording before resource loads start emitting breadcrumbs.
-      bootstrap();
-      breadcrumb("app:boot");
+      // session is recording before resource loads start emitting breadcrumbs. Gated on
+      // the experimental flag — when off, every breadcrumb/wrap/setSnapshot call site
+      // in the app silently no-ops via crashbox's built-in pre-init guards.
+      if (getSettings().experimentalCrashbox) {
+        bootstrap();
+        breadcrumb("app:boot");
+      }
 
       import React from "react";
       import ReactDOM from "react-dom/client";
