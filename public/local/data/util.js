@@ -109,6 +109,37 @@ export const getSystemInfo = async () => {
   return { webgpu, limits, gpuInfo, ramGb };
 };
 
+/**
+ * Coarse device-class detection from the user agent. Pure / synchronous.
+ * Used to inform model-fit recommendations on mobile (notably iPhone Safari, where
+ * `navigator.deviceMemory` is unavailable and per-process memory caps are tight).
+ *
+ * @returns {{
+ *   isIOS: boolean,
+ *   isAndroid: boolean,
+ *   isMobile: boolean,
+ *   isSafari: boolean,
+ *   isChrome: boolean
+ * }}
+ */
+export const getDeviceInfo = () => {
+  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+  const platform =
+    (typeof navigator !== "undefined" && navigator.platform) || "";
+  const maxTouchPoints =
+    (typeof navigator !== "undefined" && navigator.maxTouchPoints) || 0;
+
+  // iPadOS reports itself as MacIntel with touch points; the UA alone misses it.
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (platform === "MacIntel" && maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobi/.test(ua);
+  const isSafari = /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua);
+  const isChrome = /Chrome|Chromium/.test(ua) && !/Edg/.test(ua);
+  return { isIOS, isAndroid, isMobile, isSafari, isChrome };
+};
+
 // Conservative tokens-per-word ratio for word-based estimation.
 const TOKENS_PER_WORD = 0.55;
 

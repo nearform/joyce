@@ -22,6 +22,16 @@ import { useLoading } from "../../local/app/context/loading.js";
 import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
 import { CrashesPanel } from "../components/crashes-panel.js";
+import {
+  pickBestModel,
+  tierClass,
+  tierLabel,
+} from "../../local/data/recommendations.js";
+import {
+  subscribe,
+  recoveredCrash,
+  getStatus as getCrashboxStatus,
+} from "../../local/data/telemetry.js";
 
 const BASE_TABS = [
   { id: "resources", label: "Resources", icon: "iconoir-database" },
@@ -32,6 +42,18 @@ const CRASHES_TAB = {
   id: "crashes",
   label: "Crashes",
   icon: "iconoir-warning-triangle",
+};
+
+// Re-render when crashbox emits a warning or a recovery is dismissed. Returns the live
+// `{ warnings, recovered }` state used to drive the device-fit recommendations.
+const useCrashboxState = () => {
+  const [, setTick] = useState(0);
+  useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
+  const status = getCrashboxStatus();
+  return {
+    warnings: status?.warnings ?? [],
+    recovered: recoveredCrash(),
+  };
 };
 
 // Get model short name from resource id (provider-agnostic)
@@ -98,13 +120,34 @@ const ResourcesPanel = ({ experimentalChat }) => {
   `;
 };
 
-const SystemPanel = ({ systemInfo }) => {
+const deviceClassLabel = (deviceInfo) => {
+  if (!deviceInfo) return "Unknown";
+  const platform = deviceInfo.isIOS
+    ? "iOS"
+    : deviceInfo.isAndroid
+      ? "Android"
+      : "Desktop";
+  const browser = deviceInfo.isSafari
+    ? "Safari"
+    : deviceInfo.isChrome
+      ? "Chrome"
+      : "Other";
+  const form = deviceInfo.isMobile ? "Mobile" : "Desktop";
+  return `${form} / ${platform} / ${browser}`;
+};
+
+const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
   const { webgpu, limits, gpuInfo, ramGb } = systemInfo;
   const { getStatus } = useLoading();
   const extractorStatus = getStatus(LOADING.EXTRACTOR);
   const extractor =
     extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
   const device = extractor?._device ?? null;
+  const { warnings, recovered } = useCrashboxState();
+  const fitCtx = { systemInfo, deviceInfo, warnings, recovered };
+  // Pick the best model only when chat is enabled — otherwise the recommendation isn't
+  // actionable. The card is still gated on experimentalChat below.
+  const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
 
   const embeddingsBadge =
     device === "webgpu"
@@ -179,13 +222,82 @@ const SystemPanel = ({ systemInfo }) => {
           </details>
         `}
       </div>
+
+      <h3>Device Profile</h3>
+      <div className="system-info">
+        <div className="system-info-row">
+          <strong>Class:</strong> ${deviceClassLabel(deviceInfo)}
+        </div>
+        ${gpuInfo &&
+        html`
+          <div className="system-info-row">
+            <strong>GPU:</strong> ${gpuInfo}
+          </div>
+        `}
+        <div className="system-info-row">
+          <strong>Effective RAM:</strong>${" "}
+          ${ramGb != null
+            ? `${ramGb} GB`
+            : "Unknown (iOS Safari does not expose deviceMemory)"}
+        </div>
+        <div className="system-info-row">
+          <strong>WebGPU max buffer:</strong>${" "}
+          ${limits.maxBufferSize != null
+            ? formatBytes(limits.maxBufferSize)
+            : "N/A"}
+        </div>
+        <div className="system-info-row">
+          <strong>Cache backend:</strong>${" "}
+          <span
+            className=${`status-badge ${useIndexedDBCache ? "status-warning" : "status-supported"}`}
+          >
+            ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
+          </span>
+          ${useIndexedDBCache &&
+          html`<span className="gpu-info">(common on iOS Safari)</span>`}
+        </div>
+      </div>
+
+      ${experimentalChat &&
+      html`
+        <h3>Best for this device</h3>
+        <div className="system-info">
+          ${best
+            ? html`
+                <div className="system-info-row">
+                  <strong>${best.model.model}</strong>
+                  ${best.model.vramMb != null &&
+                  html`<span className="gpu-info">
+                    (${best.model.vramMb} MB VRAM)
+                  </span>`}
+                  <span className=${`status-badge ${tierClass(best.fit.tier)}`}>
+                    ${tierLabel(best.fit.tier)}
+                  </span>
+                </div>
+                <div
+                  className="system-info-row"
+                  style=${{ color: "var(--color-text-muted)" }}
+                >
+                  ${best.fit.reasons.join(" ")}
+                </div>
+              `
+            : html`
+                <div className="system-info-row">
+                  No clearly-safe model on this device — see the${" "}
+                  <strong>AI Models</strong>${" "}tab for the smallest options.
+                </div>
+              `}
+        </div>
+      `}
     </div>
   `;
 };
 
-const ModelsPanel = ({ experimentalChat }) => {
+const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
   const [promptStatus, setPromptStatus] = useState(null);
   const [writerStatus, setWriterStatus] = useState(null);
+  const { warnings, recovered } = useCrashboxState();
+  const fitCtx = { systemInfo, deviceInfo, warnings, recovered };
 
   useEffect(() => {
     if (!experimentalChat) return;
@@ -260,14 +372,14 @@ const ModelsPanel = ({ experimentalChat }) => {
         the model is loaded in memory, currently loading, or available for
         download.
       </p>
-      <${ModelsTable} models=${MODELS} />
+      <${ModelsTable} models=${MODELS} fitCtx=${fitCtx} />
     </div>
   `;
 };
 
 export const Data = () => {
   const [settings] = useSettings();
-  const { systemInfo } = useConfig();
+  const { systemInfo, deviceInfo } = useConfig();
   const [activeTab, setActiveTab] = useState("resources");
 
   // The Crashes tab is dev-mode-only; without dev mode the user wouldn't even reach
@@ -288,11 +400,19 @@ export const Data = () => {
       }
       ${
         activeTab === "system" &&
-        html`<${SystemPanel} systemInfo=${systemInfo} />`
+        html`<${SystemPanel}
+          systemInfo=${systemInfo}
+          deviceInfo=${deviceInfo}
+          experimentalChat=${settings.experimentalChat}
+        />`
       }
       ${
         activeTab === "models" &&
-        html`<${ModelsPanel} experimentalChat=${settings.experimentalChat} />`
+        html`<${ModelsPanel}
+          experimentalChat=${settings.experimentalChat}
+          systemInfo=${systemInfo}
+          deviceInfo=${deviceInfo}
+        />`
       }
       ${activeTab === "crashes" && settings.isDeveloperMode && html`<${CrashesPanel} />`}
     </${Page}>
