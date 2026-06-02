@@ -85,8 +85,16 @@
       }
     </script>
     <script type="module">
-      import { bootstrap, breadcrumb } from "./local/data/telemetry.js";
+      import React from "react";
+      import ReactDOM from "react-dom/client";
+      import { html } from "./app/util/html.js";
+      import { App } from "./app/index.js";
       import { getSettings } from "./app/hooks/use-settings.js";
+      import { bootstrap, breadcrumb } from "./local/data/telemetry.js";
+      import { init } from "./local/data/loading.js";
+      import { getSystemInfo, getDeviceInfo } from "./local/data/util.js";
+      import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
+
       // Must run before anything else so the previous session is recovered and a fresh
       // session is recording before resource loads start emitting breadcrumbs. Gated on
       // the experimental flag — when off, every breadcrumb/wrap/setSnapshot call site
@@ -95,14 +103,6 @@
         bootstrap();
         breadcrumb("app:boot");
       }
-
-      import React from "react";
-      import ReactDOM from "react-dom/client";
-      import { html } from "./app/util/html.js";
-      import { App } from "./app/index.js";
-      import { init } from "./local/data/loading.js";
-      import { getSystemInfo, getDeviceInfo } from "./local/data/util.js";
-      import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
 
       // Initialize loaders early and get system info.
       init();

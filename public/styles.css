@@ -1377,6 +1377,7 @@ button.loading-status-icon-button {
   border-bottom: 2px solid var(--color-border-light);
   margin-bottom: 1em;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
