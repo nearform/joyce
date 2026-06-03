@@ -22218,5 +22218,33 @@
       "primary": "none",
       "others": []
     }
+  },
+  "insights-beyond-the-code-a-candid-chat-with-bmad-creator-brian-madison": {
+    "href": "https://nearform.com/insights/beyond-the-code-a-candid-chat-with-bmad-creator-brian-madison/",
+    "postType": "blog",
+    "slug": "insights-beyond-the-code-a-candid-chat-with-bmad-creator-brian-madison",
+    "date": "2026-06-03",
+    "title": "Beyond the code: A candid chat with BMad creator, Brian Madison",
+    "authors": [
+      "CIAN CLARKE"
+    ],
+    "content": [
+      "I recently sat down with Brian Madison, the brains behind BMad - a breakthrough open-source framework for agile, AI-driven development, which has become a go-to resource for developers who want structured, repeatable workflows without handing over their thinking to an AI.\n\nBrian’s approach very much clicks with how we think about AI at Nearform. We don’t view AI as a layer, it’s the way we build - and that’s what helps enterprises move from AI pilots and slow delivery to production-grade intelligent systems.\n\nAs we spoke, we quickly realised we agreed on one fundamental thing: AI agents don’t understand ‘vibes’. They need precision, crystal clear specs, explicit instructions and defined tech stacks. When you give them those elements, transformation unfolds. As a developer, you get less rework, faster shipping, and code that actually does what you need it to do.\n\nThat’s what the BMad method helps developers to achieve, and it dovetails with our approach at Nearform.\n\nBelow are some highlights from our full conversation. But we did also record a quick-fire Q&A at the end, which you can watch here:\n\nI’ve talked a lot about spec-driven development (SDD). BMad is one of several tools driving SDD inside Nearform. Clear specifications force you to make decisions up front, guiding every step, uncovering assumptions and ensuring alignment with the original intent.\n\nMany devs know that BMad is the actionable methodology that brings SDD to life. It provides structured guidance, defined workflows and even personas, to shift the software development process from “we have a vision” to “here’s exactly what we’re building”. It’s one of the engines of choice driving SDD, making it practical and incredibly effective for complex, AI-native development.\n\nHow did we go from Brian the person to BMad the approach?",
+      "Brian’s BMad journey\n\nBrian is a software engineer, with over 20 years’ experience, who was, like many of us, trying to get AI agents to build complex apps autonomously. He hit a wall, where the AI started doing “stupid things”. Not in a malicious way, but in an ‘I misunderstood what you actually wanted’ way.\n\nDuring one particular late-night experiment to fix the problem, it clicked for him. He realised the agents were missing context and clear guidance. And once he fed those elements into the system - through PRDs, defined tech stacks and explicit instructions - the quality of output improved massively. He’d built a highly-structured system, which enabled a deep, shared understanding between the expert and the AI. In doing so, it ensured everything produced in lines of code laddered clearly back to the defined spec.\n\nThat solution - the BMad method - has now grown into one of the most widely-used open source AI development frameworks. The open source nature of BMad also very much reflects Nearform’s approach - open source is in our ‘DNA’, it’s fundamental to how we work.\n\nBrian built BMad to treat agents like facilitators, not oracles. Human experts bring the knowledge and the context, an agent asks questions to get clarity and then builds a solution that meets the defined business need. That’s the approach we embrace at Nearform.\n\nUltimately, it ensures every line of code is traceable to a single, machine-readable specification. This eliminates “AI drift”, speeding up the development process and minimising rework and technical debt.",
+      "What’s next for BMad?\n\nFirst things first, we got confirmation that the much-loved BMad personas – Mary, John and Sally – aren't going anywhere, especially after Brian confessed about the community backlash he received when he once tried to change the names.\n\nWe also got into what Brian has in mind next for BMad (and it’s not ‘Bhappy’). He made clear there’s a lot of momentum behind V6 of the methodology, the skills architecture and dev loop automation.\n\nThere’s also been a lot of talk around the development of a UI or dashboard for BMad, essentially a front end for the people who don't want to touch a terminal, or less technical users like project managers - and it’s something Brian’s seriously considering.",
+      "Increasing predictability means amplifying AI success\n\nHere’s the thing Brian and I kept coming back to: when engineers have clear specs and structured guidance (when they stop guessing and start building), everything shifts. They can focus on the hard problems, not the back-and-forth. The AI handles the build, they define the strategic guard rails.\n\nWe’ve learnt a lot from Brian’s work, and we’re watching closely as other frameworks and approaches mature in this space. What matters to use at Nearform is the discipline: defined specs, explicit instructions and traceable outputs.\n\nCurious how AI-native engineering and SDD can transform your enterprise and accelerate your success? Get in touch.",
+      "But wait - there's more.\n\nNearform publishes real-world learnings on data & AI, engineering, and digital strategy - with more merged in weekly.\n\nInsights\n\nPerspectives on AI in engineering, product development, and strategy, for enterprise executives.\n\nExplore Insights\nCommunity\n\nDeep dives and tutorials by engineers, for engineers.\n\nExplore Community"
+    ],
+    "categories": {
+      "primary": "ai",
+      "others": [
+        "oss",
+        "backend"
+      ]
+    },
+    "verticals": {
+      "primary": "none",
+      "others": []
+    }
   }
 }
