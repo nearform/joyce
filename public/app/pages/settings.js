@@ -5,7 +5,12 @@ import { Page } from "../components/page.js";
 import { Form, Checkbox } from "../components/forms.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { Alert } from "../components/alert.js";
-import { getStatus as getCrashboxStatus } from "../../local/data/telemetry.js";
+import {
+  getStatus as getCrashboxStatus,
+  bootstrap as bootstrapCrashbox,
+  shutdown as shutdownCrashbox,
+  breadcrumb,
+} from "../../local/data/telemetry.js";
 
 // Duration to show success message (in milliseconds)
 const SUCCESS_MESSAGE_DURATION = 3000;
@@ -15,14 +20,29 @@ export const Settings = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [pendingSettings, setPendingSettings] = useState(settings);
-  // Reflects the actual booted state, not the pending toggle — `getStatus()` is null
-  // until `bootstrap()` runs at app load (and that gate is read once from localStorage).
+  // Reflects the actual booted state, not the pending toggle — `getStatus()` is null until
+  // crashbox is bootstrapped (at app load, or live via handleSubmit below), and null again after
+  // shutdown. Recomputed each render, so it flips as soon as Save bootstraps/tears down.
   const crashboxActive = getCrashboxStatus() !== null;
 
   const handleSubmit = (event) => {
     event.preventDefault();
     if (hasChanges) {
       updateSettings(pendingSettings);
+      // Apply the crash-detection toggle live (no reload): bootstrap on enable, tear down on
+      // disable. `settings` still holds the previously-applied value here, so it's the diff base.
+      if (
+        pendingSettings.experimentalCrashbox &&
+        !settings.experimentalCrashbox
+      ) {
+        bootstrapCrashbox();
+        breadcrumb("app:boot");
+      } else if (
+        !pendingSettings.experimentalCrashbox &&
+        settings.experimentalCrashbox
+      ) {
+        shutdownCrashbox();
+      }
       setShowSuccess(true);
       setHasChanges(false);
       // Hide success message after specified duration
@@ -149,7 +169,7 @@ export const Settings = () => {
               >
                 Capture browser crashes, WebGPU device-loss events, and
                 breadcrumbs for recovery on next load. Stores session state in
-                localStorage. Reload required to take effect.${" "}
+                localStorage.${" "}
                 <span
                   className=${`status-badge ${crashboxActive ? "status-supported" : "status-unsupported"}`}
                 >

@@ -27,11 +27,7 @@ import {
   tierClass,
   tierLabel,
 } from "../../local/data/recommendations.js";
-import {
-  subscribe,
-  recoveredCrash,
-  getStatus as getCrashboxStatus,
-} from "../../local/data/telemetry.js";
+import { useCrashbox } from "../hooks/use-crashbox.js";
 
 const BASE_TABS = [
   { id: "resources", label: "Resources", icon: "iconoir-database" },
@@ -44,16 +40,11 @@ const CRASHES_TAB = {
   icon: "iconoir-warning-triangle",
 };
 
-// Re-render when crashbox emits a warning or a recovery is dismissed. Returns the live
-// `{ warnings, recovered }` state used to drive the device-fit recommendations.
+// The live `{ warnings, recovered }` state used to drive the device-fit recommendations. Re-renders
+// (via useCrashbox) when crashbox emits a warning or a recovery is dismissed.
 const useCrashboxState = () => {
-  const [, setTick] = useState(0);
-  useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
-  const status = getCrashboxStatus();
-  return {
-    warnings: status?.warnings ?? [],
-    recovered: recoveredCrash(),
-  };
+  const { recovered, status } = useCrashbox();
+  return { warnings: status?.warnings ?? [], recovered };
 };
 
 // Get model short name from resource id (provider-agnostic)

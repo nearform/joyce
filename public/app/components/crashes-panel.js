@@ -1,14 +1,10 @@
 /* global window:false */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Alert } from "./alert.js";
-import {
-  recoveredCrash,
-  dismissRecovered,
-  subscribe,
-  getStatus,
-} from "../../local/data/telemetry.js";
+import { dismissRecovered } from "../../local/data/telemetry.js";
+import { useCrashbox } from "../hooks/use-crashbox.js";
 
 const REASON_LABELS = {
   "webgpu-device-lost": {
@@ -155,15 +151,12 @@ const WarningRow = ({ warning }) => {
 };
 
 export const CrashesPanel = () => {
-  // Re-render on subscribe events (recovered dismiss, new live warning).
-  const [, setTick] = useState(0);
-  useEffect(() => subscribe(() => setTick((n) => n + 1)), []);
+  // Re-renders on crashbox events (recovered dismiss, new live warning).
+  const { recovered: record, status } = useCrashbox();
 
   // inlineView: null = nothing shown; { label, payload } = a button has been clicked.
   // payload may itself be null/empty — that's how "no data" is rendered.
   const [inlineView, setInlineView] = useState(null);
-  const record = recoveredCrash();
-  const status = getStatus();
   const warnings = status?.warnings ?? [];
 
   return html`
