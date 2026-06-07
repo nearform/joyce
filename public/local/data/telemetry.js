@@ -15,7 +15,6 @@ import {
 } from "crashbox";
 import { getSettings } from "../../app/hooks/use-settings.js";
 
-/** @type {import("../../vendor/crashbox/src/types.js").CrashRecord | null} */
 let recovered = null;
 // Whether bootstrap() has run. crashbox.init() intentionally supports re-init, so the "boot once"
 // policy lives here in the wrapper; shutdown() resets it so a later bootstrap() can run again.
