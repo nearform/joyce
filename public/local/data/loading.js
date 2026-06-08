@@ -4,18 +4,24 @@ import { getDb, getExtractor } from "./api/search.js";
 import {
   getLlmEngine,
   setLlmProgressCallback,
+  unloadLlmEngine,
   isLlmCached,
 } from "./api/llm.js";
 import { ALL_CHAT_MODELS } from "../../config.js";
 import { breadcrumb, mergeSnapshot } from "./telemetry.js";
+import { getSettings } from "../../app/hooks/use-settings.js";
 
 // ==============================
 // Loading Management
 // ==============================
 
-// Helper to create LLM resource entry for a model (works with any provider)
+// Helper to create LLM resource entry for a model (works with any provider). `provider`/`modelId`/
+// `kind` are carried so the single-model eviction policy can identify web-llm chat resources.
 const createLlmResource = (provider, modelId) => ({
   id: `llm_${modelId}`,
+  kind: "llm",
+  provider,
+  modelId,
   get: async () => {
     setLlmProgressCallback(provider, modelId, (p) =>
       setLoadingProgress(`llm_${modelId}`, p),
@@ -87,6 +93,9 @@ const loadingCallbacks = new Map();
 const loadedData = new Map();
 const loadingProgress = new Map();
 const progressCallbacks = new Map();
+// Resource ids torn down mid-load by single-model eviction. Their in-flight load settles into
+// not_loaded (not "error" or "loaded") — see startLoading.
+const evicting = new Set();
 
 /**
  * Get loading status for a resource
@@ -215,6 +224,41 @@ export const subscribeLoadingStatus = (resourceId, callback) => {
 };
 
 /**
+ * Single-model policy: free other resident web-llm chat models before loading a new one. A fully
+ * loaded model is unloaded synchronously (await) so its memory is freed before we allocate the new
+ * one; an in-flight model is torn down best-effort without blocking (and marked `evicting` so its
+ * pending load settles to not_loaded instead of "error"). Scoped to web-llm chat models — the
+ * embeddings extractor and Chrome built-in AI are never touched.
+ * @param {string} keepId      Resource id we're keeping (the one being loaded)
+ * @param {string} keepModelId Its model id (for the breadcrumb)
+ */
+const evictOtherWebLlmModels = async (keepId, keepModelId) => {
+  for (const resource of Object.values(RESOURCES)) {
+    if (resource.kind !== "llm" || resource.provider !== "webLlm") continue;
+    if (resource.id === keepId) continue;
+    const st = getLoadingStatus(resource.id);
+    if (st !== "loaded" && st !== "loading") continue;
+
+    breadcrumb("llm.evict", { unloaded: resource.modelId, for: keepModelId });
+    loadedData.delete(resource.id);
+    loadingProgress.delete(resource.id);
+    setLoadingStatus(resource.id, "not_loaded");
+
+    if (st === "loading") {
+      // Don't block the new load on tearing down an in-flight one (device teardown can be slow);
+      // neutralize its pending settle so it doesn't flip to "error".
+      evicting.add(resource.id);
+      unloadLlmEngine(resource.provider, resource.modelId).catch(() => {});
+    } else {
+      // Loaded: free it before we allocate, to avoid a peak where both are resident.
+      await unloadLlmEngine(resource.provider, resource.modelId).catch(
+        () => {},
+      );
+    }
+  }
+};
+
+/**
  * Start loading a resource
  * @param {{ id: string, get: () => Promise<any>, deps?: string[] }} resource
  */
@@ -227,6 +271,16 @@ export const startLoading = async (resource) => {
   }
   setLoadingStatus(id, "loading");
 
+  // Single-model policy (default): free other resident web-llm chat models before allocating this
+  // one. The experimentalMultipleModels setting overrides it to allow stacking.
+  if (
+    resource.kind === "llm" &&
+    resource.provider === "webLlm" &&
+    !getSettings().experimentalMultipleModels
+  ) {
+    await evictOtherWebLlmModels(id, resource.modelId);
+  }
+
   // Wait for dependencies before starting the timer
   if (deps?.length) {
     await Promise.all(deps.map((depId) => waitForLoading(depId)));
@@ -236,10 +290,23 @@ export const startLoading = async (resource) => {
   const start = performance.now();
   try {
     const result = await get();
+    // If a newer load evicted this one mid-flight, settle as not_loaded (still cached on disk) —
+    // don't record the torn-down engine as loaded.
+    if (evicting.has(id)) {
+      evicting.delete(id);
+      setLoadingStatus(id, "not_loaded");
+      return;
+    }
     loadedData.set(id, result);
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "loaded", { elapsed });
   } catch (error) {
+    // An eviction teardown makes the in-flight load reject — that's not a real error.
+    if (evicting.has(id)) {
+      evicting.delete(id);
+      setLoadingStatus(id, "not_loaded");
+      return;
+    }
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "error", { error, elapsed });
   }

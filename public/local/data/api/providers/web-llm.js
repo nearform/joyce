@@ -1,14 +1,30 @@
 // web-llm provider implementation
 // Unified handler interface for chat sessions
-import {
-  CreateMLCEngine,
-  hasModelInCache,
-  prebuiltAppConfig,
-} from "@mlc-ai/web-llm";
+import { MLCEngine, hasModelInCache, prebuiltAppConfig } from "@mlc-ai/web-llm";
 import { DEFAULT_CHAT_MODEL } from "../../../../config.js";
-import { wrap, breadcrumb, attachGPUDevice } from "../../telemetry.js";
+import {
+  wrap,
+  breadcrumb,
+  attachGPUDevice,
+  reportMemoryPressure,
+} from "../../telemetry.js";
+import {
+  beginLoad,
+  setLoadProgress,
+  finishLoad,
+  clearLoad,
+  preflightModel,
+} from "./web-llm-memory.js";
 
 const DEFAULT_MODEL = DEFAULT_CHAT_MODEL.model;
+
+// web-llm surfaces an in-browser OOM as a thrown error (often a RangeError or a "memory"/"device
+// lost" message) rather than a live event. Report it to crashbox as critical memory pressure so it
+// shows in the Crashes panel and — if the tab is then hard-killed — recovers as reason "oom".
+const isOomError = (err) =>
+  /out of memory|\boom\b|rangeerror|allocation failed|device.*lost/i.test(
+    String((err && (err.message || err.name)) || err),
+  );
 
 // Fall back to IndexedDB when Cache API is unavailable (e.g. iOS Chrome/WebKit)
 export const useIndexedDBCache = typeof caches === "undefined";
@@ -16,7 +32,8 @@ if (useIndexedDBCache) {
   prebuiltAppConfig.useIndexedDBCache = true;
 }
 
-// Map of model -> { enginePromise, progressCallback }
+// Map of model -> { enginePromise, progressCallback, engine, evicted }. `engine` is the live
+// MLCEngine instance, held from before reload() resolves so eviction can unload() even mid-load.
 const engines = new Map();
 
 /**
@@ -43,28 +60,111 @@ export const getLlmEngine = async (model = DEFAULT_MODEL) => {
 
   const entry = engines.get(model);
   if (!entry.enginePromise) {
-    entry.enginePromise = wrap(
-      "web-llm.engine.create",
-      () =>
-        CreateMLCEngine(model, {
-          appConfig: useIndexedDBCache ? prebuiltAppConfig : undefined,
-          initProgressCallback: (progress) => {
-            entry.progressCallback?.(progress);
-          },
-        }),
-      () => ({ model, cache: useIndexedDBCache ? "indexeddb" : "cache-api" }),
-    ).then((engine) => {
-      // Best-effort: hand the GPU device to crashbox for device.lost / uncapturederror
-      // wrapping. web-llm exposes the device on the runtime; the shape isn't public, so
-      // optional-chain everything.
-      const gpuDevice = engine?.getGPUDevice?.() ?? engine?.runtime?.device;
-      if (gpuDevice) {
-        attachGPUDevice(gpuDevice);
+    entry.enginePromise = (async () => {
+      // Pre-flight: predict whether this model fits the device BEFORE committing any memory, and arm
+      // the heartbeat estimator so reported pressure climbs as the load progresses.
+      const rec = prebuiltAppConfig.model_list.find(
+        (m) => m.model_id === model,
+      );
+      beginLoad({ model, vramRequiredMB: rec?.vram_required_MB });
+      const pf = await preflightModel({
+        model,
+        vramRequiredMB: rec?.vram_required_MB,
+        bufferSizeRequiredBytes: rec?.buffer_size_required_bytes,
+        lowResource: rec?.low_resource_required,
+      });
+      breadcrumb("web-llm.preflight", {
+        verdict: pf.verdict,
+        vramMB: Math.round(pf.vramBytes / 1048576),
+        residentMB: Math.round(pf.residentBytes / 1048576), // other models' full vram
+        budgetMB: Math.round(pf.budgetBytes / 1048576),
+        ratio: pf.ratio != null ? Math.round(pf.ratio * 100) / 100 : null, // (resident+new)/budget
+        exceedsBufferCap: pf.exceedsBufferCap,
+      });
+      // A predicted "won't fit" / "risky" lands a warning in the Crashes panel BEFORE the (likely)
+      // hard kill — the whole point of the pre-flight. usedBytes is the PROJECTED total (resident
+      // models + this one), so a 2nd model that pushes the sum over budget is flagged here.
+      if (pf.verdict !== "ok") {
+        reportMemoryPressure({
+          level: pf.verdict === "wont-fit" ? "critical" : "serious",
+          source: "web-llm.preflight",
+          usedBytes: pf.projectedBytes,
+          limitBytes: pf.budgetBytes,
+        });
       }
-      return engine;
-    });
+
+      // Construct the engine ourselves (vs CreateMLCEngine) and stash it BEFORE reload() resolves,
+      // so eviction can call engine.unload() to tear it down even while it's still loading.
+      const engine = new MLCEngine({
+        appConfig: useIndexedDBCache ? prebuiltAppConfig : undefined,
+        initProgressCallback: (progress) => {
+          setLoadProgress(model, progress?.progress); // feeds the heartbeat memory estimate
+          entry.progressCallback?.(progress);
+        },
+      });
+      entry.engine = engine;
+      try {
+        await wrap(
+          "web-llm.engine.create",
+          () => engine.reload(model),
+          () => ({
+            model,
+            cache: useIndexedDBCache ? "indexeddb" : "cache-api",
+          }),
+        );
+        // Best-effort: hand the GPU device to crashbox for device.lost / uncapturederror wrapping.
+        // web-llm exposes the device on the runtime; the shape isn't public, so optional-chain it.
+        const gpuDevice = engine?.getGPUDevice?.() ?? engine?.runtime?.device;
+        if (gpuDevice) {
+          attachGPUDevice(gpuDevice);
+        }
+        finishLoad(model); // weights committed → pin this model's estimate at 100%
+        return engine;
+      } catch (err) {
+        // The freed allocation shouldn't keep showing in the estimate.
+        clearLoad(model);
+        // A load failure on a model the pre-flight already flagged as risky/won't-fit IS the OOM —
+        // iOS surfaces it as a generic `TypeError: Load failed`, so don't rely on the message text;
+        // correlate with the prediction. Report critical so it recovers as reason "oom". But skip
+        // this when WE tore it down (unloadLlmEngine) — an eviction isn't an OOM.
+        if (!entry.evicted && (pf.verdict !== "ok" || isOomError(err))) {
+          reportMemoryPressure({ level: "critical", source: "web-llm.load" });
+        }
+        entry.enginePromise = null; // allow a retry after a failed load
+        entry.engine = null;
+        throw err;
+      }
+    })();
   }
   return entry.enginePromise;
+};
+
+/**
+ * Unload a model from memory — frees GPU/WASM; the disk cache is kept, so a later load is a fast
+ * re-upload (no re-download). Works on an in-flight load too: destroying the engine's device makes
+ * the pending reload() reject, which the loader treats as an eviction (not an OOM). No-op if the
+ * model isn't tracked.
+ * @param {string} model - The model ID
+ * @returns {Promise<void>}
+ */
+export const unloadLlmEngine = async (model) => {
+  const entry = engines.get(model);
+  if (!entry) {
+    return;
+  }
+  entry.evicted = true; // tell the in-flight loader (if any) this is an eviction, not a crash
+  engines.delete(model);
+  clearLoad(model); // drop it from crashbox's cumulative estimate
+  const engine = entry.engine;
+  entry.engine = null;
+  entry.enginePromise = null;
+  if (engine?.unload) {
+    try {
+      await engine.unload();
+    } catch {
+      // Best-effort: unloading mid-load (device teardown) can throw — the memory is freed regardless.
+    }
+  }
 };
 
 /**
@@ -154,6 +254,12 @@ export const createHandler = async ({
           message: String(err?.message ?? err).slice(0, 200),
           tokensSoFar: assistantContent.length,
         });
+        if (isOomError(err)) {
+          reportMemoryPressure({
+            level: "critical",
+            source: "web-llm.generate",
+          });
+        }
         throw err;
       }
       breadcrumb("web-llm.chat.stream.done", {

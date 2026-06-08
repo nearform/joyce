@@ -3,7 +3,10 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Alert } from "./alert.js";
-import { dismissRecovered } from "../../local/data/telemetry.js";
+import {
+  dismissRecovered,
+  reportMemoryPressure,
+} from "../../local/data/telemetry.js";
 import { useCrashbox } from "../hooks/use-crashbox.js";
 
 const REASON_LABELS = {
@@ -28,6 +31,9 @@ const WARNING_LABELS = {
     icon: "iconoir-warning-circle",
   },
 };
+
+// How many of the newest live warnings the panel renders (crashbox retains more in its buffer).
+const MAX_VISIBLE_WARNINGS = 3;
 
 const formatTime = (t) => new Date(t).toLocaleTimeString();
 
@@ -132,6 +138,27 @@ const InlineView = ({ view }) => {
   `;
 };
 
+// Summarize a memory-pressure info object: "serious · 87% · performance.memory".
+const warningDetail = (info) => {
+  if (!info) {
+    return "";
+  }
+  const parts = [];
+  if (info.level) {
+    parts.push(info.level);
+  }
+  if (typeof info.ratio === "number") {
+    parts.push(`${Math.round(info.ratio * 100)}%`);
+  }
+  if (info.source) {
+    parts.push(info.source);
+  }
+  if (info.reason) {
+    parts.push(info.reason); // device-loss-imminent carries a reason instead
+  }
+  return parts.length ? ` — ${parts.join(" · ")}` : "";
+};
+
 const WarningRow = ({ warning }) => {
   const cfg = WARNING_LABELS[warning.kind] ?? {
     label: warning.kind,
@@ -143,8 +170,7 @@ const WarningRow = ({ warning }) => {
       <i className=${cfg.icon}></i>${" "}
       <span className=${`status-badge ${cfg.className}`}>${cfg.label}</span>
       <span style=${{ color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>
-        ${formatTime(warning.t)}
-        ${warning.info?.reason ? ` — ${warning.info.reason}` : ""}
+        ${formatTime(warning.t)}${warningDetail(warning.info)}
       </span>
     </div>
   `;
@@ -157,7 +183,11 @@ export const CrashesPanel = () => {
   // inlineView: null = nothing shown; { label, payload } = a button has been clicked.
   // payload may itself be null/empty — that's how "no data" is rendered.
   const [inlineView, setInlineView] = useState(null);
+  // crashbox keeps the full buffer; the panel shows only the most recent few (newest first) so a
+  // long session — or a steady-state pressure signal that re-fires periodically — doesn't flood it.
   const warnings = status?.warnings ?? [];
+  const recentWarnings = warnings.slice(-MAX_VISIBLE_WARNINGS).reverse();
+  const hiddenWarnings = warnings.length - recentWarnings.length;
 
   return html`
     <div
@@ -178,9 +208,21 @@ export const CrashesPanel = () => {
             No warnings this session.
           </p>`
         : html`<div className="system-info">
-            ${warnings.map(
-              (w, i) => html`<${WarningRow} key=${i} warning=${w} />`,
+            ${recentWarnings.map(
+              (w, i) =>
+                html`<${WarningRow} key=${`${w.t}-${i}`} warning=${w} />`,
             )}
+            ${hiddenWarnings > 0 &&
+            html`<div
+              className="system-info-row"
+              style=${{
+                color: "var(--color-text-muted)",
+                fontStyle: "italic",
+              }}
+            >
+              + ${hiddenWarnings} earlier
+              ${hiddenWarnings === 1 ? "warning" : "warnings"}
+            </div>`}
           </div>`}
 
       <h3>Session diagnostics</h3>
@@ -230,6 +272,19 @@ export const CrashesPanel = () => {
             type="button"
           >
             Show recovered
+          </button>
+          <button
+            className="pure-button pure-button-xsmall"
+            onClick=${() =>
+              reportMemoryPressure({
+                level: "critical",
+                source: "joyce-debug",
+                usedBytes: 920 * 1048576,
+                limitBytes: 1024 * 1048576,
+              })}
+            type="button"
+          >
+            Simulate memory pressure
           </button>
           ${inlineView !== null &&
           html`

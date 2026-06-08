@@ -21,6 +21,11 @@ const STATES = {
     cls: "loading-status-loaded",
     title: "Loaded",
   },
+  cached: {
+    icon: "iconoir-database",
+    cls: "loading-status-cached",
+    title: "Cached on disk — click to load into memory",
+  },
   error: {
     icon: "iconoir-warning-circle",
     cls: "loading-status-error",
@@ -41,10 +46,21 @@ export const LoadingButton = ({
   forceStatus = null,
   children,
 }) => {
-  const { getStatus, getError, getElapsed, getProgress, startLoading } =
-    useLoading();
+  const {
+    getStatus,
+    getError,
+    getElapsed,
+    getProgress,
+    getCached,
+    startLoading,
+  } = useLoading();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const status = forceStatus || getStatus(resourceId);
+  const loadStatus = forceStatus || getStatus(resourceId);
+  // Show "cached" (downloaded, not in memory) instead of a bare "not loaded" when the bytes are on
+  // disk — makes an unloaded/evicted model read as "fast to reload", not gone.
+  const cached =
+    !forceStatus && loadStatus === "not_loaded" && getCached(resourceId);
+  const status = cached ? "cached" : loadStatus;
   const error = getError(resourceId);
   const elapsed = getElapsed(resourceId);
   const progress = getProgress(resourceId);
@@ -60,7 +76,7 @@ export const LoadingButton = ({
     startLoading(resourceId);
   };
 
-  const isClickable = status === "not_loaded" && !forceStatus;
+  const isClickable = loadStatus === "not_loaded" && !forceStatus;
   const isModel = resourceId?.toLowerCase().startsWith("llm_");
 
   // Look up model metadata for LLM resources

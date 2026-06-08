@@ -30,6 +30,9 @@ export const LoadingProvider = ({ children }) => {
   const [errors, setErrors] = useState(new Map());
   const [elapsedTimes, setElapsedTimes] = useState(new Map());
   const [progressMap, setProgressMap] = useState(new Map());
+  // resourceId -> on-disk-cached? (downloaded but not necessarily in memory). Drives the 3-state
+  // Not loaded / Cached / Loaded badge. Probed async via resource.checkCached().
+  const [cachedMap, setCachedMap] = useState(new Map());
 
   // Update status for a resource
   const updateStatus = useCallback(
@@ -72,6 +75,23 @@ export const LoadingProvider = ({ children }) => {
     });
   }, []);
 
+  // Probe whether a resource's bytes are on disk (Cache API / IndexedDB). Cheap and idempotent;
+  // only updates state when the value actually changes (avoids render churn).
+  const probeCached = useCallback((resource) => {
+    if (!resource?.checkCached) return;
+    resource
+      .checkCached()
+      .then((cached) => {
+        setCachedMap((prev) => {
+          if ((prev.get(resource.id) || false) === !!cached) return prev;
+          const next = new Map(prev);
+          next.set(resource.id, !!cached);
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   // Subscribe to status changes and initialize from current state
   // Note: We subscribe first, then check current status to avoid race conditions
   // where a load completes between checking status and subscribing
@@ -83,11 +103,14 @@ export const LoadingProvider = ({ children }) => {
         resource.id,
         (status, { error, elapsed }) => {
           updateStatus(resource.id, status, { error, elapsed });
+          // A model that just unloaded (e.g. eviction) is now cached-not-loaded — re-probe.
+          if (status === "not_loaded") probeCached(resource);
         },
       );
       // Check current status after subscribing to catch any updates we missed
       const currentStatus = getLoadingStatus(resource.id);
       updateStatus(resource.id, currentStatus);
+      probeCached(resource); // initial on-disk-cached probe
 
       // Subscribe to progress changes
       const unsubProgress = subscribeLoadingProgress(
@@ -108,7 +131,7 @@ export const LoadingProvider = ({ children }) => {
     return () => {
       unsubscribes.forEach((unsub) => unsub());
     };
-  }, [updateStatus, updateProgress]);
+  }, [updateStatus, updateProgress, probeCached]);
 
   const handleStartLoading = useCallback(
     (resourceId) => {
@@ -125,15 +148,15 @@ export const LoadingProvider = ({ children }) => {
 
           // Subscribe to status/progress changes for the newly registered resource
           if (resource) {
-            subscribeLoadingStatus(
-              resource.id,
-              (status, { error, elapsed }) => {
-                updateStatus(resource.id, status, { error, elapsed });
-              },
-            );
-            subscribeLoadingProgress(resource.id, (progress) => {
-              updateProgress(resource.id, progress);
+            const res = resource;
+            subscribeLoadingStatus(res.id, (status, { error, elapsed }) => {
+              updateStatus(res.id, status, { error, elapsed });
+              if (status === "not_loaded") probeCached(res);
             });
+            subscribeLoadingProgress(res.id, (progress) => {
+              updateProgress(res.id, progress);
+            });
+            probeCached(res);
           }
         }
       }
@@ -142,7 +165,7 @@ export const LoadingProvider = ({ children }) => {
         startLoading(resource);
       }
     },
-    [updateStatus, updateProgress],
+    [updateStatus, updateProgress, probeCached],
   );
 
   const value = useMemo(
@@ -151,9 +174,17 @@ export const LoadingProvider = ({ children }) => {
       getError: (resourceId) => errors.get(resourceId) || null,
       getElapsed: (resourceId) => elapsedTimes.get(resourceId) ?? null,
       getProgress: (resourceId) => progressMap.get(resourceId) ?? null,
+      getCached: (resourceId) => cachedMap.get(resourceId) || false,
       startLoading: handleStartLoading,
     }),
-    [statuses, errors, elapsedTimes, progressMap, handleStartLoading],
+    [
+      statuses,
+      errors,
+      elapsedTimes,
+      progressMap,
+      cachedMap,
+      handleStartLoading,
+    ],
   );
 
   return html`

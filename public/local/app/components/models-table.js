@@ -59,6 +59,12 @@ const STATUS_CONFIG = {
     title: "Loaded",
     clickable: false,
   },
+  cached: {
+    icon: "iconoir-database",
+    cls: "loading-status-cached",
+    title: "Cached on disk — click to load",
+    clickable: true,
+  },
   error: {
     icon: "iconoir-warning-circle",
     cls: "loading-status-error",
@@ -105,7 +111,7 @@ const StatusIcon = ({ status, onLoad, progress }) => {
 
 export const ModelsTable = ({ models = [], fitCtx }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
-  const { getStatus, getProgress, startLoading } = useLoading();
+  const { getStatus, getProgress, getCached, startLoading } = useLoading();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const showFit = !!fitCtx;
   const HEADINGS = buildHeadings(showFit);
@@ -126,6 +132,8 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
       status = "loading";
     } else if (loadingStatus === "error") {
       status = "error";
+    } else if (getCached(resourceId)) {
+      status = "cached"; // downloaded, not in memory — fast to load
     } else {
       status = "available";
     }

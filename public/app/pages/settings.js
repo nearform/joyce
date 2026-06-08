@@ -148,6 +148,19 @@ export const Settings = () => {
                 Show model token limits and info in the UI.
               </${Checkbox}>
 
+              <${Checkbox}
+                id="experimental-multiple-models"
+                label="Multiple Models in Memory"
+                checked=${pendingSettings.experimentalMultipleModels}
+                onChange=${handleSettingChange("experimentalMultipleModels")}
+              >
+                Keep more than one LLM loaded in memory at once. Faster
+                switching, but each loaded model adds to GPU/RAM use — higher
+                out-of-memory risk on limited devices. Off (default) keeps one
+                model in memory; switching unloads the previous (it stays cached
+                on disk for a fast reload).
+              </${Checkbox}>
+
               <h4>Embeddings</h4>
 
               <${Checkbox}

@@ -127,6 +127,13 @@ export const getLlmEngine = async (model) => {
 };
 
 /**
+ * Unload a model. No-op for Chrome built-in AI: the model is the OS's, not held in a page-owned
+ * engine, and sessions are created per-handler — there's nothing for us to free.
+ * @returns {Promise<void>}
+ */
+export const unloadLlmEngine = async () => {};
+
+/**
  * Check if a model is cached/ready.
  * @param {string} model - The model ID
  * @returns {Promise<boolean>} Whether the model is ready

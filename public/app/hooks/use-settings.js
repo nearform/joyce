@@ -20,6 +20,9 @@ const DEFAULT_SETTINGS = {
   experimentalChatConversations: false,
   experimentalWebgpuEmbeddings: false,
   experimentalCrashbox: false,
+  // Off (default) = one web-llm model in memory at a time (switching unloads the previous, which
+  // stays cached on disk for a fast reload). On = keep multiple loaded (faster switching, more OOM risk).
+  experimentalMultipleModels: false,
 };
 
 /**

@@ -48,6 +48,7 @@
   --color-status-loading: #ff9500;
   --color-status-success: #28a745;
   --color-status-error: var(--color-error-text);
+  --color-status-cached: #4a90d9; /* downloaded / on disk, not in memory */
 
   /* Transparency/Overlay */
   --color-overlay-dark: rgba(0, 0, 0, 0.5);
@@ -1222,6 +1223,10 @@ button.loading-status-icon-button {
 
 .loading-status-loaded i {
   color: var(--color-status-success);
+}
+
+.loading-status-cached i {
+  color: var(--color-status-cached);
 }
 
 .loading-status-error i {

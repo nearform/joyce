@@ -10,10 +10,24 @@ import {
   setSnapshot as cbSetSnapshot,
   clearRecovered as cbClearRecovered,
   attachGPUDevice,
+  reportMemoryPressure,
   getStatus,
   wrap,
 } from "crashbox";
 import { getSettings } from "../../app/hooks/use-settings.js";
+
+// Device memory budget for crashbox: a fraction of navigator.deviceMemory on Chromium, else a
+// conservative iOS constant (~1.5 GB — the iPhone 15 Pro hard-kill point, crashbox research §6).
+// Passed as `memoryBudgetBytes` (so the wasm/webgpu thresholds scale up and a routine ~100 MB WASM
+// load on iOS no longer trips the fixed 64 MB floor) and reused as the denominator for the web-llm
+// pull source, so init and the estimator agree on one budget.
+const GB = 1024 * 1024 * 1024;
+export const deviceMemoryBudgetBytes = () => {
+  const dm = globalThis.navigator?.deviceMemory;
+  return typeof dm === "number" && dm > 0
+    ? Math.round(dm * GB * 0.6)
+    : Math.round(1.5 * GB);
+};
 
 let recovered = null;
 // Whether bootstrap() has run. crashbox.init() intentionally supports re-init, so the "boot once"
@@ -46,14 +60,32 @@ const notify = () => {
   }
 };
 
+// Optional pull source for crashbox's memory sampler, registered by a provider (e.g. web-llm) via
+// setMemoryEstimator. Returns the current { usedBytes, limitBytes } (or a plain number / null).
+// Kept provider-agnostic so telemetry never imports a provider module (and never eagerly loads it).
+/** @type {null | (() => { usedBytes: number, limitBytes?: number } | number | null | undefined)} */
+let memoryEstimator = null;
+export const setMemoryEstimator = (fn) => {
+  memoryEstimator = typeof fn === "function" ? fn : null;
+};
+
 export const bootstrap = () => {
   if (booted) {
     return;
   }
   booted = true;
   cbInit({
-    detectors: ["js", "webgpu", "wasm"],
+    // "memory" polls performance.memory (Chromium only — a no-op on iOS Safari) and reports a
+    // budget-relative pressure level; wasm/webgpu thresholds auto-scale to the JS-heap/device budget
+    // on Chromium and keep their fixed iOS bytes where no budget signal exists.
+    detectors: ["js", "webgpu", "wasm", "memory"],
     namespace: "joyce",
+    // Device-relative budget: scales the wasm/webgpu thresholds (so iOS doesn't trip its fixed
+    // 64 MB floor on a routine ~100 MB embeddings load) and is the denominator for getMemoryEstimate.
+    memoryBudgetBytes: deviceMemoryBudgetBytes(),
+    // Polled each heartbeat. No-op until a provider registers an estimator (web-llm does on load),
+    // then reports committed VRAM vs the device budget so crashbox can level it before an OOM.
+    getMemoryEstimate: () => (memoryEstimator ? memoryEstimator() : null),
     // window.__crashbox exposes diagnostics including clear() (wipes crashbox's localStorage). The
     // Crashes UI reads the getCrashboxSnapshot() store, not the global handle, so gate the handle to
     // developer mode — matching the Crashes panel's own gating.
@@ -119,4 +151,4 @@ export const mergeSnapshot = (partial) => {
   cbSetSnapshot({ ...snapshotState });
 };
 
-export { breadcrumb, attachGPUDevice, getStatus, wrap };
+export { breadcrumb, attachGPUDevice, reportMemoryPressure, getStatus, wrap };
