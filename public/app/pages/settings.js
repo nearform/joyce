@@ -59,6 +59,16 @@ export const Settings = () => {
     setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(settings));
   };
 
+  const handleNumberChange = (settingKey) => (event) => {
+    const parsed = Number(event.target.value);
+    const newSettings = {
+      ...pendingSettings,
+      [settingKey]: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
+    };
+    setPendingSettings(newSettings);
+    setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(settings));
+  };
+
   return html`
     <${Page} name="Settings" icon="iconoir-tools">
       <p>
@@ -140,6 +150,19 @@ export const Settings = () => {
               </${Checkbox}>
 
               <${Checkbox}
+                id="enable-thinking"
+                label="Model Thinking"
+                checked=${pendingSettings.enableThinking}
+                onChange=${handleSettingChange("enableThinking")}
+              >
+                Let reasoning models (e.g. Qwen3) generate their ${"<think>"}
+                chain-of-thought. Off (default) asks web-llm to skip it for
+                faster, cleaner answers. When on, the reasoning is hidden from
+                the answer and viewable via the ${" "}
+                <i className="iconoir-brain"></i> icon under each response.
+              </${Checkbox}>
+
+              <${Checkbox}
                 id="display-model-stats"
                 label="Display Model Stats"
                 checked=${pendingSettings.displayModelStats}
@@ -189,6 +212,27 @@ export const Settings = () => {
                   ${crashboxActive ? "Active" : "Inactive"}
                 </span>
               </${Checkbox}>
+
+              <div className="pure-control-group">
+                <label htmlFor="memory-budget-mb">
+                  Memory Budget Override (MB)
+                </label>
+                <input
+                  id="memory-budget-mb"
+                  type="number"
+                  min="0"
+                  step="256"
+                  placeholder="0 = auto-detect"
+                  value=${pendingSettings.memoryBudgetMb || ""}
+                  onChange=${handleNumberChange("memoryBudgetMb")}
+                />
+                <span className="pure-form-message">
+                  Manual memory budget for pressure detection. Leave 0 to
+                  auto-detect from the device. Useful on large desktops where
+                  the browser caps reported memory at 8 GB and under-reports
+                  true RAM.
+                </span>
+              </div>
             `
           }
         </fieldset>

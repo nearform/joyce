@@ -192,9 +192,15 @@ const buildUsageMessage = ({
  * @param {string} options.provider - LLM provider ("webLlm" | "chrome")
  * @param {string} options.model - Model ID
  * @param {number} options.temperature - Sampling temperature
+ * @param {boolean} [options.enableThinking] - Allow reasoning models to emit <think> (web-llm only)
  * @returns {ChatSession}
  */
-export const createChatSession = ({ provider, model, temperature }) => {
+export const createChatSession = ({
+  provider,
+  model,
+  temperature,
+  enableThinking,
+}) => {
   const capabilities = getProviderCapabilities(provider, model);
   const modelCfg = getModelCfg({ provider, model });
   const maxTokens = modelCfg.maxTokens ?? Infinity;
@@ -221,6 +227,7 @@ export const createChatSession = ({ provider, model, temperature }) => {
             model,
             temperature,
             maxOutputTokens: MAX_OUTPUT_TOKENS,
+            enableThinking,
           });
 
     return state.handler;

@@ -21,12 +21,25 @@ import { getSettings } from "../../app/hooks/use-settings.js";
 // Passed as `memoryBudgetBytes` (so the wasm/webgpu thresholds scale up and a routine ~100 MB WASM
 // load on iOS no longer trips the fixed 64 MB floor) and reused as the denominator for the web-llm
 // pull source, so init and the estimator agree on one budget.
+//
+// navigator.deviceMemory is spec-capped at 8, so a `dm === 8` reading means "≥8 GB" — on a real
+// desktop that's often far more. Trust more headroom when capped (×0.9) so a genuinely large model
+// (>~4.3 GB) doesn't read "risky" on a big machine; keep the conservative ×0.6 for honest low
+// readings (e.g. a 4 GB Chromebook). An optional `memoryBudgetMb` setting overrides everything for
+// the long tail (a 64 GB workstation still reports dm=8).
 const GB = 1024 * 1024 * 1024;
+const DEVICE_MEMORY_CAP_GB = 8; // navigator.deviceMemory spec cap
 export const deviceMemoryBudgetBytes = () => {
+  const overrideMb = getSettings().memoryBudgetMb;
+  if (typeof overrideMb === "number" && overrideMb > 0) {
+    return Math.round(overrideMb * 1024 * 1024);
+  }
   const dm = globalThis.navigator?.deviceMemory;
-  return typeof dm === "number" && dm > 0
-    ? Math.round(dm * GB * 0.6)
-    : Math.round(1.5 * GB);
+  if (typeof dm !== "number" || dm <= 0) {
+    return Math.round(1.5 * GB); // iOS / no signal — conservative const
+  }
+  const fraction = dm >= DEVICE_MEMORY_CAP_GB ? 0.9 : 0.6;
+  return Math.round(dm * GB * fraction);
 };
 
 let recovered = null;
@@ -139,6 +152,20 @@ export const dismissRecovered = () => {
   // crash — keeps the debug handle in sync with the UI.
   cbClearRecovered();
   notify();
+};
+
+/**
+ * Wipe crashbox's persisted state (snapshot, breadcrumbs, recovered record, session marker) via the
+ * debug handle's clear(), drop the wrapper's recovered copy, and re-notify so the Crashes panel
+ * reflects the reset. The handle only exists in developer mode — the empty fallback keeps this a
+ * no-op otherwise. Returns the localStorage keys removed.
+ * @returns {string[]}
+ */
+export const resetCrashbox = () => {
+  const removed = globalThis.__crashbox?.clear?.() ?? [];
+  recovered = null;
+  notify();
+  return removed;
 };
 
 /**

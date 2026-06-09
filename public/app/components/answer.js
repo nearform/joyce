@@ -2,6 +2,7 @@ import { useState, Fragment } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { html, openTextInNewWindow } from "../util/html.js";
+import { stripThinking, extractThinking, hasThinking } from "../util/think.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { ALL_PROVIDERS, getModelCfg } from "../../config.js";
 import { formatInt, formatFloat, formatElapsed } from "../../shared-util.js";
@@ -48,6 +49,31 @@ const PromptDataLink = ({ data }) => {
       aria-label="Open full prompt as JSON"
     >
       <i className="iconoir-message-text"></i>
+    </button>
+  `;
+};
+
+/**
+ * Icon link that opens the model's `<think>` reasoning in a new page. Only rendered when the
+ * answer actually carries reasoning (see `hasThinking`).
+ */
+const ThinkingDataLink = ({ answer }) => {
+  if (!hasThinking(answer)) return null;
+
+  const handleOpen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openTextInNewWindow(extractThinking(answer));
+  };
+
+  return html`
+    <button
+      className="answer-actions-btn"
+      onClick=${handleOpen}
+      title="Open model reasoning (<think>)"
+      aria-label="Open model reasoning"
+    >
+      <i className="iconoir-brain"></i>
     </button>
   `;
 };
@@ -295,15 +321,22 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
 
+  // Reasoning models wrap chain-of-thought in <think>…</think>; keep it out of the visible answer
+  // (and the copy button) — it's surfaced separately via the dev-mode ThinkingDataLink.
+  const visibleAnswer = stripThinking(answer);
+
   let answerSection;
   if (isRaw && isDeveloperMode) {
     answerSection = html`<div className="answer-raw">
-      ${answer
+      ${visibleAnswer
         .split("\n")
         .map((par, i) => html`<p key=${`answer-par-${i}`}>${par}</p>`)}
     </div>`;
   } else {
-    const renderedHtml = marked.parse(answer, { breaks: true, gfm: true });
+    const renderedHtml = marked.parse(visibleAnswer, {
+      breaks: true,
+      gfm: true,
+    });
     const sanitizedHtml = DOMPurify.sanitize(renderedHtml);
     answerSection = html`
       <div
@@ -322,6 +355,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
         ${isDeveloperMode && queryInfo && html`<${QueryInfo} ...${queryInfo} />`}
         ${isDeveloperMode && queryInfo?.prompt && html`<${PromptDataLink} data=${queryInfo.prompt} />`}
         ${isDeveloperMode && queryInfo?.rawContext && html`<${ContextDataLink} data=${queryInfo.rawContext} />`}
+        ${isDeveloperMode && html`<${ThinkingDataLink} answer=${answer} />`}
         ${
           isDeveloperMode &&
           html`
@@ -335,7 +369,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
             </button>
           `
         }
-        <${CopyButton} text=${answer} />
+        <${CopyButton} text=${visibleAnswer} />
       </div>
       <${ContextLimitWarning}
         finishReason=${queryInfo?.finishReason}

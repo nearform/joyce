@@ -197,6 +197,7 @@ export const Chat = () => {
     modelResourceId,
     modelStatus,
     conversationsEnabled: settings.experimentalChatConversations,
+    enableThinking: settings.enableThinking,
   });
 
   const handleSubmit = (event) => {

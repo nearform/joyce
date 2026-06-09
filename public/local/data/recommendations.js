@@ -59,6 +59,16 @@ export const assessModelFit = (model, ctx) => {
   const isWebLlm = model.provider === undefined || model.provider === "webLlm";
 
   // Hard blocks.
+  // Unknown VRAM requirement (web-llm leaves vram_required_MB null for some entries, e.g. the
+  // Ministral-3-3B builds). Every size check below is guarded by `need`, so a null would otherwise
+  // skip them all and fall through as "safe" — exactly how a huge model got recommended on iOS.
+  // We can't verify it fits, so treat it as unsupported and keep it out of recommendations.
+  if (!(need > 0)) {
+    tier = "blocked";
+    reasons.push(
+      "VRAM requirement unknown — can't verify it fits this device.",
+    );
+  }
   if (need && maxBuf && need * 1024 * 1024 > maxBuf) {
     tier = "blocked";
     reasons.push(
@@ -121,9 +131,63 @@ export const assessModelFit = (model, ctx) => {
   return { tier, reasons };
 };
 
+// --- capability ranking ------------------------------------------------------------------------
+// "Best" is NOT "biggest file". Raw VRAM rewards bloated quants (e.g. an old phi-2 in fp32 beats a
+// far better modern model in fp16). We rank by capability instead, with the user's tie-breakers.
+
 /**
- * Pick the best model for the current device. Returns the largest `safe` model (more capable
- * within a safe envelope); falls back to the smallest `risky` model if nothing is safe.
+ * Parameter count in billions, parsed from a web-llm model id — the primary capability proxy.
+ * Matches a `-<n>B-`/`-<n>M-` token (e.g. `Qwen2.5-3B` → 3, `Qwen3-0.6B` → 0.6,
+ * `SmolLM2-360M` → 0.36). Anchored on the leading `-` so quant tokens like `q4f16_1` and
+ * version numbers like `Qwen2.5` / `Llama-3.2` aren't misread. Unknown (e.g. `phi-2`) → 0, which
+ * intentionally ranks unlabelled legacy models below anything with a stated size.
+ * @param {string} id
+ * @returns {number}
+ */
+const paramsB = (id = "") => {
+  const b = id.match(/-(\d+(?:\.\d+)?)b(?:[-_]|$)/i);
+  if (b) return parseFloat(b[1]);
+  const m = id.match(/-(\d+(?:\.\d+)?)m(?:[-_]|$)/i);
+  if (m) return parseFloat(m[1]) / 1000;
+  return 0;
+};
+
+/** Prefer q4f16_1 (half the footprint of q4f32 at ~equal quality), then q4f32_1, then the rest. */
+const quantRank = (q) => (q === "q4f16_1" ? 2 : q === "q4f32_1" ? 1 : 0);
+
+/** Qwen generation number (Qwen3 → 3, Qwen2.5 → 2.5); 0 for non-Qwen. Higher is newer/better. */
+const qwenVersion = (id = "") => {
+  const m = id.match(/qwen(\d+(?:\.\d+)?)/i);
+  return m ? parseFloat(m[1]) : 0;
+};
+
+/**
+ * Lexicographic capability vector, compared descending: params first (capability), then prefer
+ * q4f16_1, then favor higher-number Qwen, then larger VRAM as a final tiebreak.
+ * @param {{ model?: string, quantization?: string | null, vramMb?: number | null }} m
+ * @returns {number[]}
+ */
+const capabilityScore = (m) => [
+  paramsB(m.model ?? ""),
+  quantRank(m.quantization),
+  qwenVersion(m.model ?? ""),
+  m.vramMb ?? 0,
+];
+
+/** Compare two equal-length score vectors, descending (for Array.sort). */
+const byScoreDesc = (a, b) => {
+  const sa = capabilityScore(a.model);
+  const sb = capabilityScore(b.model);
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) return sb[i] - sa[i];
+  }
+  return 0;
+};
+
+/**
+ * Pick the best model for the current device. Among models that pass the safety check, returns the
+ * most *capable* (params → q4f16_1 → higher Qwen → VRAM), not merely the largest. Falls back to the
+ * smallest `risky` model (least likely to crash) if nothing is safe.
  * @param {Array<{ vramMb?: number | null }>} models
  * @param {FitCtx} ctx
  * @returns {{ model: object, fit: Fit } | null}
@@ -133,14 +197,15 @@ export const pickBestModel = (models, ctx) => {
   const scored = models.map((m) => ({ model: m, fit: assessModelFit(m, ctx) }));
   const safe = scored.filter((s) => s.fit.tier === "safe");
   if (safe.length) {
-    return safe.sort(
-      (a, b) => (b.model.vramMb ?? 0) - (a.model.vramMb ?? 0),
-    )[0];
+    return safe.sort(byScoreDesc)[0];
   }
   const risky = scored.filter((s) => s.fit.tier === "risky");
   if (risky.length) {
+    // Nothing safe — smallest risky wins (least crash risk), capability breaking ties.
     return risky.sort(
-      (a, b) => (a.model.vramMb ?? Infinity) - (b.model.vramMb ?? Infinity),
+      (a, b) =>
+        (a.model.vramMb ?? Infinity) - (b.model.vramMb ?? Infinity) ||
+        byScoreDesc(a, b),
     )[0];
   }
   return null;

@@ -3,7 +3,11 @@ import { html } from "../../../app/util/html.js";
 import { useTableSort } from "../../../app/hooks/use-table-sort.js";
 import { useLoading } from "../context/loading.js";
 import { ModelsFilter } from "./models-filter.js";
-import { addChatModel } from "../../../config.js";
+import {
+  addChatModel,
+  getProviderForModel,
+  providerManagesMemory,
+} from "../../../config.js";
 import {
   assessModelFit,
   tierClass,
@@ -39,52 +43,73 @@ const COLUMN_INFO = {
   status: "Loading status (click to load)",
 };
 
-// Status icon configuration matching LoadingButton patterns
+// Status icon configuration matching LoadingButton patterns. `action` drives the primary click:
+// "load" → load into memory, "unload" → free memory (Loaded → Cached), null → not clickable.
+// `deletable` adds a secondary trash button to evict the on-disk bytes (Cached → Not loaded).
 const STATUS_CONFIG = {
   available: {
     icon: "iconoir-circle",
     cls: "loading-status-not-loaded",
     title: "Click to load",
-    clickable: true,
+    action: "load",
   },
   loading: {
     icon: "iconoir-refresh",
     cls: "loading-status-loading",
     title: "Loading...",
-    clickable: false,
+    action: null,
   },
   loaded: {
     icon: "iconoir-check-circle",
     cls: "loading-status-loaded",
-    title: "Loaded",
-    clickable: false,
+    title: "Loaded — click to unload from memory",
+    action: "unload",
   },
   cached: {
     icon: "iconoir-database",
     cls: "loading-status-cached",
     title: "Cached on disk — click to load",
-    clickable: true,
+    action: "load",
+    deletable: true,
   },
   error: {
     icon: "iconoir-warning-circle",
     cls: "loading-status-error",
-    title: "Error loading model",
-    clickable: true,
+    title: "Error loading model — click to retry",
+    action: "load",
   },
 };
 
-const StatusIcon = ({ status, onLoad, progress }) => {
+const StatusIcon = ({
+  status,
+  canManageMemory,
+  onLoad,
+  onUnload,
+  onDelete,
+  progress,
+}) => {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.available;
   const progressPercent =
     status === "loading" && progress?.progress != null
       ? Math.round(progress.progress * 100)
       : null;
 
-  const icon = config.clickable
+  // Unload + delete are only offered for providers that manage their own memory/cache.
+  const handleClick =
+    config.action === "unload"
+      ? canManageMemory
+        ? onUnload
+        : null
+      : config.action === "load"
+        ? onLoad
+        : null;
+  const showDelete = config.deletable && canManageMemory;
+
+  const icon = handleClick
     ? html`
         <button
           className=${`loading-status-icon-button ${config.cls}`}
-          onClick=${onLoad}
+          onClick=${handleClick}
           type="button"
           title=${config.title}
         >
@@ -103,6 +128,15 @@ const StatusIcon = ({ status, onLoad, progress }) => {
   return html`
     <span className="status-icon-wrapper">
       ${icon}
+      ${showDelete &&
+      html`<button
+        className="loading-status-icon-button loading-status-delete"
+        onClick=${onDelete}
+        type="button"
+        title="Delete from disk"
+      >
+        <i className="iconoir-trash"></i>
+      </button>`}
       ${progressPercent !== null &&
       html`<span className="status-progress-text">${progressPercent}%</span>`}
     </span>
@@ -111,7 +145,14 @@ const StatusIcon = ({ status, onLoad, progress }) => {
 
 export const ModelsTable = ({ models = [], fitCtx }) => {
   const { getSortSymbol, handleColumnSort, sortItems } = useTableSort();
-  const { getStatus, getProgress, getCached, startLoading } = useLoading();
+  const {
+    getStatus,
+    getProgress,
+    getCached,
+    startLoading,
+    unload,
+    deleteCache,
+  } = useLoading();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const showFit = !!fitCtx;
   const HEADINGS = buildHeadings(showFit);
@@ -212,6 +253,14 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
                   addChatModel("webLlm", model);
                   startLoading(resourceId);
                 };
+                const handleUnload = () => unload(resourceId);
+                const handleDelete = () => deleteCache(resourceId);
+                // The table is built from web-llm's prebuilt list; unconfigured models aren't in
+                // ALL_CHAT_MODELS so getProviderForModel returns null — default to webLlm. A future
+                // provider's models would resolve to their own key and gate accordingly.
+                const canManageMemory = providerManagesMemory(
+                  getProviderForModel(model) ?? "webLlm",
+                );
                 return html`
                   <tr key=${`model-item-${i}`}>
                     <td>
@@ -238,7 +287,10 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
                     <td>
                       <${StatusIcon}
                         status=${status}
+                        canManageMemory=${canManageMemory}
                         onLoad=${handleLoad}
+                        onUnload=${handleUnload}
+                        onDelete=${handleDelete}
                         progress=${progress}
                       />
                     </td>

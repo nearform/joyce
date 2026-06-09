@@ -14,6 +14,8 @@ import {
   subscribeLoadingStatus,
   subscribeLoadingProgress,
   startLoading,
+  unloadResource,
+  deleteResourceCache,
   findResourceById,
   registerLlmResource,
 } from "../../data/loading.js";
@@ -168,6 +170,25 @@ export const LoadingProvider = ({ children }) => {
     [updateStatus, updateProgress, probeCached],
   );
 
+  // Manually unload a resident model from memory (→ Cached). The data layer flips status to
+  // not_loaded, which our status subscription already re-probes checkCached for, so the badge
+  // updates without extra work here.
+  const handleUnload = useCallback((resourceId) => {
+    unloadResource(resourceId);
+  }, []);
+
+  // Delete a model's bytes from disk (→ Not loaded). Status is already not_loaded, so re-probe
+  // explicitly AFTER deletion settles to flip the cached badge off.
+  const handleDeleteCache = useCallback(
+    (resourceId) => {
+      const resource = findResourceById(resourceId);
+      deleteResourceCache(resourceId).then(() => {
+        if (resource) probeCached(resource);
+      });
+    },
+    [probeCached],
+  );
+
   const value = useMemo(
     () => ({
       getStatus: (resourceId) => statuses.get(resourceId) || "not_loaded",
@@ -176,6 +197,8 @@ export const LoadingProvider = ({ children }) => {
       getProgress: (resourceId) => progressMap.get(resourceId) ?? null,
       getCached: (resourceId) => cachedMap.get(resourceId) || false,
       startLoading: handleStartLoading,
+      unload: handleUnload,
+      deleteCache: handleDeleteCache,
     }),
     [
       statuses,
@@ -184,6 +207,8 @@ export const LoadingProvider = ({ children }) => {
       progressMap,
       cachedMap,
       handleStartLoading,
+      handleUnload,
+      handleDeleteCache,
     ],
   );
 

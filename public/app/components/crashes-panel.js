@@ -1,4 +1,4 @@
-/* global window:false */
+/* global window:false, document:false, setTimeout:false */
 import { useState } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
@@ -6,6 +6,7 @@ import { Alert } from "./alert.js";
 import {
   dismissRecovered,
   reportMemoryPressure,
+  resetCrashbox,
 } from "../../local/data/telemetry.js";
 import { useCrashbox } from "../hooks/use-crashbox.js";
 
@@ -121,6 +122,43 @@ ${JSON.stringify(record.snapshot ?? {}, null, 2)}</pre
 const isEmpty = (v) =>
   v == null || (typeof v === "object" && Object.keys(v).length === 0);
 
+// Copy `text` to the clipboard with a brief check-mark affordance. Falls back to a hidden
+// textarea + execCommand for non-secure contexts / browsers without the async clipboard API.
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await globalThis.navigator?.clipboard?.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* clipboard unavailable — nothing else to do */
+      }
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  };
+  return html`
+    <button
+      type="button"
+      className="crashes-copy-button"
+      onClick=${copy}
+      aria-label="Copy to clipboard"
+      title=${copied ? "Copied!" : "Copy"}
+    >
+      <i className=${copied ? "iconoir-check" : "iconoir-copy"}></i>
+    </button>
+  `;
+};
+
 const InlineView = ({ view }) => {
   if (isEmpty(view.payload)) {
     return html`
@@ -132,9 +170,13 @@ const InlineView = ({ view }) => {
       </p>
     `;
   }
+  const text = JSON.stringify(view.payload, null, 2);
   return html`
-    <pre className="crashes-dump">
-<code>${JSON.stringify(view.payload, null, 2)}</code></pre>
+    <div className="crashes-dump-wrap">
+      <${CopyButton} text=${text} />
+      <pre className="crashes-dump">
+<code>${text}</code></pre>
+    </div>
   `;
 };
 
@@ -254,24 +296,36 @@ export const CrashesPanel = () => {
           <button
             className="pure-button pure-button-xsmall"
             onClick=${() =>
-              setInlineView({
-                label: "Full dump",
-                payload: window.__crashbox?.dump() ?? null,
-              })}
+              setInlineView((cur) =>
+                cur?.key === "dump"
+                  ? null
+                  : {
+                      key: "dump",
+                      label: "Full dump",
+                      payload: window.__crashbox?.dump() ?? null,
+                    },
+              )}
             type="button"
           >
-            Show dump
+            ${inlineView?.key === "dump" ? "Hide dump" : "Show dump"}
           </button>
           <button
             className="pure-button pure-button-xsmall"
             onClick=${() =>
-              setInlineView({
-                label: "Recovered crash",
-                payload: window.__crashbox?.recovered() ?? null,
-              })}
+              setInlineView((cur) =>
+                cur?.key === "recovered"
+                  ? null
+                  : {
+                      key: "recovered",
+                      label: "Recovered crash",
+                      payload: window.__crashbox?.recovered() ?? null,
+                    },
+              )}
             type="button"
           >
-            Show recovered
+            ${inlineView?.key === "recovered"
+              ? "Hide recovered"
+              : "Show recovered"}
           </button>
           <button
             className="pure-button pure-button-xsmall"
@@ -286,16 +340,16 @@ export const CrashesPanel = () => {
           >
             Simulate memory pressure
           </button>
-          ${inlineView !== null &&
-          html`
-            <button
-              className="pure-button pure-button-xsmall"
-              onClick=${() => setInlineView(null)}
-              type="button"
-            >
-              Hide
-            </button>
-          `}
+          <button
+            className="pure-button pure-button-xsmall"
+            onClick=${() => {
+              resetCrashbox();
+              setInlineView(null);
+            }}
+            type="button"
+          >
+            <i className="iconoir-refresh-double"></i>${" "}Reset crashbox
+          </button>
         </div>
         ${inlineView !== null && html`<${InlineView} view=${inlineView} />`}
       </details>

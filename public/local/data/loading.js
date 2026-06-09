@@ -5,6 +5,7 @@ import {
   getLlmEngine,
   setLlmProgressCallback,
   unloadLlmEngine,
+  deleteModelCache,
   isLlmCached,
 } from "./api/llm.js";
 import { ALL_CHAT_MODELS } from "../../config.js";
@@ -93,9 +94,11 @@ const loadingCallbacks = new Map();
 const loadedData = new Map();
 const loadingProgress = new Map();
 const progressCallbacks = new Map();
-// Resource ids torn down mid-load by single-model eviction. Their in-flight load settles into
-// not_loaded (not "error" or "loaded") — see startLoading.
-const evicting = new Set();
+// Serializes default-mode web-llm loads. Clicking a second model while the first is still downloading
+// queues it (waits) instead of aborting the first's download, so several models can be cached to disk
+// back-to-back. Each runs single-model eviction when its turn comes (evict-after-settle), so only one
+// model stays resident. experimentalMultipleModels bypasses this (concurrent loads, no eviction).
+let webLlmLoadQueue = Promise.resolve();
 
 /**
  * Get loading status for a resource
@@ -224,11 +227,11 @@ export const subscribeLoadingStatus = (resourceId, callback) => {
 };
 
 /**
- * Single-model policy: free other resident web-llm chat models before loading a new one. A fully
- * loaded model is unloaded synchronously (await) so its memory is freed before we allocate the new
- * one; an in-flight model is torn down best-effort without blocking (and marked `evicting` so its
- * pending load settles to not_loaded instead of "error"). Scoped to web-llm chat models — the
- * embeddings extractor and Chrome built-in AI are never touched.
+ * Single-model policy: free other RESIDENT web-llm chat models before loading a new one, so only one
+ * stays in memory (each is unloaded synchronously to avoid a both-resident peak; it stays cached on
+ * disk). Because default-mode loads are serialized (see startLoading/webLlmLoadQueue), there is never
+ * another web-llm load in flight here — only fully-loaded models are evicted. Scoped to web-llm chat
+ * models — the embeddings extractor and Chrome built-in AI are never touched.
  * @param {string} keepId      Resource id we're keeping (the one being loaded)
  * @param {string} keepModelId Its model id (for the breadcrumb)
  */
@@ -236,40 +239,64 @@ const evictOtherWebLlmModels = async (keepId, keepModelId) => {
   for (const resource of Object.values(RESOURCES)) {
     if (resource.kind !== "llm" || resource.provider !== "webLlm") continue;
     if (resource.id === keepId) continue;
-    const st = getLoadingStatus(resource.id);
-    if (st !== "loaded" && st !== "loading") continue;
+    if (getLoadingStatus(resource.id) !== "loaded") continue;
 
     breadcrumb("llm.evict", { unloaded: resource.modelId, for: keepModelId });
-    loadedData.delete(resource.id);
-    loadingProgress.delete(resource.id);
-    setLoadingStatus(resource.id, "not_loaded");
-
-    if (st === "loading") {
-      // Don't block the new load on tearing down an in-flight one (device teardown can be slow);
-      // neutralize its pending settle so it doesn't flip to "error".
-      evicting.add(resource.id);
-      unloadLlmEngine(resource.provider, resource.modelId).catch(() => {});
-    } else {
-      // Loaded: free it before we allocate, to avoid a peak where both are resident.
-      await unloadLlmEngine(resource.provider, resource.modelId).catch(
-        () => {},
-      );
-    }
+    await freeResidentModel(resource);
   }
 };
 
 /**
- * Start loading a resource
- * @param {{ id: string, get: () => Promise<any>, deps?: string[] }} resource
+ * Free a resident model from memory: reflect it as not-loaded (its bytes stay cached on disk, so the
+ * 3-state badge shows "Cached") and tear down the provider engine. Shared by single-model eviction
+ * and manual unload so they can't drift. LLM-only unload; status/bookkeeping applies to any resource.
+ * @param {{ id: string, kind?: string, provider?: string, modelId?: string }} resource
  */
-export const startLoading = async (resource) => {
-  const { id, get, deps } = resource;
-  // Check and set must remain synchronous (no await between) to prevent races
-  const status = loadingStatus.get(id);
-  if (status === "loading" || status === "loaded") {
-    return;
+const freeResidentModel = async (resource) => {
+  loadedData.delete(resource.id);
+  loadingProgress.delete(resource.id);
+  setLoadingStatus(resource.id, "not_loaded");
+  if (resource.kind === "llm") {
+    await unloadLlmEngine(resource.provider, resource.modelId).catch(() => {});
   }
-  setLoadingStatus(id, "loading");
+};
+
+/**
+ * Manually unload a resident model from memory (frees GPU/RAM; bytes stay cached on disk → badge
+ * drops Loaded → Cached, reload is fast). Triggered from the AI Models pane / loading button. No-op
+ * if the resource isn't found or isn't an LLM.
+ * @param {string} resourceId
+ */
+export const unloadResource = async (resourceId) => {
+  const resource = findResourceById(resourceId);
+  if (!resource || resource.kind !== "llm") return;
+  breadcrumb("llm.unload", { model: resource.modelId });
+  await freeResidentModel(resource);
+};
+
+/**
+ * Delete a model's bytes from disk (Cache API / IndexedDB), unloading from memory first. Leaves the
+ * resource Not loaded; callers should re-probe checkCached so the badge drops Cached → Not loaded.
+ * No-op if the resource isn't found or isn't an LLM.
+ * @param {string} resourceId
+ */
+export const deleteResourceCache = async (resourceId) => {
+  const resource = findResourceById(resourceId);
+  if (!resource || resource.kind !== "llm") return;
+  breadcrumb("llm.cache.delete", { model: resource.modelId });
+  loadedData.delete(resource.id);
+  loadingProgress.delete(resource.id);
+  setLoadingStatus(resource.id, "not_loaded");
+  await deleteModelCache(resource.provider, resource.modelId).catch(() => {});
+};
+
+/**
+ * Run a single load: evict resident web-llm models (single-model policy), wait for deps, then load.
+ * Assumes the caller already set status to "loading" and (for web-llm) serialized via the queue.
+ * @param {{ id: string, get: () => Promise<any>, deps?: string[], kind?: string, provider?: string, modelId?: string }} resource
+ */
+const runLoad = async (resource) => {
+  const { id, get, deps } = resource;
 
   // Single-model policy (default): free other resident web-llm chat models before allocating this
   // one. The experimentalMultipleModels setting overrides it to allow stacking.
@@ -290,26 +317,42 @@ export const startLoading = async (resource) => {
   const start = performance.now();
   try {
     const result = await get();
-    // If a newer load evicted this one mid-flight, settle as not_loaded (still cached on disk) —
-    // don't record the torn-down engine as loaded.
-    if (evicting.has(id)) {
-      evicting.delete(id);
-      setLoadingStatus(id, "not_loaded");
-      return;
-    }
     loadedData.set(id, result);
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "loaded", { elapsed });
   } catch (error) {
-    // An eviction teardown makes the in-flight load reject — that's not a real error.
-    if (evicting.has(id)) {
-      evicting.delete(id);
-      setLoadingStatus(id, "not_loaded");
-      return;
-    }
     const elapsed = performance.now() - start;
     setLoadingStatus(id, "error", { error, elapsed });
   }
+};
+
+/**
+ * Start loading a resource. Default-mode web-llm loads are serialized through webLlmLoadQueue so a
+ * second click doesn't abort the first's in-flight download — each finishes caching to disk, then
+ * single-model eviction frees the previous from memory before the next allocates. Other resources
+ * (and multiple-models mode) load directly/concurrently.
+ * @param {{ id: string, get: () => Promise<any>, deps?: string[] }} resource
+ */
+export const startLoading = async (resource) => {
+  const { id } = resource;
+  // Check and set must remain synchronous (no await between) to prevent races
+  const status = loadingStatus.get(id);
+  if (status === "loading" || status === "loaded") {
+    return;
+  }
+  setLoadingStatus(id, "loading");
+
+  const serialize =
+    resource.kind === "llm" &&
+    resource.provider === "webLlm" &&
+    !getSettings().experimentalMultipleModels;
+  if (serialize) {
+    const next = webLlmLoadQueue.then(() => runLoad(resource));
+    // Keep the queue alive even if one load rejects, so later queued loads still run.
+    webLlmLoadQueue = next.catch(() => {});
+    return next;
+  }
+  return runLoad(resource);
 };
 
 /**

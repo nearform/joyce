@@ -1,6 +1,11 @@
 // web-llm provider implementation
 // Unified handler interface for chat sessions
-import { MLCEngine, hasModelInCache, prebuiltAppConfig } from "@mlc-ai/web-llm";
+import {
+  MLCEngine,
+  hasModelInCache,
+  deleteModelAllInfoInCache,
+  prebuiltAppConfig,
+} from "@mlc-ai/web-llm";
 import { DEFAULT_CHAT_MODEL } from "../../../../config.js";
 import {
   wrap,
@@ -11,6 +16,7 @@ import {
 import {
   beginLoad,
   setLoadProgress,
+  setContextTokens,
   finishLoad,
   clearLoad,
   preflightModel,
@@ -66,7 +72,11 @@ export const getLlmEngine = async (model = DEFAULT_MODEL) => {
       const rec = prebuiltAppConfig.model_list.find(
         (m) => m.model_id === model,
       );
-      beginLoad({ model, vramRequiredMB: rec?.vram_required_MB });
+      beginLoad({
+        model,
+        vramRequiredMB: rec?.vram_required_MB,
+        contextWindowSize: rec?.overrides?.context_window_size,
+      });
       const pf = await preflightModel({
         model,
         vramRequiredMB: rec?.vram_required_MB,
@@ -129,6 +139,10 @@ export const getLlmEngine = async (model = DEFAULT_MODEL) => {
         // this when WE tore it down (unloadLlmEngine) — an eviction isn't an OOM.
         if (!entry.evicted && (pf.verdict !== "ok" || isOomError(err))) {
           reportMemoryPressure({ level: "critical", source: "web-llm.load" });
+        } else if (entry.evicted) {
+          // We tore this down (single-model eviction) — its rejection is expected, NOT an OOM. Leave
+          // a trail so a device run can confirm no spurious web-llm.load critical warning fired here.
+          breadcrumb("web-llm.load.evicted", { model });
         }
         entry.enginePromise = null; // allow a retry after a failed load
         entry.engine = null;
@@ -185,6 +199,29 @@ export const isLlmCached = async (model = DEFAULT_MODEL) => {
 };
 
 /**
+ * Delete a model's bytes from disk (Cache API / IndexedDB) — frees the download so the badge drops
+ * to "Not loaded". Unload the in-memory engine first if it's resident. Best-effort; no-op on cache
+ * errors (e.g. iOS Chrome/WebKit).
+ * @param {string} model - The model ID
+ * @returns {Promise<void>}
+ */
+export const deleteModelCache = async (model = DEFAULT_MODEL) => {
+  await unloadLlmEngine(model);
+  try {
+    await deleteModelAllInfoInCache(
+      model,
+      useIndexedDBCache ? prebuiltAppConfig : undefined,
+    );
+    breadcrumb("web-llm.cache.delete", { model });
+  } catch (err) {
+    breadcrumb("web-llm.cache.delete.error", {
+      model,
+      message: String(err?.message ?? err).slice(0, 200),
+    });
+  }
+};
+
+/**
  * Get capabilities for a web-llm model.
  * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean }}
  */
@@ -201,14 +238,24 @@ export const getCapabilities = () => ({
  * @param {string} options.model - Model ID
  * @param {number} options.temperature - Sampling temperature
  * @param {number} options.maxOutputTokens - Max tokens for response
+ * @param {boolean} [options.enableThinking] - Allow reasoning models to emit a <think> block
  * @returns {Promise<Object>} Handler with sendMessage(messages) and destroy()
  */
 export const createHandler = async ({
   model,
   temperature,
   maxOutputTokens,
+  enableThinking,
 }) => {
   const engine = await getLlmEngine(model);
+
+  // web-llm's `enable_thinking` is a Qwen3-only knob (when false it injects an empty <think></think>
+  // to suppress reasoning). Sending it to non-reasoning models would just prepend stray tags, so
+  // only attach it for the families that actually reason.
+  const isReasoningModel = /qwen3|deepseek-r1/i.test(model);
+  const extraBody = isReasoningModel
+    ? { enable_thinking: !!enableThinking }
+    : undefined;
 
   return {
     /**
@@ -226,6 +273,7 @@ export const createHandler = async ({
             max_tokens: maxOutputTokens,
             stream: true,
             stream_options: { include_usage: true },
+            ...(extraBody && { extra_body: extraBody }),
           }),
         () => ({ model, msgCount: messages.length, maxOutputTokens }),
       );
@@ -262,6 +310,9 @@ export const createHandler = async ({
         }
         throw err;
       }
+      // Feed the post-load KV-cache estimate: prompt_tokens is the full cumulative context (web-llm
+      // resends history each turn), so it IS the current context size.
+      setContextTokens(model, usage?.prompt_tokens ?? 0);
       breadcrumb("web-llm.chat.stream.done", {
         finishReason: finishReason || "stop",
         outputTokens: usage?.completion_tokens ?? 0,

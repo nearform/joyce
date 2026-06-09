@@ -163,7 +163,12 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
       id="tabpanel-system"
       aria-labelledby="tab-system"
     >
+      <h3>Device Profile</h3>
       <div className="system-info">
+        <div className="system-info-row">
+          <strong>Class:</strong> ${deviceClassLabel(deviceInfo)}
+        </div>
+
         <div className="system-info-row">
           <strong>WebGPU:</strong>
           <span className=${`status-badge ${webgpuStatus.className}`}>
@@ -173,7 +178,10 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
         </div>
 
         <div className="system-info-row">
-          <strong>System RAM:</strong> ${ramGb != null ? `${ramGb} GB` : "N/A"}
+          <strong>System RAM:</strong>${" "}
+          ${ramGb != null
+            ? `${ramGb} GB`
+            : "Unknown (iOS Safari does not expose deviceMemory)"}
         </div>
 
         <div className="system-info-row">
@@ -181,6 +189,17 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           <span className=${`status-badge ${embeddingsBadge.className}`}>
             ${embeddingsBadge.label}
           </span>
+        </div>
+
+        <div className="system-info-row">
+          <strong>Cache backend:</strong>${" "}
+          <span
+            className=${`status-badge ${useIndexedDBCache ? "status-warning" : "status-supported"}`}
+          >
+            ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
+          </span>
+          ${useIndexedDBCache &&
+          html`<span className="gpu-info">(common on iOS Safari)</span>`}
         </div>
 
         ${webgpu.adapterAvailable &&
@@ -212,41 +231,6 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
             </table>
           </details>
         `}
-      </div>
-
-      <h3>Device Profile</h3>
-      <div className="system-info">
-        <div className="system-info-row">
-          <strong>Class:</strong> ${deviceClassLabel(deviceInfo)}
-        </div>
-        ${gpuInfo &&
-        html`
-          <div className="system-info-row">
-            <strong>GPU:</strong> ${gpuInfo}
-          </div>
-        `}
-        <div className="system-info-row">
-          <strong>Effective RAM:</strong>${" "}
-          ${ramGb != null
-            ? `${ramGb} GB`
-            : "Unknown (iOS Safari does not expose deviceMemory)"}
-        </div>
-        <div className="system-info-row">
-          <strong>WebGPU max buffer:</strong>${" "}
-          ${limits.maxBufferSize != null
-            ? formatBytes(limits.maxBufferSize)
-            : "N/A"}
-        </div>
-        <div className="system-info-row">
-          <strong>Cache backend:</strong>${" "}
-          <span
-            className=${`status-badge ${useIndexedDBCache ? "status-warning" : "status-supported"}`}
-          >
-            ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
-          </span>
-          ${useIndexedDBCache &&
-          html`<span className="gpu-info">(common on iOS Safari)</span>`}
-        </div>
       </div>
 
       ${experimentalChat &&

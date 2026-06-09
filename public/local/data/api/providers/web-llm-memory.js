@@ -29,10 +29,18 @@ import {
 const MB = 1048576;
 // At/above this fraction of budget a (cumulative) load is "risky" — likely to OOM.
 const RISKY_RATIO = 0.9;
+// KV-cache size at FULL context, as a fraction of a model's weights VRAM. A labelled estimate: we
+// have no per-architecture (layers × hidden-dim) metadata, so we scale off vram (bigger models have
+// proportionally bigger KV caches). Tunable.
+const KV_VRAM_FRACTION = 0.5;
 
-// model_id -> { vramBytes, progress }. All entries count: resident models stay committed until the
-// page reloads. Cleared per-model on a failed load (clearLoad).
-/** @type {Map<string, { vramBytes: number, progress: number }>} */
+// model_id -> { vramBytes, maxTokens, progress, contextTokens }. All entries count: resident models
+// stay committed until the page reloads. Cleared per-model on a failed load (clearLoad).
+//   - vramBytes: model weights (fixed once loaded).
+//   - maxTokens: context_window_size, for the KV-cache estimate (0 when unknown).
+//   - progress: 0..1 load progress (pinned to 1 by finishLoad).
+//   - contextTokens: current tokens in the conversation context (drives the KV estimate post-load).
+/** @type {Map<string, { vramBytes: number, maxTokens: number, progress: number, contextTokens: number }>} */
 const loaded = new Map();
 
 // Two notions of footprint:
@@ -46,6 +54,48 @@ const committedBytes = () => {
   let sum = 0;
   for (const m of loaded.values()) {
     sum += m.vramBytes * m.progress;
+  }
+  return sum;
+};
+
+/** True once every tracked model has finished loading (progress pinned to 1). */
+const allResident = () => {
+  for (const m of loaded.values()) {
+    if (m.progress < 1) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/** Total weights VRAM across resident models (proven-fit once loaded — not "pressure"). */
+const residentWeightsBytes = () => {
+  let sum = 0;
+  for (const m of loaded.values()) {
+    sum += m.vramBytes;
+  }
+  return sum;
+};
+
+/**
+ * Estimated KV-cache bytes for one model = contextFraction × KV_VRAM_FRACTION × vram. This is the
+ * part of the footprint that GROWS with conversation length (and can OOM a long chat); the weights
+ * are fixed. A labelled estimate — see KV_VRAM_FRACTION. Zero when context window is unknown.
+ * @param {{ vramBytes: number, maxTokens: number, contextTokens: number }} m
+ */
+const kvEstimateBytes = (m) => {
+  if (!m.maxTokens || !m.vramBytes) {
+    return 0;
+  }
+  const contextFraction = Math.min(1, m.contextTokens / m.maxTokens);
+  return contextFraction * KV_VRAM_FRACTION * m.vramBytes;
+};
+
+/** Total estimated KV-cache bytes across resident models. */
+const kvBytesTotal = () => {
+  let sum = 0;
+  for (const m of loaded.values()) {
+    sum += kvEstimateBytes(m);
   }
   return sum;
 };
@@ -116,12 +166,14 @@ export const preflightModel = async (rec) => {
 
 /**
  * Track a model as loading so the pull source includes its committed-so-far ≈ vram × progress.
- * @param {{ model: string, vramRequiredMB?: number }} rec
+ * @param {{ model: string, vramRequiredMB?: number, contextWindowSize?: number }} rec
  */
 export const beginLoad = (rec) => {
   loaded.set(rec.model, {
     vramBytes: (rec.vramRequiredMB ?? 0) * MB,
+    maxTokens: rec.contextWindowSize ?? 0,
     progress: 0,
+    contextTokens: 0,
   });
 };
 
@@ -130,6 +182,19 @@ export const setLoadProgress = (model, progress) => {
   const entry = loaded.get(model);
   if (entry && typeof progress === "number") {
     entry.progress = Math.min(1, Math.max(entry.progress, progress));
+  }
+};
+
+/**
+ * Record the current conversation context size (tokens) for a resident model, feeding the post-load
+ * KV-cache estimate. Overwrites (web-llm resends full history each turn, so prompt_tokens IS the
+ * current context size) — a new conversation naturally re-reports a small value.
+ * @param {string} model @param {number} tokens
+ */
+export const setContextTokens = (model, tokens) => {
+  const entry = loaded.get(model);
+  if (entry && typeof tokens === "number" && tokens >= 0) {
+    entry.contextTokens = tokens;
   }
 };
 
@@ -147,17 +212,37 @@ export const clearLoad = (model) => {
 };
 
 /**
- * crashbox getMemoryEstimate pull source (MUST be synchronous). Cumulative committed VRAM across all
- * resident models vs the device budget; crashbox turns the used/limit ratio into a level. Null until
- * a model starts loading.
+ * crashbox getMemoryEstimate pull source (MUST be synchronous). Two regimes:
+ *
+ *  - LOADING (any model still ramping): used = cumulative committed VRAM (vram × progress), limit =
+ *    budget. The climbing ratio predicts an OOM as weights stream in — the high-priority signal.
+ *  - RESIDENT (every model finished): the weights have PROVEN they fit, so they're not "pressure".
+ *    What still grows and can OOM is the KV cache, so we report it against the REMAINING headroom:
+ *    used = Σ KV estimate, limit = budget − weights (floored). An idle chat reads ~0 (nominal, no
+ *    30s refire); a long conversation climbs through fair/serious/critical as headroom is consumed.
+ *
+ * Null until a model starts loading.
  * @returns {{ usedBytes: number, limitBytes: number } | null}
  */
 export const getWebllmMemoryEstimate = () => {
-  const used = committedBytes();
-  if (loaded.size === 0 || used <= 0) {
+  if (loaded.size === 0) {
     return null;
   }
-  return { usedBytes: Math.round(used), limitBytes: deviceMemoryBudgetBytes() };
+  const budget = deviceMemoryBudgetBytes();
+  if (!allResident()) {
+    const used = committedBytes();
+    return used > 0
+      ? { usedBytes: Math.round(used), limitBytes: budget }
+      : null;
+  }
+  // Resident: KV-cache growth vs the room left after the (proven-fit) weights. Floor the headroom so
+  // a model that loaded despite a budget-exceeding preflight still surfaces any KV growth as serious.
+  const weights = residentWeightsBytes();
+  const headroom = Math.max(budget * 0.1, 128 * MB, budget - weights);
+  return {
+    usedBytes: Math.round(kvBytesTotal()),
+    limitBytes: Math.round(headroom),
+  };
 };
 
 // Register the pull source the moment this module loads (i.e. when the web-llm provider is first

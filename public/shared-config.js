@@ -117,29 +117,26 @@ const config = {
   // from prebuiltAppConfig. See: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
   webLlm: {
     models: {
+      // Best-in-class q4f16_1 picks per size tier: half the VRAM of q4f32 at ~equal quality, modern
+      // instruct models, Qwen-favored (mirrors the capability ranking in recommendations.js). Default
+      // is the small/safe "Fast" tier (preselected only — no auto-download); step up explicitly.
       chat: [
-        // {
-        //   // TODO: REMOVE?
-        //   // Notes: prone to ongoing gibberish.
-        //   model: "SmolLM2-360M-Instruct-q4f16_1-MLC",
-        //   modelShortName: "SmolLM2-360M",
-        //   autoLoad: false,
-        // },
-        {
-          model: "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
-          modelShortName: "TinyLlama-1.1B",
-          shortOption: "Fast",
-        },
         {
           model: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
           modelShortName: "Llama-3.2-1B",
+          shortOption: "Fast",
+          default: !CHROME_ANY_API_POSSIBLE,
+        },
+        {
+          model: "Qwen2.5-3B-Instruct-q4f16_1-MLC",
+          modelShortName: "Qwen2.5-3B",
           shortOption: "Better",
         },
         {
-          model: "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
-          modelShortName: "Qwen2.5-0.5B",
+          // Reasoning model: emits <think>. Suppressed by default via the "Model Thinking" setting.
+          model: "Qwen3-4B-q4f16_1-MLC",
+          modelShortName: "Qwen3-4B",
           shortOption: "Best",
-          default: !CHROME_ANY_API_POSSIBLE,
         },
       ],
     },
@@ -154,6 +151,14 @@ export const ALL_PROVIDERS = {
   chrome: "Chrome",
   webLlm: "web-llm",
 };
+
+// Providers whose models we can unload from memory and delete from disk — i.e. those holding a
+// page-owned engine + managing their own cache. Chrome built-in AI is OS-managed (unload/delete are
+// no-ops), so it's excluded. Add future providers here as they gain unload/delete support; the UI
+// (loading button, models table) reads this list to decide whether to offer those actions.
+export const MEMORY_MANAGED_PROVIDERS = ["webLlm"];
+export const providerManagesMemory = (provider) =>
+  MEMORY_MANAGED_PROVIDERS.includes(provider);
 
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({
   provider,
