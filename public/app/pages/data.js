@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
@@ -40,11 +40,15 @@ const CRASHES_TAB = {
   icon: "iconoir-warning-triangle",
 };
 
+// Stable reference for the "no warnings" case so fitCtx memoization below doesn't invalidate every
+// render (a fresh `[]` each call would change identity and defeat the useMemo).
+const EMPTY_WARNINGS = [];
+
 // The live `{ warnings, recovered }` state used to drive the device-fit recommendations. Re-renders
 // (via useCrashbox) when crashbox emits a warning or a recovery is dismissed.
 const useCrashboxState = () => {
   const { recovered, status } = useCrashbox();
-  return { warnings: status?.warnings ?? [], recovered };
+  return { warnings: status?.warnings ?? EMPTY_WARNINGS, recovered };
 };
 
 // Get model short name from resource id (provider-agnostic)
@@ -135,7 +139,10 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
     extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
   const device = extractor?._device ?? null;
   const { warnings, recovered } = useCrashboxState();
-  const fitCtx = { systemInfo, deviceInfo, warnings, recovered };
+  const fitCtx = useMemo(
+    () => ({ systemInfo, deviceInfo, warnings, recovered }),
+    [systemInfo, deviceInfo, warnings, recovered],
+  );
   // Pick the best model only when chat is enabled — otherwise the recommendation isn't
   // actionable. The card is still gated on experimentalChat below.
   const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
@@ -272,7 +279,10 @@ const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
   const [promptStatus, setPromptStatus] = useState(null);
   const [writerStatus, setWriterStatus] = useState(null);
   const { warnings, recovered } = useCrashboxState();
-  const fitCtx = { systemInfo, deviceInfo, warnings, recovered };
+  const fitCtx = useMemo(
+    () => ({ systemInfo, deviceInfo, warnings, recovered }),
+    [systemInfo, deviceInfo, warnings, recovered],
+  );
 
   useEffect(() => {
     if (!experimentalChat) return;

@@ -1,8 +1,9 @@
-/* global window:false, document:false, setTimeout:false */
+/* global window:false */
 import { useState } from "react";
 import { Link } from "react-router";
 import { html } from "../util/html.js";
 import { Alert } from "./alert.js";
+import { CopyButton } from "./copy-button.js";
 import {
   dismissRecovered,
   reportMemoryPressure,
@@ -122,43 +123,6 @@ ${JSON.stringify(record.snapshot ?? {}, null, 2)}</pre
 const isEmpty = (v) =>
   v == null || (typeof v === "object" && Object.keys(v).length === 0);
 
-// Copy `text` to the clipboard with a brief check-mark affordance. Falls back to a hidden
-// textarea + execCommand for non-secure contexts / browsers without the async clipboard API.
-const CopyButton = ({ text }) => {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await globalThis.navigator?.clipboard?.writeText(text);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand("copy");
-      } catch {
-        /* clipboard unavailable — nothing else to do */
-      }
-      ta.remove();
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1200);
-  };
-  return html`
-    <button
-      type="button"
-      className="crashes-copy-button"
-      onClick=${copy}
-      aria-label="Copy to clipboard"
-      title=${copied ? "Copied!" : "Copy"}
-    >
-      <i className=${copied ? "iconoir-check" : "iconoir-copy"}></i>
-    </button>
-  `;
-};
-
 const InlineView = ({ view }) => {
   if (isEmpty(view.payload)) {
     return html`
@@ -173,7 +137,11 @@ const InlineView = ({ view }) => {
   const text = JSON.stringify(view.payload, null, 2);
   return html`
     <div className="crashes-dump-wrap">
-      <${CopyButton} text=${text} />
+      <${CopyButton}
+        text=${text}
+        className="crashes-copy-button"
+        title="Copy"
+      />
       <pre className="crashes-dump">
 <code>${text}</code></pre>
     </div>

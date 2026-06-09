@@ -16,6 +16,17 @@ import {
 } from "crashbox";
 import { getSettings } from "../../app/hooks/use-settings.js";
 
+/**
+ * Normalize an error into a short, breadcrumb-safe string: its `.message` (or the value stringified)
+ * truncated to `max` chars so telemetry payloads stay small. Shared by every breadcrumb that logs an
+ * error so the cap and shape live in one place.
+ * @param {unknown} err
+ * @param {number} [max=200]
+ * @returns {string}
+ */
+export const errMessage = (err, max = 200) =>
+  String(/** @type {any} */ (err)?.message ?? err).slice(0, max);
+
 // Device memory budget for crashbox: a fraction of navigator.deviceMemory on Chromium, else a
 // conservative iOS constant (~1.5 GB — the iPhone 15 Pro hard-kill point, crashbox research §6).
 // Passed as `memoryBudgetBytes` (so the wasm/webgpu thresholds scale up and a routine ~100 MB WASM

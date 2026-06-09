@@ -9,7 +9,7 @@ import {
   isLlmCached,
 } from "./api/llm.js";
 import { ALL_CHAT_MODELS } from "../../config.js";
-import { breadcrumb, mergeSnapshot } from "./telemetry.js";
+import { breadcrumb, mergeSnapshot, errMessage } from "./telemetry.js";
 import { getSettings } from "../../app/hooks/use-settings.js";
 
 // ==============================
@@ -174,7 +174,7 @@ const setLoadingStatus = (
   breadcrumb(`load:${status}`, {
     resource: resourceId,
     ...(elapsed != null ? { elapsedMs: Math.round(elapsed) } : {}),
-    ...(error ? { error: String(error?.message ?? error).slice(0, 200) } : {}),
+    ...(error ? { error: errMessage(error) } : {}),
   });
   mergeSnapshot({ resources: Object.fromEntries(loadingStatus) });
   // Copy array before iterating to avoid issues if callbacks unsubscribe during iteration

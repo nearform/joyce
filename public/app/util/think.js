@@ -5,52 +5,42 @@
 // Matched non-greedily and case-insensitively; [\s\S] so it spans newlines.
 const THINK_BLOCK = /<think>([\s\S]*?)<\/think>/gi;
 const OPEN_TAG = "<think>";
-const CLOSE_TAG = "</think>";
 
 /**
- * Remove every `<think>…</think>` block from model output so the user sees only the answer. Also
- * drops a still-open `<think>` with no closing tag yet — that's reasoning mid-stream, which would
- * otherwise flash raw tags into the answer as it arrives.
+ * Split model output into the user-visible answer and its reasoning in a SINGLE pass over the text.
+ *
+ *  - `visible`: every `<think>…</think>` block removed so the user sees only the answer. A still-open
+ *    `<think>` with no closing tag yet (reasoning mid-stream) is dropped too, so raw tags never flash
+ *    into the answer as it arrives.
+ *  - `thinking`: the contents of every block concatenated (tags stripped), including an unterminated
+ *    trailing block so a viewer updates live while reasoning streams. Empty when there's none — also
+ *    the case when web-llm disables thinking (it emits an empty `<think></think>`).
+ *  - `hasThinking`: whether `thinking` is non-empty (gates the developer-mode "thinking" icon).
+ *
+ * Replaces separate stripThinking/extractThinking/hasThinking calls, which each re-scanned the text;
+ * callers memoize this per answer so a streaming render re-parses only the entry that changed.
  * @param {string} text
- * @returns {string}
+ * @returns {{ visible: string, thinking: string, hasThinking: boolean }}
  */
-export const stripThinking = (text) => {
-  if (!text) return text;
-  let out = text.replace(THINK_BLOCK, "");
-  const open = out.toLowerCase().indexOf(OPEN_TAG);
-  if (open !== -1) {
-    out = out.slice(0, open); // unterminated block — still streaming the reasoning
-  }
-  return out.replace(/^\s+/, "");
-};
-
-/**
- * Concatenate the contents of every `<think>` block (tags stripped). Includes an unterminated
- * trailing block so the viewer updates live while reasoning streams. Empty string when there's none
- * — which is also the case when web-llm disables thinking (it emits an empty `<think></think>`).
- * @param {string} text
- * @returns {string}
- */
-export const extractThinking = (text) => {
-  if (!text) return "";
+export const parseThinking = (text) => {
+  if (!text) return { visible: text || "", thinking: "", hasThinking: false };
   /** @type {string[]} */
   const blocks = [];
-  for (const match of text.matchAll(THINK_BLOCK)) {
-    blocks.push(match[1].trim());
+  let visible = text.replace(THINK_BLOCK, (_match, inner) => {
+    blocks.push(inner.trim());
+    return "";
+  });
+  // Any `<think>` left after complete blocks were removed is an unterminated one still streaming:
+  // everything from it onward is reasoning, not answer.
+  const open = visible.toLowerCase().indexOf(OPEN_TAG);
+  if (open !== -1) {
+    blocks.push(visible.slice(open + OPEN_TAG.length).trim());
+    visible = visible.slice(0, open);
   }
-  const lastOpen = text.toLowerCase().lastIndexOf(OPEN_TAG);
-  if (
-    lastOpen !== -1 &&
-    text.toLowerCase().indexOf(CLOSE_TAG, lastOpen) === -1
-  ) {
-    blocks.push(text.slice(lastOpen + OPEN_TAG.length).trim());
-  }
-  return blocks.filter(Boolean).join("\n\n---\n\n");
+  const thinking = blocks.filter(Boolean).join("\n\n---\n\n");
+  return {
+    visible: visible.replace(/^\s+/, ""),
+    thinking,
+    hasThinking: thinking.length > 0,
+  };
 };
-
-/**
- * Whether `text` carries any non-empty reasoning — gates the developer-mode "thinking" icon.
- * @param {string} text
- * @returns {boolean}
- */
-export const hasThinking = (text) => extractThinking(text).length > 0;

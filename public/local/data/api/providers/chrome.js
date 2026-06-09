@@ -10,7 +10,7 @@ import {
 } from "../../../../config.js";
 import { buildBasePrompts } from "../chat.js";
 import { estimateTokens } from "../../util.js";
-import { wrap, breadcrumb } from "../../telemetry.js";
+import { wrap, breadcrumb, errMessage } from "../../telemetry.js";
 
 const PROMPT_OPTIONS = {
   expectedInputs: [{ type: "text", languages: ["en"] }],
@@ -235,7 +235,7 @@ const createPromptHandler = async ({
       } catch (err) {
         breadcrumb("chrome.prompt.stream.error", {
           name: err?.name,
-          message: String(err?.message ?? err).slice(0, 200),
+          message: errMessage(err),
           tokensSoFar: assistantContent.length,
         });
         throw err;
@@ -329,7 +329,7 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
         } catch (err) {
           breadcrumb("chrome.writer.stream.error", {
             name: err?.name,
-            message: String(err?.message ?? err).slice(0, 200),
+            message: errMessage(err),
             tokensSoFar: assistantContent.length,
           });
           throw err;

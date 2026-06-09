@@ -12,6 +12,7 @@ import {
   breadcrumb,
   attachGPUDevice,
   reportMemoryPressure,
+  errMessage,
 } from "../../telemetry.js";
 import {
   beginLoad,
@@ -216,7 +217,7 @@ export const deleteModelCache = async (model = DEFAULT_MODEL) => {
   } catch (err) {
     breadcrumb("web-llm.cache.delete.error", {
       model,
-      message: String(err?.message ?? err).slice(0, 200),
+      message: errMessage(err),
     });
   }
 };
@@ -299,7 +300,7 @@ export const createHandler = async ({
       } catch (err) {
         breadcrumb("web-llm.chat.stream.error", {
           name: err?.name,
-          message: String(err?.message ?? err).slice(0, 200),
+          message: errMessage(err),
           tokensSoFar: assistantContent.length,
         });
         if (isOomError(err)) {

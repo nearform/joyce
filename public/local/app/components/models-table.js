@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { html } from "../../../app/util/html.js";
 import { useTableSort } from "../../../app/hooks/use-table-sort.js";
 import { useLoading } from "../context/loading.js";
@@ -157,12 +157,21 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
   const showFit = !!fitCtx;
   const HEADINGS = buildHeadings(showFit);
 
+  // Fit assessment is the expensive per-model work (it walks systemInfo/warnings/properties), so
+  // memoize it on the inputs that actually affect it — not the loading status/progress that tick on
+  // every load. With fitCtx now stable (memoized by the parent), this recomputes only when the model
+  // list, device context, or fit visibility changes, instead of on every render.
+  const fits = useMemo(
+    () => (showFit ? models.map((m) => assessModelFit(m, fitCtx)) : null),
+    [models, fitCtx, showFit],
+  );
+
   if (models.length === 0) {
     return html`<div />`;
   }
 
-  // Enrich models with status, progress, resourceId, and (optionally) fit.
-  const enrichedModels = models.map((m) => {
+  // Enrich models with status, progress, resourceId, and (optionally) the memoized fit.
+  const enrichedModels = models.map((m, i) => {
     const resourceId = `llm_${m.model}`;
     const loadingStatus = getStatus(resourceId);
     const progress = getProgress(resourceId);
@@ -178,7 +187,7 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
     } else {
       status = "available";
     }
-    const fit = showFit ? assessModelFit(m, fitCtx) : null;
+    const fit = fits ? fits[i] : null;
     // For sorting only — keeps the sortItems comparator simple.
     const fitRank = fit ? FIT_SORT_RANK[fit.tier] : 0;
     return { ...m, resourceId, status, progress, fit, fitRank };
