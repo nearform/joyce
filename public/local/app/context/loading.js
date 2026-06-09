@@ -5,6 +5,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { html } from "../../../app/util/html.js";
 import {
@@ -35,6 +36,11 @@ export const LoadingProvider = ({ children }) => {
   // resourceId -> on-disk-cached? (downloaded but not necessarily in memory). Drives the 3-state
   // Not loaded / Cached / Loaded badge. Probed async via resource.checkCached().
   const [cachedMap, setCachedMap] = useState(new Map());
+  // Unsubscribe fns for LLM resources registered AFTER mount (handleStartLoading). The mount effect
+  // only subscribes to RESOURCES present at mount, so dynamic ones subscribe here — but their unsubs
+  // must be tracked and torn down on unmount, or they leak (firing setState into an unmounted tree).
+  /** @type {{ current: Array<() => void> }} */
+  const dynamicUnsubsRef = useRef([]);
 
   // Update status for a resource
   const updateStatus = useCallback(
@@ -135,6 +141,16 @@ export const LoadingProvider = ({ children }) => {
     };
   }, [updateStatus, updateProgress, probeCached]);
 
+  // Tear down subscriptions for dynamically-registered resources on unmount (the mount effect above
+  // only owns the resources that existed at mount). Runs once — the ref persists across renders.
+  useEffect(() => {
+    const unsubs = dynamicUnsubsRef.current;
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+      unsubs.length = 0;
+    };
+  }, []);
+
   const handleStartLoading = useCallback(
     (resourceId) => {
       let resource = findResourceById(resourceId);
@@ -148,16 +164,25 @@ export const LoadingProvider = ({ children }) => {
           registerLlmResource(provider, modelId);
           resource = findResourceById(resourceId);
 
-          // Subscribe to status/progress changes for the newly registered resource
+          // Subscribe to status/progress changes for the newly registered resource. Stash the
+          // unsubscribes so they're torn down on unmount (see cleanup effect below) — otherwise
+          // they outlive the provider and keep calling setState after it has unmounted.
           if (resource) {
             const res = resource;
-            subscribeLoadingStatus(res.id, (status, { error, elapsed }) => {
-              updateStatus(res.id, status, { error, elapsed });
-              if (status === "not_loaded") probeCached(res);
-            });
-            subscribeLoadingProgress(res.id, (progress) => {
-              updateProgress(res.id, progress);
-            });
+            const unsubStatus = subscribeLoadingStatus(
+              res.id,
+              (status, { error, elapsed }) => {
+                updateStatus(res.id, status, { error, elapsed });
+                if (status === "not_loaded") probeCached(res);
+              },
+            );
+            const unsubProgress = subscribeLoadingProgress(
+              res.id,
+              (progress) => {
+                updateProgress(res.id, progress);
+              },
+            );
+            dynamicUnsubsRef.current.push(unsubStatus, unsubProgress);
             probeCached(res);
           }
         }
