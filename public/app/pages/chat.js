@@ -39,6 +39,7 @@ import { Alert } from "../components/alert.js";
 import { ContextExceededError } from "../components/context-messages.js";
 import { SuggestedQueries } from "../components/suggested-queries.js";
 import { LoadingBubble } from "../components/loading-bubble.js";
+import { stripThinking } from "../util/think.js";
 import { QueryDisplay } from "../components/query-display.js";
 import { Description } from "../components/description.js";
 import {
@@ -241,23 +242,27 @@ export const Chat = () => {
       `
       }
 
-      ${conversation.map(
-        (entry, idx) => html`
+      ${conversation.map((entry, idx) => {
+        // Reasoning models stream `<think>…</think>` before any real answer text. Gate on the
+        // visible answer (thinking stripped) so the loading dots stay up while the model is only
+        // reasoning, instead of flashing an empty answer box with action icons.
+        const visibleAnswer = stripThinking(entry.answer);
+        return html`
           <div
             key=${`conversation-entry-${idx}`}
             className="conversation-entry"
           >
             <${QueryDisplay} query=${entry.query} />
-            ${entry.isLoading && !entry.answer && html`<${LoadingBubble} />`}
-            ${entry.answer &&
+            ${entry.isLoading && !visibleAnswer && html`<${LoadingBubble} />`}
+            ${visibleAnswer &&
             html`<${Answer}
               answer=${entry.answer}
               queryInfo=${entry.queryInfo}
               onNewConversation=${handleReset}
             />`}
           </div>
-        `,
-      )}
+        `;
+      })}
 
       <${ContextExceededError}
         error=${contextExceededErr}
