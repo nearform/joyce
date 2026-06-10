@@ -47,6 +47,28 @@ export const getLlmEngine = async ({
 };
 
 /**
+ * Unload a model from memory (frees GPU/RAM; the disk cache is kept). No-op for providers that
+ * don't hold an in-page engine (e.g. chrome).
+ * @param {string} provider - The provider key
+ * @param {string} model - The model ID
+ * @returns {Promise<void>}
+ */
+export const unloadLlmEngine = async (provider, model) => {
+  return getProvider(provider).unloadLlmEngine?.(model);
+};
+
+/**
+ * Delete a model's bytes from disk (frees the download). Unloads from memory first if resident.
+ * No-op for providers that don't manage their own cache (e.g. chrome).
+ * @param {string} provider - The provider key
+ * @param {string} model - The model ID
+ * @returns {Promise<void>}
+ */
+export const deleteModelCache = async (provider, model) => {
+  return getProvider(provider).deleteModelCache?.(model);
+};
+
+/**
  * Check if a model is cached
  * @param {string} provider - The provider key
  * @param {string} model - The model ID

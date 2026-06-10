@@ -57,13 +57,18 @@
       })();
     </script>
 
-    <!-- Note: @xenova/transformers@2.17.2 is UMD and breaks with '+esm' added. -->
+    <!-- Deps
+      - @xenova/transformers@2.17.2 is UMD and breaks with '+esm' added. 
+      - "crashbox": "https://cdn.jsdelivr.net/npm/crashbox@0.1.0/+esm",
+      - "crashbox": "/vendor/crashbox/src/index.js",
+    -->
     <script type="importmap">
       {
         "imports": {
           "@mlc-ai/web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.81/+esm",
           "@orama/orama": "https://cdn.jsdelivr.net/npm/@orama/orama@3.1.18/+esm",
           "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2",
+          "crashbox": "https://cdn.jsdelivr.net/npm/crashbox@0.1.0/+esm",
           "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.3.1/+esm",
           "file-saver": "https://cdn.jsdelivr.net/npm/file-saver@2.0.5/+esm",
           "htm": "https://cdn.jsdelivr.net/npm/htm@3.1.1/+esm",
@@ -88,17 +93,30 @@
       import ReactDOM from "react-dom/client";
       import { html } from "./app/util/html.js";
       import { App } from "./app/index.js";
+      import { getSettings } from "./app/hooks/use-settings.js";
+      import { bootstrap, breadcrumb } from "./local/data/telemetry.js";
       import { init } from "./local/data/loading.js";
-      import { getSystemInfo } from "./local/data/util.js";
+      import { getSystemInfo, getDeviceInfo } from "./local/data/util.js";
       import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
+
+      // Must run before anything else so the previous session is recovered and a fresh
+      // session is recording before resource loads start emitting breadcrumbs. Gated on
+      // the experimental flag — when off, every breadcrumb/wrap/setSnapshot call site
+      // in the app silently no-ops via crashbox's built-in pre-init guards.
+      if (getSettings().experimentalCrashbox) {
+        bootstrap();
+        breadcrumb("app:boot");
+      }
 
       // Initialize loaders early and get system info.
       init();
       const systemInfo = await getSystemInfo();
+      const deviceInfo = getDeviceInfo();
 
       // TODO(LOCAL): Add config or remove.
       const config = {
         systemInfo,
+        deviceInfo,
         // TODO(CHAT): Move somewhere else?
         providers: {
           webLlm: {

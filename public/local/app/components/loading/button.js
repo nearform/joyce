@@ -3,7 +3,12 @@ import { html } from "../../../../app/util/html.js";
 import { useLoading } from "../../context/loading.js";
 import { formatElapsed } from "../../../../shared-util.js";
 import { Modal } from "../../../../app/components/modal.js";
-import { MODELS } from "../../../../config.js";
+import {
+  MODELS,
+  getProviderForModel,
+  providerManagesMemory,
+} from "../../../../config.js";
+import { findResourceById } from "../../../data/loading.js";
 
 const STATES = {
   not_loaded: {
@@ -20,6 +25,11 @@ const STATES = {
     icon: "iconoir-check-circle",
     cls: "loading-status-loaded",
     title: "Loaded",
+  },
+  cached: {
+    icon: "iconoir-database",
+    cls: "loading-status-cached",
+    title: "Cached on disk — click to load into memory",
   },
   error: {
     icon: "iconoir-warning-circle",
@@ -41,10 +51,23 @@ export const LoadingButton = ({
   forceStatus = null,
   children,
 }) => {
-  const { getStatus, getError, getElapsed, getProgress, startLoading } =
-    useLoading();
+  const {
+    getStatus,
+    getError,
+    getElapsed,
+    getProgress,
+    getCached,
+    startLoading,
+    unload,
+    deleteCache,
+  } = useLoading();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const status = forceStatus || getStatus(resourceId);
+  const loadStatus = forceStatus || getStatus(resourceId);
+  // Show "cached" (downloaded, not in memory) instead of a bare "not loaded" when the bytes are on
+  // disk — makes an unloaded/evicted model read as "fast to reload", not gone.
+  const cached =
+    !forceStatus && loadStatus === "not_loaded" && getCached(resourceId);
+  const status = cached ? "cached" : loadStatus;
   const error = getError(resourceId);
   const elapsed = getElapsed(resourceId);
   const progress = getProgress(resourceId);
@@ -59,13 +82,43 @@ export const LoadingButton = ({
   const handleStartLoading = () => {
     startLoading(resourceId);
   };
+  const handleUnload = () => unload(resourceId);
+  const handleDelete = () => deleteCache(resourceId);
 
-  const isClickable = status === "not_loaded" && !forceStatus;
+  // Clickable to start a load from "not_loaded" (incl. cached, whose loadStatus is "not_loaded") and
+  // from "error" — startLoading retries a failed load, matching the models table's error → retry.
+  const isClickable =
+    (loadStatus === "not_loaded" || loadStatus === "error") && !forceStatus;
   const isModel = resourceId?.toLowerCase().startsWith("llm_");
 
   // Look up model metadata for LLM resources
   const modelId = isModel ? resourceId.replace(/^llm_/i, "") : null;
   const modelMeta = modelId ? MODELS.find((m) => m.model === modelId) : null;
+
+  // Memory actions (unload / delete-from-disk) are offered only for providers that manage their own
+  // memory + cache (MEMORY_MANAGED_PROVIDERS). Prefer the registered resource's provider (set when it
+  // was created) and fall back to a config lookup. Chrome built-in AI is OS-managed → excluded.
+  const provider = isModel
+    ? (findResourceById(resourceId)?.provider ?? getProviderForModel(modelId))
+    : null;
+  const canManageMemory = providerManagesMemory(provider);
+  // A loaded model can be unloaded (→ Cached) by clicking its status icon again.
+  const canUnload = canManageMemory && !forceStatus && loadStatus === "loaded";
+  // A cached model's on-disk bytes can be deleted (→ Not loaded) via the inline trash — matching the
+  // models table. Loaded models unload first (status click), then become deletable. The trash slot is
+  // reserved on every row (a hidden placeholder when absent) so the icon column and the label/icon
+  // divider bar stay aligned whether or not a row currently shows the trash.
+  const canDelete = canManageMemory && !forceStatus && status === "cached";
+  const primaryClick = canUnload
+    ? handleUnload
+    : isClickable
+      ? handleStartLoading
+      : null;
+  const primaryTitle = canUnload
+    ? "Loaded — click to unload from memory"
+    : loadStatus === "error"
+      ? `${title} — click to retry`
+      : title;
 
   const handleInfoClick = (e) => {
     e.preventDefault();
@@ -111,13 +164,13 @@ export const LoadingButton = ({
           </label>
           <div className="loading-status-icon-container">
             ${
-              isClickable
+              primaryClick
                 ? html`
                     <button
                       className=${`loading-status-icon-button ${state.cls}`}
-                      onClick=${handleStartLoading}
+                      onClick=${primaryClick}
                       type="button"
-                      title=${title}
+                      title=${primaryTitle}
                     >
                       <i className=${state.icon}></i>
                     </button>
@@ -128,6 +181,29 @@ export const LoadingButton = ({
                       title=${title}
                     >
                       <i className=${state.icon}></i>
+                    </span>
+                  `
+            }
+            ${
+              canDelete
+                ? html`
+                    <button
+                      className="loading-status-icon-button loading-status-delete"
+                      onClick=${handleDelete}
+                      type="button"
+                      title="Delete from disk"
+                      key="delete"
+                    >
+                      <i className="iconoir-trash"></i>
+                    </button>
+                  `
+                : html`
+                    <span
+                      className="loading-status-icon loading-status-delete loading-status-delete-placeholder"
+                      aria-hidden="true"
+                      key="delete-placeholder"
+                    >
+                      <i className="iconoir-trash"></i>
                     </span>
                   `
             }

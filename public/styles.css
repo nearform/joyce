@@ -48,12 +48,18 @@
   --color-status-loading: #ff9500;
   --color-status-success: #28a745;
   --color-status-error: var(--color-error-text);
+  --color-status-cached: #4a90d9; /* downloaded / on disk, not in memory */
 
   /* Transparency/Overlay */
   --color-overlay-dark: rgba(0, 0, 0, 0.5);
   --color-overlay-light: rgba(0, 0, 0, 0.1);
   --color-overlay-very-light: rgba(0, 0, 0, 0.05);
-  --color-bg-dark-transparent: rgba(42, 42, 42, 0.9);
+  --color-bg-dark-transparent: rgba(
+    11,
+    28,
+    48,
+    0.9
+  ); /* --color-nf-navy at 90% */
 
   /* Chat Message Colors */
   --color-chat-query-bg: rgba(214, 230, 255, 0.5);
@@ -367,7 +373,10 @@ table.pure-table-bordered tbody tr:hover {
   filter: brightness(1.1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
-.menu-link {
+.menu-link,
+.menu-link:hover,
+.menu-link:focus {
+  /* Override PureCSS side-menu base styles, which set #000 on hover/focus. */
   background: var(--color-bg-dark-transparent);
   border-radius: 0 0 1em 0;
   padding-left: 1em;
@@ -1224,8 +1233,33 @@ button.loading-status-icon-button {
   color: var(--color-status-success);
 }
 
+.loading-status-cached i {
+  color: var(--color-status-cached);
+}
+
 .loading-status-error i {
   color: var(--color-status-error);
+}
+
+/* Secondary "delete from disk" action — muted until hovered, then red. Smaller than the primary
+   status icon so it reads as a secondary affordance sitting beside it. */
+.loading-status-delete {
+  margin-left: 0.4em;
+  font-size: 1.1em;
+}
+
+.loading-status-delete i {
+  color: var(--color-text-muted);
+}
+
+.loading-status-delete:hover i {
+  color: var(--color-status-error);
+}
+
+/* Invisible stand-in that reserves the trash button's box on rows without a delete action, so the
+   icon column and the label/icon divider bar stay aligned across every row. */
+.loading-status-delete-placeholder {
+  visibility: hidden;
 }
 
 .loading-status-info {
@@ -1376,6 +1410,9 @@ button.loading-status-icon-button {
   gap: 0;
   border-bottom: 2px solid var(--color-border-light);
   margin-bottom: 1em;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tabs-tab {
@@ -1391,6 +1428,8 @@ button.loading-status-icon-button {
   font-weight: 500;
   color: var(--color-text-muted);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     color 0.2s ease,
     border-color 0.2s ease;
@@ -1408,6 +1447,79 @@ button.loading-status-icon-button {
 
 .tabs-panel {
   padding-top: 0.5em;
+}
+
+/* Crashes Panel */
+.crashes-debug-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-bottom: 0.75em;
+}
+
+/* Wraps the dump so the copy button can sit in its top-right corner. */
+.crashes-dump-wrap {
+  position: relative;
+}
+
+.crashes-copy-button {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  /* The dump's -webkit-overflow-scrolling:touch promotes it to its own iOS compositing layer that
+     paints over un-z-indexed absolute siblings — explicit z-index ordering keeps the button on top. */
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: 4px;
+  background: var(--color-bg, #fff);
+  color: var(--color-text-muted);
+  font-size: 1em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.crashes-copy-button:hover {
+  background: var(--color-bg-subtle, #f6f8fa);
+  color: var(--color-text);
+}
+
+.crashes-dump {
+  position: relative;
+  z-index: 1;
+  background: var(--color-bg-subtle, #f6f8fa);
+  border: 1px solid var(--color-border-light);
+  border-radius: 4px;
+  padding: 0.75em;
+  margin: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8em;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.crashes-dump code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+@media (max-width: 640px) {
+  .crashes-dump {
+    font-size: 0.72em;
+    padding: 0.5em;
+  }
 }
 
 /* Models Table Component */

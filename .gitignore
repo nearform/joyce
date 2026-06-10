@@ -39,3 +39,6 @@ tmp-*
 
 # OpenCode plans
 .opencode/plans/
+
+# Temp development
+public/vendor/

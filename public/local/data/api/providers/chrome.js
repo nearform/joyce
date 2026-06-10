@@ -10,6 +10,7 @@ import {
 } from "../../../../config.js";
 import { buildBasePrompts } from "../chat.js";
 import { estimateTokens } from "../../util.js";
+import { wrap, breadcrumb, errMessage } from "../../telemetry.js";
 
 const PROMPT_OPTIONS = {
   expectedInputs: [{ type: "text", languages: ["en"] }],
@@ -126,6 +127,13 @@ export const getLlmEngine = async (model) => {
 };
 
 /**
+ * Unload a model. No-op for Chrome built-in AI: the model is the OS's, not held in a page-owned
+ * engine, and sessions are created per-handler — there's nothing for us to free.
+ * @returns {Promise<void>}
+ */
+export const unloadLlmEngine = async () => {};
+
+/**
  * Check if a model is cached/ready.
  * @param {string} model - The model ID
  * @returns {Promise<boolean>} Whether the model is ready
@@ -188,15 +196,20 @@ const createPromptHandler = async ({
 
   const initialPrompts = buildBasePrompts(systemContext);
 
-  const session = await LanguageModel.create({
-    ...PROMPT_OPTIONS,
-    topK: CHROME_DEFAULT_TOP_K,
-    temperature,
-    initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
-    monitor: progressCallback
-      ? createDownloadMonitor(progressCallback)
-      : undefined,
-  });
+  const session = await wrap(
+    "chrome.prompt.create",
+    () =>
+      LanguageModel.create({
+        ...PROMPT_OPTIONS,
+        topK: CHROME_DEFAULT_TOP_K,
+        temperature,
+        initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
+        monitor: progressCallback
+          ? createDownloadMonitor(progressCallback)
+          : undefined,
+      }),
+    () => ({ temperature, initialPromptCount: initialPrompts.length }),
+  );
 
   return {
     /**
@@ -205,15 +218,31 @@ const createPromptHandler = async ({
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(userMessage) {
+      breadcrumb("chrome.prompt.stream.start", {
+        msgLen: userMessage.length,
+        contextUsage: session.contextUsage ?? session.inputUsage ?? 0,
+      });
       const stream = session.promptStreaming(userMessage);
       let assistantContent = "";
 
-      for await (const chunk of stream) {
-        if (chunk) {
-          assistantContent += chunk;
-          yield { type: "data", content: chunk };
+      try {
+        for await (const chunk of stream) {
+          if (chunk) {
+            assistantContent += chunk;
+            yield { type: "data", content: chunk };
+          }
         }
+      } catch (err) {
+        breadcrumb("chrome.prompt.stream.error", {
+          name: err?.name,
+          message: errMessage(err),
+          charsSoFar: assistantContent.length,
+        });
+        throw err;
       }
+      breadcrumb("chrome.prompt.stream.done", {
+        outputChars: assistantContent.length,
+      });
 
       yield {
         type: "done",
@@ -258,17 +287,22 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(userMessage) {
-      const writer = await Writer.create({
-        tone: "neutral",
-        length: "medium",
-        format: "markdown",
-        sharedContext: fullSharedContext,
-        ...WRITER_OPTIONS,
-        outputLanguage: "en",
-        monitor: progressCallback
-          ? createDownloadMonitor(progressCallback)
-          : undefined,
-      });
+      const writer = await wrap(
+        "chrome.writer.create",
+        () =>
+          Writer.create({
+            tone: "neutral",
+            length: "medium",
+            format: "markdown",
+            sharedContext: fullSharedContext,
+            ...WRITER_OPTIONS,
+            outputLanguage: "en",
+            monitor: progressCallback
+              ? createDownloadMonitor(progressCallback)
+              : undefined,
+          }),
+        () => ({ contextLen: fullSharedContext.length }),
+      );
 
       try {
         // New API: measureContextUsage, old: measureInputUsage
@@ -278,15 +312,31 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
         const inputTokens = await measureUsage.call(writer, userMessage, {
           context: "",
         });
+        breadcrumb("chrome.writer.stream.start", {
+          msgLen: userMessage.length,
+          inputTokens,
+        });
         const stream = writer.writeStreaming(userMessage, { context: "" });
         let assistantContent = "";
 
-        for await (const chunk of stream) {
-          if (chunk) {
-            assistantContent += chunk;
-            yield { type: "data", content: chunk };
+        try {
+          for await (const chunk of stream) {
+            if (chunk) {
+              assistantContent += chunk;
+              yield { type: "data", content: chunk };
+            }
           }
+        } catch (err) {
+          breadcrumb("chrome.writer.stream.error", {
+            name: err?.name,
+            message: errMessage(err),
+            charsSoFar: assistantContent.length,
+          });
+          throw err;
         }
+        breadcrumb("chrome.writer.stream.done", {
+          outputChars: assistantContent.length,
+        });
 
         yield {
           type: "done",

@@ -18,7 +18,18 @@ const DEFAULT_SETTINGS = {
   // Experimental settings
   experimentalChat: false,
   experimentalChatConversations: false,
+  // Reasoning models (Qwen3, DeepSeek-R1) emit a <think> block before the answer. Off = ask web-llm
+  // to skip it (faster, cleaner answers); on = let the model reason and view it via the dev-mode
+  // "thinking" icon. No effect on non-reasoning models.
+  enableThinking: false,
   experimentalWebgpuEmbeddings: false,
+  experimentalCrashbox: false,
+  // Off (default) = one web-llm model in memory at a time (switching unloads the previous, which
+  // stays cached on disk for a fast reload). On = keep multiple loaded (faster switching, more OOM risk).
+  experimentalMultipleModels: false,
+  // Optional manual memory-budget override in MB (0/unset = auto-detect from navigator.deviceMemory).
+  // Escape hatch for big desktops where deviceMemory caps at 8 and under-reports true RAM.
+  memoryBudgetMb: 0,
 };
 
 /**

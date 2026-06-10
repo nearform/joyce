@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 import { Link, useSearchParams } from "react-router";
 import { html } from "../util/html.js";
@@ -39,6 +39,7 @@ import { Alert } from "../components/alert.js";
 import { ContextExceededError } from "../components/context-messages.js";
 import { SuggestedQueries } from "../components/suggested-queries.js";
 import { LoadingBubble } from "../components/loading-bubble.js";
+import { parseThinking } from "../util/think.js";
 import { QueryDisplay } from "../components/query-display.js";
 import { Description } from "../components/description.js";
 import {
@@ -124,6 +125,29 @@ const DescriptionButton = () => {
   `;
 };
 
+// One conversation turn. Parses the answer's reasoning once, memoized on the answer text, so a
+// streaming render only re-parses the entry that's actively growing — prior entries' answers are
+// stable, so their memo short-circuits (vs. re-scanning every entry on every token). Gate the answer
+// box on the VISIBLE answer (reasoning stripped): reasoning models stream `<think>…</think>` before
+// any real answer text, so this keeps the loading dots up while the model is only reasoning instead
+// of flashing an empty answer box with action icons.
+const ConversationEntry = ({ entry, onNewConversation }) => {
+  const think = useMemo(() => parseThinking(entry.answer), [entry.answer]);
+  return html`
+    <div className="conversation-entry">
+      <${QueryDisplay} query=${entry.query} />
+      ${entry.isLoading && !think.visible && html`<${LoadingBubble} />`}
+      ${think.visible &&
+      html`<${Answer}
+        answer=${entry.answer}
+        think=${think}
+        queryInfo=${entry.queryInfo}
+        onNewConversation=${onNewConversation}
+      />`}
+    </div>
+  `;
+};
+
 export const Chat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -197,6 +221,7 @@ export const Chat = () => {
     modelResourceId,
     modelStatus,
     conversationsEnabled: settings.experimentalChatConversations,
+    enableThinking: settings.enableThinking,
   });
 
   const handleSubmit = (event) => {
@@ -241,21 +266,12 @@ export const Chat = () => {
       }
 
       ${conversation.map(
-        (entry, idx) => html`
-          <div
+        (entry, idx) =>
+          html`<${ConversationEntry}
             key=${`conversation-entry-${idx}`}
-            className="conversation-entry"
-          >
-            <${QueryDisplay} query=${entry.query} />
-            ${entry.isLoading && !entry.answer && html`<${LoadingBubble} />`}
-            ${entry.answer &&
-            html`<${Answer}
-              answer=${entry.answer}
-              queryInfo=${entry.queryInfo}
-              onNewConversation=${handleReset}
-            />`}
-          </div>
-        `,
+            entry=${entry}
+            onNewConversation=${handleReset}
+          />`,
       )}
 
       <${ContextExceededError}

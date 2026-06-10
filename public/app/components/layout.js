@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router";
 
 import config from "../../config.js";
 import { Menu } from "./menu.js";
@@ -14,6 +19,16 @@ import { Search } from "../pages/search.js";
 import { Chat } from "../pages/chat.js";
 import { Data } from "../pages/data.js";
 import { BASE_PATH } from "../../local/data/util.js";
+import { mergeSnapshot, breadcrumb } from "../../local/data/telemetry.js";
+
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    mergeSnapshot({ route: location.pathname });
+    breadcrumb("route", { path: location.pathname });
+  }, [location.pathname]);
+  return null;
+};
 
 const PAGE_COMPONENTS = {
   Home,
@@ -47,6 +62,7 @@ export const Layout = () => {
   return html`
     <div id="layout" key="layout" className="${active ? "active" : ""}">
       <${Router} basename="${BASE_PATH}">
+        <${RouteTracker} />
         <div ref=${menuRef}>
           <a href="#menu" id="menuLink" className="menu-link" onClick=${toggleMenu}>
             <span></span>

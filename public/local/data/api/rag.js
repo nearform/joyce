@@ -5,6 +5,7 @@ import { search } from "./search.js";
 import { buildContextFromChunks, rebuildContextWithLimit } from "./chat.js";
 import { searchResultsToPosts } from "../../../app/data/util.js";
 import { MIN_CONTEXT_CHUNKS } from "../../../config.js";
+import { wrap } from "../telemetry.js";
 
 /**
  * Perform RAG search and build context for LLM.
@@ -44,14 +45,19 @@ export const performRagSearch = async ({
   metadata.elapsed.search = Date.now() - startTime;
 
   // Step 2: Build context from chunks
-  const contextResult = await buildContextFromChunks({
-    chunks,
-    query,
-    provider,
-    model,
-    forMultiTurn: supportsMultiTurn,
-    isFirstTurn: true,
-  });
+  const contextResult = await wrap(
+    "rag.buildContext",
+    () =>
+      buildContextFromChunks({
+        chunks,
+        query,
+        provider,
+        model,
+        forMultiTurn: supportsMultiTurn,
+        isFirstTurn: true,
+      }),
+    () => ({ chunkCount: chunks.length, model, provider }),
+  );
 
   // Enrich metadata with context info
   metadata.context = contextResult.context;
