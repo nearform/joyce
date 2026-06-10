@@ -8,7 +8,7 @@ import {
   deleteModelCache,
   isLlmCached,
 } from "./api/llm.js";
-import { ALL_CHAT_MODELS } from "../../config.js";
+import { ALL_CHAT_MODELS, usesSingleModelPolicy } from "../../config.js";
 import { breadcrumb, mergeSnapshot, errMessage } from "./telemetry.js";
 import { getSettings } from "../../app/hooks/use-settings.js";
 
@@ -94,11 +94,12 @@ const loadingCallbacks = new Map();
 const loadedData = new Map();
 const loadingProgress = new Map();
 const progressCallbacks = new Map();
-// Serializes default-mode web-llm loads. Clicking a second model while the first is still downloading
-// queues it (waits) instead of aborting the first's download, so several models can be cached to disk
-// back-to-back. Each runs single-model eviction when its turn comes (evict-after-settle), so only one
-// model stays resident. experimentalMultipleModels bypasses this (concurrent loads, no eviction).
-let webLlmLoadQueue = Promise.resolve();
+// Serializes default-mode single-model-policy loads (see SINGLE_MODEL_PROVIDERS). Clicking a second
+// model while the first is still downloading queues it (waits) instead of aborting the first's
+// download, so several models can be cached to disk back-to-back. Each runs single-model eviction
+// when its turn comes (evict-after-settle), so only one model stays resident.
+// experimentalMultipleModels bypasses this (concurrent loads, no eviction).
+let singleModelLoadQueue = Promise.resolve();
 
 /**
  * Get loading status for a resource
@@ -227,17 +228,19 @@ export const subscribeLoadingStatus = (resourceId, callback) => {
 };
 
 /**
- * Single-model policy: free other RESIDENT web-llm chat models before loading a new one, so only one
- * stays in memory (each is unloaded synchronously to avoid a both-resident peak; it stays cached on
- * disk). Because default-mode loads are serialized (see startLoading/webLlmLoadQueue), there is never
- * another web-llm load in flight here — only fully-loaded models are evicted. Scoped to web-llm chat
- * models — the embeddings extractor and Chrome built-in AI are never touched.
+ * Single-model policy: free other RESIDENT single-model-policy chat models before loading a new one,
+ * so only one stays in memory (each is unloaded synchronously to avoid a both-resident peak; it stays
+ * cached on disk). Because default-mode loads are serialized (see startLoading/singleModelLoadQueue),
+ * there is never another such load in flight here — only fully-loaded models are evicted. Scoped to
+ * SINGLE_MODEL_PROVIDERS chat models — the embeddings extractor and OS-managed providers (Chrome
+ * built-in AI) are never touched.
  * @param {string} keepId      Resource id we're keeping (the one being loaded)
  * @param {string} keepModelId Its model id (for the breadcrumb)
  */
-const evictOtherWebLlmModels = async (keepId, keepModelId) => {
+const evictOtherResidentModels = async (keepId, keepModelId) => {
   for (const resource of Object.values(RESOURCES)) {
-    if (resource.kind !== "llm" || resource.provider !== "webLlm") continue;
+    if (resource.kind !== "llm" || !usesSingleModelPolicy(resource.provider))
+      continue;
     if (resource.id === keepId) continue;
     if (getLoadingStatus(resource.id) !== "loaded") continue;
 
@@ -298,14 +301,14 @@ export const deleteResourceCache = async (resourceId) => {
 const runLoad = async (resource) => {
   const { id, get, deps } = resource;
 
-  // Single-model policy (default): free other resident web-llm chat models before allocating this
-  // one. The experimentalMultipleModels setting overrides it to allow stacking.
+  // Single-model policy (default): free other resident single-model-policy chat models before
+  // allocating this one. The experimentalMultipleModels setting overrides it to allow stacking.
   if (
     resource.kind === "llm" &&
-    resource.provider === "webLlm" &&
+    usesSingleModelPolicy(resource.provider) &&
     !getSettings().experimentalMultipleModels
   ) {
-    await evictOtherWebLlmModels(id, resource.modelId);
+    await evictOtherResidentModels(id, resource.modelId);
   }
 
   // Wait for dependencies before starting the timer
@@ -327,10 +330,10 @@ const runLoad = async (resource) => {
 };
 
 /**
- * Start loading a resource. Default-mode web-llm loads are serialized through webLlmLoadQueue so a
- * second click doesn't abort the first's in-flight download — each finishes caching to disk, then
- * single-model eviction frees the previous from memory before the next allocates. Other resources
- * (and multiple-models mode) load directly/concurrently.
+ * Start loading a resource. Default-mode single-model-policy loads are serialized through
+ * singleModelLoadQueue so a second click doesn't abort the first's in-flight download — each finishes
+ * caching to disk, then single-model eviction frees the previous from memory before the next
+ * allocates. Other resources (and multiple-models mode) load directly/concurrently.
  * @param {{ id: string, get: () => Promise<any>, deps?: string[] }} resource
  */
 export const startLoading = async (resource) => {
@@ -344,12 +347,12 @@ export const startLoading = async (resource) => {
 
   const serialize =
     resource.kind === "llm" &&
-    resource.provider === "webLlm" &&
+    usesSingleModelPolicy(resource.provider) &&
     !getSettings().experimentalMultipleModels;
   if (serialize) {
-    const next = webLlmLoadQueue.then(() => runLoad(resource));
+    const next = singleModelLoadQueue.then(() => runLoad(resource));
     // Keep the queue alive even if one load rejects, so later queued loads still run.
-    webLlmLoadQueue = next.catch(() => {});
+    singleModelLoadQueue = next.catch(() => {});
     return next;
   }
   return runLoad(resource);

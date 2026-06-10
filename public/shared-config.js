@@ -160,6 +160,17 @@ export const MEMORY_MANAGED_PROVIDERS = ["webLlm"];
 export const providerManagesMemory = (provider) =>
   MEMORY_MANAGED_PROVIDERS.includes(provider);
 
+// Providers that keep only ONE chat model resident at a time: loading a model evicts this provider's
+// other resident models (single-model eviction), and default-mode loads are serialized so a second
+// click caches-then-evicts instead of stacking two models in memory at once. The
+// experimentalMultipleModels setting overrides this to allow stacking. Distinct from
+// MEMORY_MANAGED_PROVIDERS (which is about whether unload/delete are offered) — a provider could
+// manage its own memory yet still permit multiple resident models. Add future providers here as they
+// gain page-owned engines that need this policy.
+export const SINGLE_MODEL_PROVIDERS = ["webLlm"];
+export const usesSingleModelPolicy = (provider) =>
+  SINGLE_MODEL_PROVIDERS.includes(provider);
+
 export const ALL_CHAT_MODELS = Object.keys(ALL_PROVIDERS).map((provider) => ({
   provider,
   models: config[provider].models.chat,
