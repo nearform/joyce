@@ -85,7 +85,10 @@ export const LoadingButton = ({
   const handleUnload = () => unload(resourceId);
   const handleDelete = () => deleteCache(resourceId);
 
-  const isClickable = loadStatus === "not_loaded" && !forceStatus;
+  // Clickable to start a load from "not_loaded" (incl. cached, whose loadStatus is "not_loaded") and
+  // from "error" — startLoading retries a failed load, matching the models table's error → retry.
+  const isClickable =
+    (loadStatus === "not_loaded" || loadStatus === "error") && !forceStatus;
   const isModel = resourceId?.toLowerCase().startsWith("llm_");
 
   // Look up model metadata for LLM resources
@@ -113,7 +116,9 @@ export const LoadingButton = ({
       : null;
   const primaryTitle = canUnload
     ? "Loaded — click to unload from memory"
-    : title;
+    : loadStatus === "error"
+      ? `${title} — click to retry`
+      : title;
 
   const handleInfoClick = (e) => {
     e.preventDefault();

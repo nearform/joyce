@@ -301,7 +301,7 @@ export const createHandler = async ({
         breadcrumb("web-llm.chat.stream.error", {
           name: err?.name,
           message: errMessage(err),
-          tokensSoFar: assistantContent.length,
+          charsSoFar: assistantContent.length,
         });
         if (isOomError(err)) {
           reportMemoryPressure({

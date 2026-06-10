@@ -236,7 +236,7 @@ const createPromptHandler = async ({
         breadcrumb("chrome.prompt.stream.error", {
           name: err?.name,
           message: errMessage(err),
-          tokensSoFar: assistantContent.length,
+          charsSoFar: assistantContent.length,
         });
         throw err;
       }
@@ -330,7 +330,7 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
           breadcrumb("chrome.writer.stream.error", {
             name: err?.name,
             message: errMessage(err),
-            tokensSoFar: assistantContent.length,
+            charsSoFar: assistantContent.length,
           });
           throw err;
         }
