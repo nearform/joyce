@@ -254,73 +254,75 @@ export const CrashesPanel = () => {
           `
         : html`<p>Telemetry not initialized.</p>`}
 
-      <details style=${{ marginTop: "1rem" }}>
-        <summary>Debug actions</summary>
-        <p style=${{ color: "var(--color-text-muted)" }}>
-          Available on the global <code>window.__crashbox</code> handle:${" "}
-          <code>dump()</code>, <code>clear()</code>, <code>recovered()</code>.
-        </p>
-        <div className="crashes-debug-buttons">
-          <button
-            className="pure-button pure-button-xsmall"
-            onClick=${() =>
-              setInlineView((cur) =>
-                cur?.key === "dump"
-                  ? null
-                  : {
-                      key: "dump",
-                      label: "Full dump",
-                      payload: window.__crashbox?.dump() ?? null,
-                    },
-              )}
-            type="button"
-          >
-            ${inlineView?.key === "dump" ? "Hide dump" : "Show dump"}
-          </button>
-          <button
-            className="pure-button pure-button-xsmall"
-            onClick=${() =>
-              setInlineView((cur) =>
-                cur?.key === "recovered"
-                  ? null
-                  : {
-                      key: "recovered",
-                      label: "Recovered crash",
-                      payload: window.__crashbox?.recovered() ?? null,
-                    },
-              )}
-            type="button"
-          >
-            ${inlineView?.key === "recovered"
-              ? "Hide recovered"
-              : "Show recovered"}
-          </button>
-          <button
-            className="pure-button pure-button-xsmall"
-            onClick=${() =>
-              reportMemoryPressure({
-                level: "critical",
-                source: "joyce-debug",
-                usedBytes: 920 * 1048576,
-                limitBytes: 1024 * 1048576,
-              })}
-            type="button"
-          >
-            Simulate memory pressure
-          </button>
-          <button
-            className="pure-button pure-button-xsmall"
-            onClick=${() => {
-              resetCrashbox();
-              setInlineView(null);
-            }}
-            type="button"
-          >
-            <i className="iconoir-refresh-double"></i>${" "}Reset crashbox
-          </button>
-        </div>
-        ${inlineView !== null && html`<${InlineView} view=${inlineView} />`}
-      </details>
+      <h3>Debug actions</h3>
+      <p style=${{ color: "var(--color-text-muted)" }}>
+        Available on the global <code>window.__crashbox</code> handle:${" "}
+        <code>dump()</code>, <code>clear()</code>, <code>recovered()</code>.
+      </p>
+      <div className="crashes-debug-buttons">
+        <button
+          className="pure-button pure-button-xsmall"
+          onClick=${() =>
+            setInlineView((cur) =>
+              cur?.key === "dump"
+                ? null
+                : {
+                    key: "dump",
+                    label: "Full dump",
+                    payload: window.__crashbox?.dump() ?? null,
+                  },
+            )}
+          type="button"
+        >
+          <i className="iconoir-database"></i>${" "}${inlineView?.key === "dump"
+            ? "Hide dump"
+            : "Show dump"}
+        </button>
+        <button
+          className="pure-button pure-button-xsmall"
+          onClick=${() =>
+            setInlineView((cur) =>
+              cur?.key === "recovered"
+                ? null
+                : {
+                    key: "recovered",
+                    label: "Recovered crash",
+                    payload: window.__crashbox?.recovered() ?? null,
+                  },
+            )}
+          type="button"
+        >
+          <i className="iconoir-restart"></i>${" "}${inlineView?.key ===
+          "recovered"
+            ? "Hide recovered"
+            : "Show recovered"}
+        </button>
+        <button
+          className="pure-button pure-button-xsmall"
+          onClick=${() =>
+            reportMemoryPressure({
+              level: "critical",
+              source: "joyce-debug",
+              usedBytes: 920 * 1048576,
+              limitBytes: 1024 * 1048576,
+            })}
+          type="button"
+        >
+          <i className="iconoir-electronics-chip"></i>${" "}Simulate memory
+          pressure
+        </button>
+        <button
+          className="pure-button pure-button-xsmall"
+          onClick=${() => {
+            resetCrashbox();
+            setInlineView(null);
+          }}
+          type="button"
+        >
+          <i className="iconoir-refresh-double"></i>${" "}Reset crashbox
+        </button>
+      </div>
+      ${inlineView !== null && html`<${InlineView} view=${inlineView} />`}
     </div>
   `;
 };

@@ -2,6 +2,8 @@
  * Shared client configuration. (No secrets, Node.js compatible).
  */
 
+/* global navigator:false */
+
 // Chrome Built-in AI feature detection
 // ## Enabling in Chrome
 // - Prompt: https://developer.chrome.com/docs/ai/prompt-api#use_on_localhost
@@ -12,6 +14,19 @@ export const CHROME_ANY_API_POSSIBLE =
   CHROME_HAS_PROMPT_API || CHROME_HAS_WRITER_API;
 
 export const CHROME_DEFAULT_TOP_K = 40;
+
+// Broad mobile (iOS/Android) detection, evaluated once at load to pick a lighter set of out-of-the-box
+// model tiers. Node-safe: with no `navigator` it falls through to desktop. This mirrors the heuristic
+// in getDeviceInfo() (local/data/util.js) — that remains the runtime source of truth for per-model
+// fit; this is just a coarse build-time switch for which curated defaults we surface.
+const UA = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+const PLATFORM = (typeof navigator !== "undefined" && navigator.platform) || "";
+const MAX_TOUCH_POINTS =
+  (typeof navigator !== "undefined" && navigator.maxTouchPoints) || 0;
+export const IS_MOBILE =
+  /iPad|iPhone|iPod|Android/.test(UA) ||
+  /Mobi/.test(UA) ||
+  (PLATFORM === "MacIntel" && MAX_TOUCH_POINTS > 1); // iPadOS reports as MacIntel
 
 const BASE_PAGES = [
   { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-glasses" },
@@ -75,6 +90,53 @@ export const GEMMA_NANO_MAX_TOKENS = 32768;
 export const GEMMA_NANO_MAX_TOKENS_ADJUSTED_PROMPT = 8192; // Session max input is much smaller, like around 9K on my mac.
 export const GEMMA_NANO_MAX_TOKENS_ADJUSTED_WRITER = 5000; // Session max input around 6K on my mac.
 
+// web-llm curated tiers (Fast / Better / Best), preselected only — no auto-download. Metadata
+// (vramMb, maxTokens) is mutated in from prebuiltAppConfig at load. See config.js.
+//
+// Desktop: capable modern instruct models, Qwen3.5-favored (mirrors recommendations.js ranking).
+const WEB_LLM_CHAT_DESKTOP = [
+  {
+    model: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    modelShortName: "Llama-3.2-1B",
+    shortOption: "Fast",
+    default: !CHROME_ANY_API_POSSIBLE,
+  },
+  {
+    // Reasoning model: emits <think>. Suppressed by default via the "Model Thinking" setting.
+    model: "Qwen3.5-2B-q4f16_1-MLC",
+    modelShortName: "Qwen3.5-2B",
+    shortOption: "Better",
+  },
+  {
+    // Reasoning model: emits <think>. Suppressed by default via the "Model Thinking" setting.
+    model: "Qwen3.5-4B-q4f16_1-MLC",
+    modelShortName: "Qwen3.5-4B",
+    shortOption: "Best",
+  },
+];
+
+// Mobile (iOS/Android): a lighter SmolLM2 → TinyLlama → Llama ladder, all q4f16_1 and <900MB, so the
+// out-of-the-box picks load without risking a Safari tab kill. Larger models stay reachable via the
+// models table; these are just the flagged defaults.
+const WEB_LLM_CHAT_MOBILE = [
+  {
+    model: "SmolLM2-360M-Instruct-q4f16_1-MLC",
+    modelShortName: "SmolLM2-360M",
+    shortOption: "Fast",
+    default: !CHROME_ANY_API_POSSIBLE,
+  },
+  {
+    model: "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+    modelShortName: "TinyLlama-1.1B",
+    shortOption: "Better",
+  },
+  {
+    model: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    modelShortName: "Llama-3.2-1B",
+    shortOption: "Best",
+  },
+];
+
 const config = {
   pages: {
     all: [...BASE_PAGES, ...DEV_ONLY_PAGES],
@@ -117,28 +179,7 @@ const config = {
   // from prebuiltAppConfig. See: https://github.com/mlc-ai/web-llm/blob/main/src/config.ts
   webLlm: {
     models: {
-      // Best-in-class q4f16_1 picks per size tier: half the VRAM of q4f32 at ~equal quality, modern
-      // instruct models, Qwen-favored (mirrors the capability ranking in recommendations.js). Default
-      // is the small/safe "Fast" tier (preselected only — no auto-download); step up explicitly.
-      chat: [
-        {
-          model: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-          modelShortName: "Llama-3.2-1B",
-          shortOption: "Fast",
-          default: !CHROME_ANY_API_POSSIBLE,
-        },
-        {
-          model: "Qwen2.5-3B-Instruct-q4f16_1-MLC",
-          modelShortName: "Qwen2.5-3B",
-          shortOption: "Better",
-        },
-        {
-          // Reasoning model: emits <think>. Suppressed by default via the "Model Thinking" setting.
-          model: "Qwen3-4B-q4f16_1-MLC",
-          modelShortName: "Qwen3-4B",
-          shortOption: "Best",
-        },
-      ],
+      chat: IS_MOBILE ? WEB_LLM_CHAT_MOBILE : WEB_LLM_CHAT_DESKTOP,
     },
   },
 };

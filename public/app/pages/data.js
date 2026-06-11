@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
@@ -365,19 +365,30 @@ const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
 export const Data = () => {
   const [settings] = useSettings();
   const { systemInfo, deviceInfo } = useConfig();
-  const [activeTab, setActiveTab] = useState("resources");
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // The Crashes tab is dev-mode-only; without dev mode the user wouldn't even reach
-  // this page (Data itself is dev-only), but gate the tab anyway so it's explicit.
-  // Also gated on the experimentalCrashbox flag — when off, bootstrap() is skipped at
-  // app boot so there's no telemetry to show.
   const crashboxOn = settings.isDeveloperMode && settings.experimentalCrashbox;
   const tabs = crashboxOn ? [...BASE_TABS, CRASHES_TAB] : BASE_TABS;
+  const defaultTab = tabs[0]?.id ?? "resources";
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && tabs.some((t) => t.id === urlTab)) return urlTab;
+    return defaultTab;
+  });
+
+  useEffect(() => {
+    setSearchParams({ tab: activeTab }, { replace: true });
+  }, [activeTab, setSearchParams]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+  };
 
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
       <p>Data, system information, and AI models used by the app.</p>
-      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${setActiveTab} />
+      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${handleTabChange} />
       ${
         activeTab === "resources" &&
         html`<${ResourcesPanel}
