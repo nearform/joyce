@@ -30,7 +30,7 @@ const buildHeadings = (showFit) => ({
   quantization: "Quant",
   maxTokens: "Tokens",
   vramMb: "VRAM",
-  released: "Released",
+  released: "Date",
   ...(showFit ? { fit: "Fit" } : {}),
   status: "Status",
 });

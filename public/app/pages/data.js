@@ -147,6 +147,20 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
   // actionable. The card is still gated on experimentalChat below.
   const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
 
+  // Chrome built-in AI availability, surfaced alongside the web-llm pick so "Best for this
+  // device" reflects every provider, not just web-llm. Checked only when chat is enabled.
+  const [promptStatus, setPromptStatus] = useState(null);
+  const [writerStatus, setWriterStatus] = useState(null);
+  useEffect(() => {
+    if (!experimentalChat) return;
+    if (CHROME_HAS_PROMPT_API)
+      checkAvailability("prompt").then(setPromptStatus);
+    if (CHROME_HAS_WRITER_API)
+      checkAvailability("writer").then(setWriterStatus);
+  }, [experimentalChat]);
+  const promptBadge = getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus);
+  const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
+
   const embeddingsBadge =
     device === "webgpu"
       ? { label: "WebGPU", className: "status-supported" }
@@ -181,6 +195,10 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           <span className=${`status-badge ${webgpuStatus.className}`}>
             ${webgpuStatus.label}
           </span>
+          ${limits.maxBufferSize != null &&
+          html`<span className="gpu-info">
+            ${formatBytes(limits.maxBufferSize)} VRAM
+          </span>`}
           ${gpuInfo && html`<span className="gpu-info">${gpuInfo}</span>`}
         </div>
 
@@ -244,10 +262,11 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
       html`
         <h3>Best for this device</h3>
         <div className="system-info">
-          ${best
-            ? html`
-                <div className="system-info-row">
-                  <strong>${best.model.model}</strong>
+          <div className="system-info-row">
+            <strong>web-llm:</strong>
+            ${best
+              ? html`
+                  ${best.model.model}
                   ${best.model.vramMb != null &&
                   html`<span className="gpu-info">
                     (${best.model.vramMb} MB VRAM)
@@ -255,7 +274,15 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
                   <span className=${`status-badge ${tierClass(best.fit.tier)}`}>
                     ${tierLabel(best.fit.tier)}
                   </span>
-                </div>
+                `
+              : html`
+                  <span className="status-badge status-unsupported">
+                    No clearly-safe model
+                  </span>
+                `}
+          </div>
+          ${best
+            ? html`
                 <div
                   className="system-info-row"
                   style=${{ color: "var(--color-text-muted)" }}
@@ -264,11 +291,30 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
                 </div>
               `
             : html`
-                <div className="system-info-row">
-                  No clearly-safe model on this device — see the${" "}
-                  <strong>AI Models</strong>${" "}tab for the smallest options.
+                <div
+                  className="system-info-row"
+                  style=${{ color: "var(--color-text-muted)" }}
+                >
+                  See the${" "}<strong>AI Models</strong>${" "}tab for the
+                  smallest options.
                 </div>
               `}
+
+          <div className="system-info-row">
+            <strong>Chrome Prompt API:</strong>
+            <span className=${`status-badge ${promptBadge.className}`}>
+              ${promptBadge.label}
+            </span>
+          </div>
+          <div className="system-info-row">
+            <strong>Chrome Writer API:</strong>
+            <span className=${`status-badge ${writerBadge.className}`}>
+              ${writerBadge.label}
+            </span>
+          </div>
+          ${
+            /* Other providers (e.g. remote APIs) slot in here as they're added. */ ""
+          }
         </div>
       `}
     </div>
