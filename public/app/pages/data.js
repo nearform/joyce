@@ -79,6 +79,25 @@ const getApiStatusBadge = (hasApi, availability) => {
   };
 };
 
+// Resolve Chrome built-in AI (Prompt/Writer) availability into ready-to-render badges.
+// Availability is only probed when chat is enabled and the API is feature-detected as present;
+// on iOS Safari (no built-in AI) this stays inert. Shared by SystemPanel and ModelsPanel.
+const useChromeAiStatus = (experimentalChat) => {
+  const [promptStatus, setPromptStatus] = useState(null);
+  const [writerStatus, setWriterStatus] = useState(null);
+  useEffect(() => {
+    if (!experimentalChat) return;
+    if (CHROME_HAS_PROMPT_API)
+      checkAvailability("prompt").then(setPromptStatus);
+    if (CHROME_HAS_WRITER_API)
+      checkAvailability("writer").then(setWriterStatus);
+  }, [experimentalChat]);
+  return {
+    promptBadge: getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus),
+    writerBadge: getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus),
+  };
+};
+
 const ResourcesPanel = ({ experimentalChat }) => {
   return html`
     <div className="tabs-panel" role="tabpanel" id="tabpanel-resources" aria-labelledby="tab-resources">
@@ -148,18 +167,8 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
   const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
 
   // Chrome built-in AI availability, surfaced alongside the web-llm pick so "Best for this
-  // device" reflects every provider, not just web-llm. Checked only when chat is enabled.
-  const [promptStatus, setPromptStatus] = useState(null);
-  const [writerStatus, setWriterStatus] = useState(null);
-  useEffect(() => {
-    if (!experimentalChat) return;
-    if (CHROME_HAS_PROMPT_API)
-      checkAvailability("prompt").then(setPromptStatus);
-    if (CHROME_HAS_WRITER_API)
-      checkAvailability("writer").then(setWriterStatus);
-  }, [experimentalChat]);
-  const promptBadge = getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus);
-  const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
+  // device" reflects every provider, not just web-llm.
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
 
   const embeddingsBadge =
     device === "webgpu"
@@ -197,7 +206,7 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           </span>
           ${limits.maxBufferSize != null &&
           html`<span className="gpu-info">
-            ${formatBytes(limits.maxBufferSize)} VRAM
+            ${formatBytes(limits.maxBufferSize)} max buffer
           </span>`}
           ${gpuInfo && html`<span className="gpu-info">${gpuInfo}</span>`}
         </div>
@@ -312,9 +321,6 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
               ${writerBadge.label}
             </span>
           </div>
-          ${
-            /* Other providers (e.g. remote APIs) slot in here as they're added. */ ""
-          }
         </div>
       `}
     </div>
@@ -322,23 +328,12 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
 };
 
 const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
-  const [promptStatus, setPromptStatus] = useState(null);
-  const [writerStatus, setWriterStatus] = useState(null);
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
   const { warnings, recovered } = useCrashboxState();
   const fitCtx = useMemo(
     () => ({ systemInfo, deviceInfo, warnings, recovered }),
     [systemInfo, deviceInfo, warnings, recovered],
   );
-
-  useEffect(() => {
-    if (!experimentalChat) return;
-    if (CHROME_HAS_PROMPT_API) {
-      checkAvailability("prompt").then(setPromptStatus);
-    }
-    if (CHROME_HAS_WRITER_API) {
-      checkAvailability("writer").then(setWriterStatus);
-    }
-  }, [experimentalChat]);
 
   if (!experimentalChat) {
     return html`
@@ -354,9 +349,6 @@ const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
   const overallStatus = CHROME_ANY_API_POSSIBLE
     ? { label: "Available", className: "status-supported" }
     : { label: "Not Supported", className: "status-unsupported" };
-
-  const promptBadge = getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus);
-  const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
 
   return html`
     <div
@@ -427,14 +419,10 @@ export const Data = () => {
     setSearchParams({ tab: activeTab }, { replace: true });
   }, [activeTab, setSearchParams]);
 
-  const handleTabChange = (tabId) => {
-    setActiveTab(tabId);
-  };
-
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
       <p>Data, system information, and AI models used by the app.</p>
-      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${handleTabChange} />
+      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${setActiveTab} />
       ${
         activeTab === "resources" &&
         html`<${ResourcesPanel}
