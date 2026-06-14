@@ -415,9 +415,19 @@ export const Data = () => {
     return defaultTab;
   });
 
+  // Keep ?tab= in sync with the active tab. Merge into the existing params (don't clobber
+  // other query keys) and no-op when it already matches, so we don't push a redundant
+  // history/navigation entry on mount or when the tab was seeded from the URL.
   useEffect(() => {
-    setSearchParams({ tab: activeTab }, { replace: true });
-  }, [activeTab, setSearchParams]);
+    if (searchParams.get("tab") === activeTab) return;
+    setSearchParams(
+      (prev) => {
+        prev.set("tab", activeTab);
+        return prev;
+      },
+      { replace: true },
+    );
+  }, [activeTab, searchParams, setSearchParams]);
 
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
