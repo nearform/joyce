@@ -5,6 +5,12 @@ import { Page } from "../components/page.js";
 import { Form, Checkbox } from "../components/forms.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { Alert } from "../components/alert.js";
+import {
+  getStatus as getCrashboxStatus,
+  bootstrap as bootstrapCrashbox,
+  shutdown as shutdownCrashbox,
+  breadcrumb,
+} from "../../local/data/telemetry.js";
 
 // Duration to show success message (in milliseconds)
 const SUCCESS_MESSAGE_DURATION = 3000;
@@ -14,11 +20,29 @@ export const Settings = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [pendingSettings, setPendingSettings] = useState(settings);
+  // Reflects the actual booted state, not the pending toggle — `getStatus()` is null until
+  // crashbox is bootstrapped (at app load, or live via handleSubmit below), and null again after
+  // shutdown. Recomputed each render, so it flips as soon as Save bootstraps/tears down.
+  const crashboxActive = getCrashboxStatus() !== null;
 
   const handleSubmit = (event) => {
     event.preventDefault();
     if (hasChanges) {
       updateSettings(pendingSettings);
+      // Apply the crash-detection toggle live (no reload): bootstrap on enable, tear down on
+      // disable. `settings` still holds the previously-applied value here, so it's the diff base.
+      if (
+        pendingSettings.experimentalCrashbox &&
+        !settings.experimentalCrashbox
+      ) {
+        bootstrapCrashbox();
+        breadcrumb("app:boot");
+      } else if (
+        !pendingSettings.experimentalCrashbox &&
+        settings.experimentalCrashbox
+      ) {
+        shutdownCrashbox();
+      }
       setShowSuccess(true);
       setHasChanges(false);
       // Hide success message after specified duration
@@ -30,6 +54,16 @@ export const Settings = () => {
     const newSettings = {
       ...pendingSettings,
       [settingKey]: event.target.checked,
+    };
+    setPendingSettings(newSettings);
+    setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(settings));
+  };
+
+  const handleNumberChange = (settingKey) => (event) => {
+    const parsed = Number(event.target.value);
+    const newSettings = {
+      ...pendingSettings,
+      [settingKey]: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
     };
     setPendingSettings(newSettings);
     setHasChanges(JSON.stringify(newSettings) !== JSON.stringify(settings));
@@ -116,12 +150,38 @@ export const Settings = () => {
               </${Checkbox}>
 
               <${Checkbox}
+                id="enable-thinking"
+                label="Model Thinking"
+                checked=${pendingSettings.enableThinking}
+                onChange=${handleSettingChange("enableThinking")}
+              >
+                Let reasoning models (e.g. Qwen3) generate their ${"<think>"}
+                chain-of-thought. Off (default) asks web-llm to skip it for
+                faster, cleaner answers. When on, the reasoning is hidden from
+                the answer and viewable via the ${" "}
+                <i className="iconoir-brain"></i> icon under each response.
+              </${Checkbox}>
+
+              <${Checkbox}
                 id="display-model-stats"
                 label="Display Model Stats"
                 checked=${pendingSettings.displayModelStats}
                 onChange=${handleSettingChange("displayModelStats")}
               >
                 Show model token limits and info in the UI.
+              </${Checkbox}>
+
+              <${Checkbox}
+                id="experimental-multiple-models"
+                label="Multiple Models in Memory"
+                checked=${pendingSettings.experimentalMultipleModels}
+                onChange=${handleSettingChange("experimentalMultipleModels")}
+              >
+                Keep more than one LLM loaded in memory at once. Faster
+                switching, but each loaded model adds to GPU/RAM use — higher
+                out-of-memory risk on limited devices. Off (default) keeps one
+                model in memory; switching unloads the previous (it stays cached
+                on disk for a fast reload).
               </${Checkbox}>
 
               <h4>Embeddings</h4>
@@ -134,6 +194,45 @@ export const Settings = () => {
               >
                 Use WebGPU for embeddings extraction when available.
               </${Checkbox}>
+
+              <h4>Diagnostics</h4>
+
+              <${Checkbox}
+                id="experimental-crashbox"
+                label="Crash Detection"
+                checked=${pendingSettings.experimentalCrashbox}
+                onChange=${handleSettingChange("experimentalCrashbox")}
+              >
+                Capture browser crashes, WebGPU device-loss events, and
+                breadcrumbs for recovery on next load. Stores session state in
+                localStorage.${" "}
+                <span
+                  className=${`status-badge ${crashboxActive ? "status-supported" : "status-unsupported"}`}
+                >
+                  ${crashboxActive ? "Active" : "Inactive"}
+                </span>
+              </${Checkbox}>
+
+              <div className="pure-control-group">
+                <label htmlFor="memory-budget-mb">
+                  Memory Budget Override (MB)
+                </label>
+                <input
+                  id="memory-budget-mb"
+                  type="number"
+                  min="0"
+                  step="256"
+                  placeholder="0 = auto-detect"
+                  value=${pendingSettings.memoryBudgetMb || ""}
+                  onChange=${handleNumberChange("memoryBudgetMb")}
+                />
+                ${" "}<span className="pure-form-message">
+                  Manual memory budget for pressure detection. Leave 0 to
+                  auto-detect from the device. Useful on large desktops where
+                  the browser caps reported memory at 8 GB and under-reports
+                  true RAM.
+                </span>
+              </div>
             `
           }
         </fieldset>

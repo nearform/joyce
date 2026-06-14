@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
@@ -21,12 +21,35 @@ import {
 import { useLoading } from "../../local/app/context/loading.js";
 import { getLoadedData } from "../../local/data/loading.js";
 import { checkAvailability } from "../../local/data/api/providers/chrome.js";
+import { CrashesPanel } from "../components/crashes-panel.js";
+import {
+  pickBestModel,
+  tierClass,
+  tierLabel,
+} from "../../local/data/recommendations.js";
+import { useCrashbox } from "../hooks/use-crashbox.js";
 
-const TABS = [
+const BASE_TABS = [
   { id: "resources", label: "Resources", icon: "iconoir-database" },
   { id: "system", label: "System", icon: "iconoir-cpu" },
   { id: "models", label: "AI Models", icon: "iconoir-brain" },
 ];
+const CRASHES_TAB = {
+  id: "crashes",
+  label: "Crashes",
+  icon: "iconoir-warning-triangle",
+};
+
+// Stable reference for the "no warnings" case so fitCtx memoization below doesn't invalidate every
+// render (a fresh `[]` each call would change identity and defeat the useMemo).
+const EMPTY_WARNINGS = [];
+
+// The live `{ warnings, recovered }` state used to drive the device-fit recommendations. Re-renders
+// (via useCrashbox) when crashbox emits a warning or a recovery is dismissed.
+const useCrashboxState = () => {
+  const { recovered, status } = useCrashbox();
+  return { warnings: status?.warnings ?? EMPTY_WARNINGS, recovered };
+};
 
 // Get model short name from resource id (provider-agnostic)
 const modelShortName = (modelId) => {
@@ -53,6 +76,25 @@ const getApiStatusBadge = (hasApi, availability) => {
   return {
     label: availability.reason || "Unavailable",
     className: "status-unsupported",
+  };
+};
+
+// Resolve Chrome built-in AI (Prompt/Writer) availability into ready-to-render badges.
+// Availability is only probed when chat is enabled and the API is feature-detected as present;
+// on iOS Safari (no built-in AI) this stays inert. Shared by SystemPanel and ModelsPanel.
+const useChromeAiStatus = (experimentalChat) => {
+  const [promptStatus, setPromptStatus] = useState(null);
+  const [writerStatus, setWriterStatus] = useState(null);
+  useEffect(() => {
+    if (!experimentalChat) return;
+    if (CHROME_HAS_PROMPT_API)
+      checkAvailability("prompt").then(setPromptStatus);
+    if (CHROME_HAS_WRITER_API)
+      checkAvailability("writer").then(setWriterStatus);
+  }, [experimentalChat]);
+  return {
+    promptBadge: getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus),
+    writerBadge: getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus),
   };
 };
 
@@ -92,13 +134,41 @@ const ResourcesPanel = ({ experimentalChat }) => {
   `;
 };
 
-const SystemPanel = ({ systemInfo }) => {
+const deviceClassLabel = (deviceInfo) => {
+  if (!deviceInfo) return "Unknown";
+  const platform = deviceInfo.isIOS
+    ? "iOS"
+    : deviceInfo.isAndroid
+      ? "Android"
+      : "Desktop";
+  const browser = deviceInfo.isSafari
+    ? "Safari"
+    : deviceInfo.isChrome
+      ? "Chrome"
+      : "Other";
+  const form = deviceInfo.isMobile ? "Mobile" : "Desktop";
+  return `${form} / ${platform} / ${browser}`;
+};
+
+const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
   const { webgpu, limits, gpuInfo, ramGb } = systemInfo;
   const { getStatus } = useLoading();
   const extractorStatus = getStatus(LOADING.EXTRACTOR);
   const extractor =
     extractorStatus === "loaded" ? getLoadedData(LOADING.EXTRACTOR) : null;
   const device = extractor?._device ?? null;
+  const { warnings, recovered } = useCrashboxState();
+  const fitCtx = useMemo(
+    () => ({ systemInfo, deviceInfo, warnings, recovered }),
+    [systemInfo, deviceInfo, warnings, recovered],
+  );
+  // Pick the best model only when chat is enabled — otherwise the recommendation isn't
+  // actionable. The card is still gated on experimentalChat below.
+  const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
+
+  // Chrome built-in AI availability, surfaced alongside the web-llm pick so "Best for this
+  // device" reflects every provider, not just web-llm.
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
 
   const embeddingsBadge =
     device === "webgpu"
@@ -123,17 +193,29 @@ const SystemPanel = ({ systemInfo }) => {
       id="tabpanel-system"
       aria-labelledby="tab-system"
     >
+      <h3>Device Profile</h3>
       <div className="system-info">
+        <div className="system-info-row">
+          <strong>Class:</strong> ${deviceClassLabel(deviceInfo)}
+        </div>
+
         <div className="system-info-row">
           <strong>WebGPU:</strong>
           <span className=${`status-badge ${webgpuStatus.className}`}>
             ${webgpuStatus.label}
           </span>
+          ${limits.maxBufferSize != null &&
+          html`<span className="gpu-info">
+            ${formatBytes(limits.maxBufferSize)} max buffer
+          </span>`}
           ${gpuInfo && html`<span className="gpu-info">${gpuInfo}</span>`}
         </div>
 
         <div className="system-info-row">
-          <strong>System RAM:</strong> ${ramGb != null ? `${ramGb} GB` : "N/A"}
+          <strong>System RAM:</strong>${" "}
+          ${ramGb != null
+            ? `${ramGb} GB`
+            : "Unknown (iOS Safari does not expose deviceMemory)"}
         </div>
 
         <div className="system-info-row">
@@ -141,6 +223,17 @@ const SystemPanel = ({ systemInfo }) => {
           <span className=${`status-badge ${embeddingsBadge.className}`}>
             ${embeddingsBadge.label}
           </span>
+        </div>
+
+        <div className="system-info-row">
+          <strong>Cache backend:</strong>${" "}
+          <span
+            className=${`status-badge ${useIndexedDBCache ? "status-warning" : "status-supported"}`}
+          >
+            ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
+          </span>
+          ${useIndexedDBCache &&
+          html`<span className="gpu-info">(common on iOS Safari)</span>`}
         </div>
 
         ${webgpu.adapterAvailable &&
@@ -173,23 +266,74 @@ const SystemPanel = ({ systemInfo }) => {
           </details>
         `}
       </div>
+
+      ${experimentalChat &&
+      html`
+        <h3>Best for this device</h3>
+        <div className="system-info">
+          <div className="system-info-row">
+            <strong>web-llm:</strong>
+            ${best
+              ? html`
+                  ${best.model.model}
+                  ${best.model.vramMb != null &&
+                  html`<span className="gpu-info">
+                    (${best.model.vramMb} MB VRAM)
+                  </span>`}
+                  <span className=${`status-badge ${tierClass(best.fit.tier)}`}>
+                    ${tierLabel(best.fit.tier)}
+                  </span>
+                `
+              : html`
+                  <span className="status-badge status-unsupported">
+                    No clearly-safe model
+                  </span>
+                `}
+          </div>
+          ${best
+            ? html`
+                <div
+                  className="system-info-row"
+                  style=${{ color: "var(--color-text-muted)" }}
+                >
+                  ${best.fit.reasons.join(" ")}
+                </div>
+              `
+            : html`
+                <div
+                  className="system-info-row"
+                  style=${{ color: "var(--color-text-muted)" }}
+                >
+                  See the${" "}<strong>AI Models</strong>${" "}tab for the
+                  smallest options.
+                </div>
+              `}
+
+          <div className="system-info-row">
+            <strong>Chrome Prompt API:</strong>
+            <span className=${`status-badge ${promptBadge.className}`}>
+              ${promptBadge.label}
+            </span>
+          </div>
+          <div className="system-info-row">
+            <strong>Chrome Writer API:</strong>
+            <span className=${`status-badge ${writerBadge.className}`}>
+              ${writerBadge.label}
+            </span>
+          </div>
+        </div>
+      `}
     </div>
   `;
 };
 
-const ModelsPanel = ({ experimentalChat }) => {
-  const [promptStatus, setPromptStatus] = useState(null);
-  const [writerStatus, setWriterStatus] = useState(null);
-
-  useEffect(() => {
-    if (!experimentalChat) return;
-    if (CHROME_HAS_PROMPT_API) {
-      checkAvailability("prompt").then(setPromptStatus);
-    }
-    if (CHROME_HAS_WRITER_API) {
-      checkAvailability("writer").then(setWriterStatus);
-    }
-  }, [experimentalChat]);
+const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
+  const { warnings, recovered } = useCrashboxState();
+  const fitCtx = useMemo(
+    () => ({ systemInfo, deviceInfo, warnings, recovered }),
+    [systemInfo, deviceInfo, warnings, recovered],
+  );
 
   if (!experimentalChat) {
     return html`
@@ -205,9 +349,6 @@ const ModelsPanel = ({ experimentalChat }) => {
   const overallStatus = CHROME_ANY_API_POSSIBLE
     ? { label: "Available", className: "status-supported" }
     : { label: "Not Supported", className: "status-unsupported" };
-
-  const promptBadge = getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus);
-  const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
 
   return html`
     <div
@@ -254,20 +395,44 @@ const ModelsPanel = ({ experimentalChat }) => {
         the model is loaded in memory, currently loading, or available for
         download.
       </p>
-      <${ModelsTable} models=${MODELS} />
+      <${ModelsTable} models=${MODELS} fitCtx=${fitCtx} />
     </div>
   `;
 };
 
 export const Data = () => {
   const [settings] = useSettings();
-  const { systemInfo } = useConfig();
-  const [activeTab, setActiveTab] = useState("resources");
+  const { systemInfo, deviceInfo } = useConfig();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const crashboxOn = settings.isDeveloperMode && settings.experimentalCrashbox;
+  const tabs = crashboxOn ? [...BASE_TABS, CRASHES_TAB] : BASE_TABS;
+  const defaultTab = tabs[0]?.id ?? "resources";
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && tabs.some((t) => t.id === urlTab)) return urlTab;
+    return defaultTab;
+  });
+
+  // Keep ?tab= in sync with the active tab. Merge into the existing params (don't clobber
+  // other query keys) and no-op when it already matches, so we don't push a redundant
+  // history/navigation entry on mount or when the tab was seeded from the URL.
+  useEffect(() => {
+    if (searchParams.get("tab") === activeTab) return;
+    setSearchParams(
+      (prev) => {
+        prev.set("tab", activeTab);
+        return prev;
+      },
+      { replace: true },
+    );
+  }, [activeTab, searchParams, setSearchParams]);
 
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">
       <p>Data, system information, and AI models used by the app.</p>
-      <${Tabs} tabs=${TABS} activeTab=${activeTab} onTabChange=${setActiveTab} />
+      <${Tabs} tabs=${tabs} activeTab=${activeTab} onTabChange=${setActiveTab} />
       ${
         activeTab === "resources" &&
         html`<${ResourcesPanel}
@@ -276,12 +441,21 @@ export const Data = () => {
       }
       ${
         activeTab === "system" &&
-        html`<${SystemPanel} systemInfo=${systemInfo} />`
+        html`<${SystemPanel}
+          systemInfo=${systemInfo}
+          deviceInfo=${deviceInfo}
+          experimentalChat=${settings.experimentalChat}
+        />`
       }
       ${
         activeTab === "models" &&
-        html`<${ModelsPanel} experimentalChat=${settings.experimentalChat} />`
+        html`<${ModelsPanel}
+          experimentalChat=${settings.experimentalChat}
+          systemInfo=${systemInfo}
+          deviceInfo=${deviceInfo}
+        />`
       }
+      ${activeTab === "crashes" && crashboxOn && html`<${CrashesPanel} />`}
     </${Page}>
   `;
 };

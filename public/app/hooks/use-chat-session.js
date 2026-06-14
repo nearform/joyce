@@ -38,6 +38,7 @@ export const useChatSession = ({
   modelResourceId,
   modelStatus,
   conversationsEnabled: conversationsEnabledSetting,
+  enableThinking,
 }) => {
   // ============================================================================
   // State Management
@@ -197,6 +198,7 @@ export const useChatSession = ({
         provider: modelObj.provider,
         model: modelObj.model,
         temperature,
+        enableThinking,
       });
 
       let usage = null;

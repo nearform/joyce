@@ -390,6 +390,11 @@ const MODEL_STATUS_CONFIG = {
     cls: "loading-status-loaded",
     title: "Loaded",
   },
+  cached: {
+    icon: "iconoir-database",
+    cls: "loading-status-cached",
+    title: "Cached on disk",
+  },
   error: {
     icon: "iconoir-warning-circle-solid",
     cls: "loading-status-error",
@@ -438,7 +443,7 @@ export const ModelChatSelect = ({
 }) => {
   const [settings] = useSettings();
   const { isDeveloperMode, displayModelStats } = settings;
-  const { getStatus } = useLoading();
+  const { getStatus, getCached } = useLoading();
   const [budgetMb, setBudgetMb] = useState(null);
 
   useEffect(() => {
@@ -520,7 +525,11 @@ export const ModelChatSelect = ({
   // Custom format for options showing status icon
   const formatOptionLabel = (option) => {
     const modelId = option.model;
-    const status = modelId ? getStatus(`llm_${modelId}`) : "not_loaded";
+    const loadStatus = modelId ? getStatus(`llm_${modelId}`) : "not_loaded";
+    const status =
+      loadStatus === "not_loaded" && modelId && getCached(`llm_${modelId}`)
+        ? "cached"
+        : loadStatus;
     const downloadSizeMb = option.downloadSizeMb;
     const overBudget =
       budgetMb != null && downloadSizeMb != null && downloadSizeMb > budgetMb;

@@ -1,5 +1,9 @@
 /* global URLSearchParams:false */
-import { DEFAULT_CHAT_MODEL, DEFAULT_TEMPERATURE } from "../../config.js";
+import {
+  DEFAULT_CHAT_MODEL,
+  DEFAULT_TEMPERATURE,
+  getProviderForModel,
+} from "../../config.js";
 
 const MODEL_SEP = "::";
 
@@ -42,6 +46,11 @@ export const parseModel = (
   if (!value || !value.includes(MODEL_SEP)) return fallback;
   const [provider, model] = value.split(MODEL_SEP);
   if (!provider || !model) return fallback;
+  // Only honor models that are actually registered under the claimed provider.
+  // getModelCfg() throws on unknown models, so a stale/shared URL pointing at a
+  // model that's no longer curated (or never registered this session) must fall
+  // back to the default rather than crash the chat page.
+  if (getProviderForModel(model) !== provider) return fallback;
   return { provider, model };
 };
 

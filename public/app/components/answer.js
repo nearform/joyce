@@ -1,7 +1,9 @@
-import { useState, Fragment } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { html, openTextInNewWindow } from "../util/html.js";
+import { parseThinking } from "../util/think.js";
+import { CopyButton } from "./copy-button.js";
 import { useSettings } from "../hooks/use-settings.js";
 import { ALL_PROVIDERS, getModelCfg } from "../../config.js";
 import { formatInt, formatFloat, formatElapsed } from "../../shared-util.js";
@@ -48,6 +50,31 @@ const PromptDataLink = ({ data }) => {
       aria-label="Open full prompt as JSON"
     >
       <i className="iconoir-message-text"></i>
+    </button>
+  `;
+};
+
+/**
+ * Icon link that opens the model's `<think>` reasoning in a new page. Only rendered when the
+ * answer actually carries reasoning (i.e. `thinking` is non-empty).
+ */
+const ThinkingDataLink = ({ thinking }) => {
+  if (!thinking) return null;
+
+  const handleOpen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openTextInNewWindow(thinking);
+  };
+
+  return html`
+    <button
+      className="answer-actions-btn"
+      onClick=${handleOpen}
+      title="Open model reasoning (<think>)"
+      aria-label="Open model reasoning"
+    >
+      <i className="iconoir-brain"></i>
     </button>
   `;
 };
@@ -265,45 +292,30 @@ const QueryInfo = ({
   `;
 };
 
-/* global navigator:false, setTimeout:false */
-
-const CopyButton = ({ text }) => {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard write failed (e.g. permissions denied)
-    }
-  };
-  return html`
-    <button
-      className="answer-actions-btn"
-      onClick=${handleCopy}
-      title=${copied ? "Copied!" : "Copy to clipboard"}
-      aria-label=${copied ? "Copied!" : "Copy to clipboard"}
-    >
-      <i className=${copied ? "iconoir-check" : "iconoir-copy"}></i>
-    </button>
-  `;
-};
-
-export const Answer = ({ answer, queryInfo, onNewConversation }) => {
+export const Answer = ({ answer, think, queryInfo, onNewConversation }) => {
   const [isRaw, setIsRaw] = useState(false);
   const [settings] = useSettings();
   const { isDeveloperMode } = settings;
 
+  // Reasoning models wrap chain-of-thought in <think>…</think>; keep it out of the visible answer
+  // (and the copy button) — it's surfaced separately via the dev-mode ThinkingDataLink. Reuse the
+  // parse the caller already memoized (chat passes it per entry); otherwise parse here, memoized on
+  // `answer`, so the component stays correct and cheap for any other caller.
+  const parsed = useMemo(() => think ?? parseThinking(answer), [think, answer]);
+  const visibleAnswer = parsed.visible;
+
   let answerSection;
   if (isRaw && isDeveloperMode) {
     answerSection = html`<div className="answer-raw">
-      ${answer
+      ${visibleAnswer
         .split("\n")
         .map((par, i) => html`<p key=${`answer-par-${i}`}>${par}</p>`)}
     </div>`;
   } else {
-    const renderedHtml = marked.parse(answer, { breaks: true, gfm: true });
+    const renderedHtml = marked.parse(visibleAnswer, {
+      breaks: true,
+      gfm: true,
+    });
     const sanitizedHtml = DOMPurify.sanitize(renderedHtml);
     answerSection = html`
       <div
@@ -322,6 +334,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
         ${isDeveloperMode && queryInfo && html`<${QueryInfo} ...${queryInfo} />`}
         ${isDeveloperMode && queryInfo?.prompt && html`<${PromptDataLink} data=${queryInfo.prompt} />`}
         ${isDeveloperMode && queryInfo?.rawContext && html`<${ContextDataLink} data=${queryInfo.rawContext} />`}
+        ${isDeveloperMode && html`<${ThinkingDataLink} thinking=${parsed.thinking} />`}
         ${
           isDeveloperMode &&
           html`
@@ -335,7 +348,7 @@ export const Answer = ({ answer, queryInfo, onNewConversation }) => {
             </button>
           `
         }
-        <${CopyButton} text=${answer} />
+        <${CopyButton} text=${visibleAnswer} />
       </div>
       <${ContextLimitWarning}
         finishReason=${queryInfo?.finishReason}
