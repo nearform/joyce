@@ -1457,6 +1457,12 @@ button.loading-status-icon-button {
   margin-bottom: 0.75em;
 }
 
+.crashes-debug-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
 /* Wraps the dump so the copy button can sit in its top-right corner. */
 .crashes-dump-wrap {
   position: relative;

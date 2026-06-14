@@ -228,4 +228,4 @@ export const tierClass = (tier) =>
  * @param {Fit["tier"]} tier
  */
 export const tierLabel = (tier) =>
-  tier === "safe" ? "Safe" : tier === "risky" ? "Caution" : "Unsupported";
+  tier === "safe" ? "Safe" : tier === "risky" ? "Caution" : "Over";

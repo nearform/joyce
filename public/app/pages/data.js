@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { html } from "../util/html.js";
 import { Page } from "../components/page.js";
 import { Tabs } from "../components/tabs.js";
@@ -79,6 +79,25 @@ const getApiStatusBadge = (hasApi, availability) => {
   };
 };
 
+// Resolve Chrome built-in AI (Prompt/Writer) availability into ready-to-render badges.
+// Availability is only probed when chat is enabled and the API is feature-detected as present;
+// on iOS Safari (no built-in AI) this stays inert. Shared by SystemPanel and ModelsPanel.
+const useChromeAiStatus = (experimentalChat) => {
+  const [promptStatus, setPromptStatus] = useState(null);
+  const [writerStatus, setWriterStatus] = useState(null);
+  useEffect(() => {
+    if (!experimentalChat) return;
+    if (CHROME_HAS_PROMPT_API)
+      checkAvailability("prompt").then(setPromptStatus);
+    if (CHROME_HAS_WRITER_API)
+      checkAvailability("writer").then(setWriterStatus);
+  }, [experimentalChat]);
+  return {
+    promptBadge: getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus),
+    writerBadge: getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus),
+  };
+};
+
 const ResourcesPanel = ({ experimentalChat }) => {
   return html`
     <div className="tabs-panel" role="tabpanel" id="tabpanel-resources" aria-labelledby="tab-resources">
@@ -147,6 +166,10 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
   // actionable. The card is still gated on experimentalChat below.
   const best = experimentalChat ? pickBestModel(MODELS, fitCtx) : null;
 
+  // Chrome built-in AI availability, surfaced alongside the web-llm pick so "Best for this
+  // device" reflects every provider, not just web-llm.
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
+
   const embeddingsBadge =
     device === "webgpu"
       ? { label: "WebGPU", className: "status-supported" }
@@ -181,6 +204,10 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           <span className=${`status-badge ${webgpuStatus.className}`}>
             ${webgpuStatus.label}
           </span>
+          ${limits.maxBufferSize != null &&
+          html`<span className="gpu-info">
+            ${formatBytes(limits.maxBufferSize)} max buffer
+          </span>`}
           ${gpuInfo && html`<span className="gpu-info">${gpuInfo}</span>`}
         </div>
 
@@ -244,10 +271,11 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
       html`
         <h3>Best for this device</h3>
         <div className="system-info">
-          ${best
-            ? html`
-                <div className="system-info-row">
-                  <strong>${best.model.model}</strong>
+          <div className="system-info-row">
+            <strong>web-llm:</strong>
+            ${best
+              ? html`
+                  ${best.model.model}
                   ${best.model.vramMb != null &&
                   html`<span className="gpu-info">
                     (${best.model.vramMb} MB VRAM)
@@ -255,7 +283,15 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
                   <span className=${`status-badge ${tierClass(best.fit.tier)}`}>
                     ${tierLabel(best.fit.tier)}
                   </span>
-                </div>
+                `
+              : html`
+                  <span className="status-badge status-unsupported">
+                    No clearly-safe model
+                  </span>
+                `}
+          </div>
+          ${best
+            ? html`
                 <div
                   className="system-info-row"
                   style=${{ color: "var(--color-text-muted)" }}
@@ -264,11 +300,27 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
                 </div>
               `
             : html`
-                <div className="system-info-row">
-                  No clearly-safe model on this device — see the${" "}
-                  <strong>AI Models</strong>${" "}tab for the smallest options.
+                <div
+                  className="system-info-row"
+                  style=${{ color: "var(--color-text-muted)" }}
+                >
+                  See the${" "}<strong>AI Models</strong>${" "}tab for the
+                  smallest options.
                 </div>
               `}
+
+          <div className="system-info-row">
+            <strong>Chrome Prompt API:</strong>
+            <span className=${`status-badge ${promptBadge.className}`}>
+              ${promptBadge.label}
+            </span>
+          </div>
+          <div className="system-info-row">
+            <strong>Chrome Writer API:</strong>
+            <span className=${`status-badge ${writerBadge.className}`}>
+              ${writerBadge.label}
+            </span>
+          </div>
         </div>
       `}
     </div>
@@ -276,23 +328,12 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
 };
 
 const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
-  const [promptStatus, setPromptStatus] = useState(null);
-  const [writerStatus, setWriterStatus] = useState(null);
+  const { promptBadge, writerBadge } = useChromeAiStatus(experimentalChat);
   const { warnings, recovered } = useCrashboxState();
   const fitCtx = useMemo(
     () => ({ systemInfo, deviceInfo, warnings, recovered }),
     [systemInfo, deviceInfo, warnings, recovered],
   );
-
-  useEffect(() => {
-    if (!experimentalChat) return;
-    if (CHROME_HAS_PROMPT_API) {
-      checkAvailability("prompt").then(setPromptStatus);
-    }
-    if (CHROME_HAS_WRITER_API) {
-      checkAvailability("writer").then(setWriterStatus);
-    }
-  }, [experimentalChat]);
 
   if (!experimentalChat) {
     return html`
@@ -308,9 +349,6 @@ const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
   const overallStatus = CHROME_ANY_API_POSSIBLE
     ? { label: "Available", className: "status-supported" }
     : { label: "Not Supported", className: "status-unsupported" };
-
-  const promptBadge = getApiStatusBadge(CHROME_HAS_PROMPT_API, promptStatus);
-  const writerBadge = getApiStatusBadge(CHROME_HAS_WRITER_API, writerStatus);
 
   return html`
     <div
@@ -365,14 +403,31 @@ const ModelsPanel = ({ experimentalChat, systemInfo, deviceInfo }) => {
 export const Data = () => {
   const [settings] = useSettings();
   const { systemInfo, deviceInfo } = useConfig();
-  const [activeTab, setActiveTab] = useState("resources");
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // The Crashes tab is dev-mode-only; without dev mode the user wouldn't even reach
-  // this page (Data itself is dev-only), but gate the tab anyway so it's explicit.
-  // Also gated on the experimentalCrashbox flag — when off, bootstrap() is skipped at
-  // app boot so there's no telemetry to show.
   const crashboxOn = settings.isDeveloperMode && settings.experimentalCrashbox;
   const tabs = crashboxOn ? [...BASE_TABS, CRASHES_TAB] : BASE_TABS;
+  const defaultTab = tabs[0]?.id ?? "resources";
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && tabs.some((t) => t.id === urlTab)) return urlTab;
+    return defaultTab;
+  });
+
+  // Keep ?tab= in sync with the active tab. Merge into the existing params (don't clobber
+  // other query keys) and no-op when it already matches, so we don't push a redundant
+  // history/navigation entry on mount or when the tab was seeded from the URL.
+  useEffect(() => {
+    if (searchParams.get("tab") === activeTab) return;
+    setSearchParams(
+      (prev) => {
+        prev.set("tab", activeTab);
+        return prev;
+      },
+      { replace: true },
+    );
+  }, [activeTab, searchParams, setSearchParams]);
 
   return html`
     <${Page} name="Data & Models" icon="iconoir-cpu">

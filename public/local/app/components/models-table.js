@@ -30,6 +30,7 @@ const buildHeadings = (showFit) => ({
   quantization: "Quant",
   maxTokens: "Tokens",
   vramMb: "VRAM",
+  released: "Date",
   ...(showFit ? { fit: "Fit" } : {}),
   status: "Status",
 });
@@ -39,6 +40,7 @@ const COLUMN_INFO = {
   quantization: "Quantization format",
   maxTokens: "Context window size",
   vramMb: "GPU memory required",
+  released: "Approximate model family release date",
   fit: "Estimated fit for this device",
   status: "Loading status (click to load)",
 };
@@ -249,6 +251,7 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
                   quantization,
                   maxTokens,
                   vramMb,
+                  released,
                   resourceId,
                   status,
                   progress,
@@ -284,6 +287,7 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
                     <td>${quantization ?? "—"}</td>
                     <td>${maxTokens ?? "—"}</td>
                     <td>${vramMb ?? "—"}</td>
+                    <td>${released ?? "—"}</td>
                     ${showFit &&
                     html`<td>
                       <span
