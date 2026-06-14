@@ -226,7 +226,7 @@ export const Settings = () => {
                   value=${pendingSettings.memoryBudgetMb || ""}
                   onChange=${handleNumberChange("memoryBudgetMb")}
                 />
-                <span className="pure-form-message">
+                ${" "}<span className="pure-form-message">
                   Manual memory budget for pressure detection. Leave 0 to
                   auto-detect from the device. Useful on large desktops where
                   the browser caps reported memory at 8 GB and under-reports

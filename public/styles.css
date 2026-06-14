@@ -322,6 +322,13 @@
   margin: 10px 0;
   font-weight: normal;
 }
+/* Default checkbox vertical margins + baseline alignment inflate the first
+   wrapped line's box, opening a larger gap before line two. Zero the margins
+   and center it so the first line matches the rest. */
+.pure-form fieldset .pure-checkbox input[type="checkbox"] {
+  vertical-align: middle;
+  margin: 0 0.4em 0 0;
+}
 @media only screen and (max-width: 480px) {
   .pure-form button[type="submit"] {
     margin: 5px 10px 10px 0;
