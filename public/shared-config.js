@@ -44,6 +44,17 @@ export const TOKEN_CUSHION_CHAT = 512; // 250 ok for web-llm
 export const TOKEN_CUSHION_EMBEDDINGS = 25;
 export const MAX_OUTPUT_TOKENS = 1024; // Limit LLM response length
 
+// web-llm sampling penalties (OpenAI-style, range -2..2). Small models (e.g. SmolLM2, TinyLlama)
+// are prone to looping / never emitting EOS; a modest penalty curbs runaway repetition. Capable
+// models are largely unaffected at these levels. Tune here.
+export const WEB_LLM_FREQUENCY_PENALTY = 0.4;
+export const WEB_LLM_PRESENCE_PENALTY = 0.2;
+
+// System-prompt tier split. Models whose context window is below this get the LEAN system
+// prompt (smaller, so more room for RAG chunks); models at/above it get the FULL prompt
+// (lean core + extra guidance + a few-shot example). See buildSystemPrompt in prompts.js.
+export const LEAN_PROMPT_MAX_TOKENS = 4096;
+
 // When false: token limit checks warn and proceed, letting real API errors occur
 // When true: token limit checks throw errors immediately (current behavior)
 export const THROW_ON_TOKEN_LIMIT = false;
@@ -118,17 +129,23 @@ const WEB_LLM_CHAT_DESKTOP = [
 // Mobile (iOS/Android): a lighter SmolLM2 → TinyLlama → Llama ladder, all q4f16_1 and <900MB, so the
 // out-of-the-box picks load without risking a Safari tab kill. Larger models stay reachable via the
 // models table; these are just the flagged defaults.
+//
+// The default is TinyLlama-1.1B: at 2K context it lands on the LEAN prompt tier, but even so it is
+// closer to correct (grounding, citing, stopping) than the 360M option. SmolLM2-360M stays as the
+// lightest "Fast" pick for the most memory-constrained devices, but it is below the floor for grounded
+// RAG — it won't reliably cite sources, honor brand casing, or stay on-context, regardless of prompt.
+// For citation-grade answers prefer TinyLlama-1.1B+ (or desktop Qwen/Llama, or Chrome's gemini-nano).
 const WEB_LLM_CHAT_MOBILE = [
   {
     model: "SmolLM2-360M-Instruct-q4f16_1-MLC",
     modelShortName: "SmolLM2-360M",
     shortOption: "Fast",
-    default: !CHROME_ANY_API_POSSIBLE,
   },
   {
     model: "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
     modelShortName: "TinyLlama-1.1B",
     shortOption: "Better",
+    default: !CHROME_ANY_API_POSSIBLE,
   },
   {
     model: "Llama-3.2-1B-Instruct-q4f16_1-MLC",

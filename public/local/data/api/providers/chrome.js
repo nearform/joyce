@@ -161,9 +161,15 @@ export const getCapabilities = (model) => ({
  * @param {string} options.model - Model ID (determines prompt vs writer API)
  * @param {string} options.systemContext - RAG context for system prompt
  * @param {number} options.temperature - Sampling temperature
+ * @param {number} [options.maxTokens] - Model context window; selects LEAN vs FULL system prompt
  * @returns {Promise<Object>} Handler with sendMessage(userMessage) and destroy()
  */
-export const createHandler = async ({ model, systemContext, temperature }) => {
+export const createHandler = async ({
+  model,
+  systemContext,
+  temperature,
+  maxTokens,
+}) => {
   const apiType = getApiType(model);
   const progressCallback = modelState.get(model)?.progressCallback ?? null;
 
@@ -172,9 +178,10 @@ export const createHandler = async ({ model, systemContext, temperature }) => {
       systemContext,
       temperature,
       progressCallback,
+      maxTokens,
     });
   } else {
-    return createWriterHandler({ systemContext, progressCallback });
+    return createWriterHandler({ systemContext, progressCallback, maxTokens });
   }
 };
 
@@ -185,6 +192,7 @@ const createPromptHandler = async ({
   systemContext,
   temperature,
   progressCallback,
+  maxTokens,
 }) => {
   const status = await checkAvailability("prompt");
   if (!status.available && !status.downloading) {
@@ -194,7 +202,7 @@ const createPromptHandler = async ({
     );
   }
 
-  const initialPrompts = buildBasePrompts(systemContext);
+  const initialPrompts = buildBasePrompts(systemContext, "", { maxTokens });
 
   const session = await wrap(
     "chrome.prompt.create",
@@ -267,7 +275,11 @@ const createPromptHandler = async ({
 /**
  * Create a Writer API handler (single-turn).
  */
-const createWriterHandler = async ({ systemContext, progressCallback }) => {
+const createWriterHandler = async ({
+  systemContext,
+  progressCallback,
+  maxTokens,
+}) => {
   const status = await checkAvailability("writer");
   if (!status.available && !status.downloading) {
     throw new Error(
@@ -276,7 +288,7 @@ const createWriterHandler = async ({ systemContext, progressCallback }) => {
     );
   }
 
-  const basePrompts = buildBasePrompts(systemContext);
+  const basePrompts = buildBasePrompts(systemContext, "", { maxTokens });
   const fullSharedContext = basePrompts.map((m) => m.content).join("\n\n");
 
   return {
