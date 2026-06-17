@@ -1,6 +1,7 @@
 // wllama provider — in-browser llama.cpp via WebGPU + WASM, loading GGUFs
 // directly from HuggingFace.
 //
+// TODO(wllama): UPDATE COMMENT
 // Using the @reeselevine/wllama-webgpu fork rather than upstream @wllama/wllama.
 // Reasoning: the fork ships separate JSPI and asyncify WASM builds which give
 // better iOS Safari / iOS Chrome compatibility (upstream crashed on iOS Chrome
@@ -14,12 +15,22 @@
 //   * Sampling lives under options.sampling.temp (not options.temperature).
 //   * No usage stats from the chunks; we estimate tokens ourselves.
 /* global console:false, performance:false, setInterval:false, clearInterval:false */
-import { Wllama } from "@reeselevine/wllama-webgpu";
-import WasmFromCDN from "@reeselevine/wllama-webgpu/esm/wasm-from-cdn.js";
+import { Wllama } from "@wllama/wllama";
 import { Template } from "@huggingface/jinja";
 import { getModelCfg } from "../../../../config.js";
 import { estimateTokens } from "../../util.js";
 import { hasWebGPU, isIOSBrowser } from "../capacity.js";
+
+const WasmFromCDN = import.meta.resolve("@wllama/wllama/esm/wasm/wllama.wasm");
+console.log("TODO HERE", { WasmFromCDN });
+
+const tmpWllama = new Wllama({ default: WasmFromCDN }, {});
+// await tmpWllama.cacheManager.clear();
+const TMP = await tmpWllama.loadModelFromHF({
+  repo: "unsloth/Qwen3-1.7B-GGUF",
+  file: "Qwen3-1.7B-Q4_K_M.gguf",
+});
+console.log("TODO HERE", { TMP });
 
 // iOS Safari/Chrome share strict per-page memory caps (~512 MB WebGPU
 // maxBufferSize). Mirror llamas-on-the-web's iOS-safe load config so we
@@ -79,7 +90,7 @@ const buildEngine = async (model, entry) => {
   const n_ctx = ios ? Math.min(requestedNCtx, IOS_N_CTX) : requestedNCtx;
   const n_batch = ios ? IOS_N_BATCH : DEFAULT_N_BATCH;
   dbg("constructing Wllama", { backend, ios, n_ctx, n_batch });
-  const wllama = new Wllama(WasmFromCDN, { backend });
+  const wllama = new Wllama({ default: WasmFromCDN }, { backend });
 
   await wllama.loadModelFromHF(cfg.repo, cfg.file, {
     n_ctx,

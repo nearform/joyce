@@ -204,37 +204,38 @@ const config = {
           quantization: "Q4_K_M",
           maxTokens: 4096,
         },
-        // Medium
+        // Medium — Qwen3.5 2B at Unsloth's Dynamic 2.0 Q4 (well under 2 GB).
         {
-          model: "wllama-qwen3-1_7b-q4km",
-          modelShortName: "Qwen3 1.7B",
+          model: "wllama-qwen3_5-2b-q4kxl",
+          modelShortName: "Qwen3.5 2B",
           shortOption: "Best",
-          repo: "unsloth/Qwen3-1.7B-GGUF",
-          file: "Qwen3-1.7B-Q4_K_M.gguf",
-          downloadSizeMb: 1135,
-          quantization: "Q4_K_M",
+          repo: "unsloth/Qwen3.5-2B-GGUF",
+          file: "Qwen3.5-2B-UD-Q4_K_XL.gguf",
+          downloadSizeMb: 1340,
+          quantization: "UD-Q4_K_XL",
           maxTokens: 4096,
         },
-        // Large — single GGUF, near the 2 GB ArrayBuffer ceiling.
+        // Large — same 2B at a higher-fidelity Dynamic Q6 (still under 2 GB).
         {
-          model: "wllama-qwen3-1_7b-q8",
-          modelShortName: "Qwen3 1.7B Q8",
+          model: "wllama-qwen3_5-2b-q6kxl",
+          modelShortName: "Qwen3.5 2B Q6",
           shortOption: "Power",
-          repo: "unsloth/Qwen3-1.7B-GGUF",
-          file: "Qwen3-1.7B-Q8_0.gguf",
-          downloadSizeMb: 1830,
-          quantization: "Q8_0",
+          repo: "unsloth/Qwen3.5-2B-GGUF",
+          file: "Qwen3.5-2B-UD-Q6_K_XL.gguf",
+          downloadSizeMb: 1864,
+          quantization: "UD-Q6_K_XL",
           maxTokens: 4096,
         },
-        // Big — reach the 4B-class via Unsloth Dynamic IQ2 (still under 2 GB).
+        // Big — reach the 4B-class via Unsloth Dynamic Q2 (largest Qwen3.5-4B
+        // single-file under the 2 GB ArrayBuffer ceiling; Q4_K_M is 2.74 GB).
         {
-          model: "wllama-qwen3-4b-ud-iq2m",
-          modelShortName: "Qwen3 4B (UD-IQ2_M)",
+          model: "wllama-qwen3_5-4b-q2kxl",
+          modelShortName: "Qwen3.5 4B (UD-Q2_K_XL)",
           shortOption: "Big",
-          repo: "unsloth/Qwen3-4B-GGUF",
-          file: "Qwen3-4B-UD-IQ2_M.gguf",
-          downloadSizeMb: 1530,
-          quantization: "UD-IQ2_M",
+          repo: "unsloth/Qwen3.5-4B-GGUF",
+          file: "Qwen3.5-4B-UD-Q2_K_XL.gguf",
+          downloadSizeMb: 1941,
+          quantization: "UD-Q2_K_XL",
           maxTokens: 4096,
         },
         // Bigger — Gemma 3 4B at Q2_K (heaviest single-file variant under 2 GB).
