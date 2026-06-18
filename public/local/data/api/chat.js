@@ -11,10 +11,28 @@ import {
   THROW_ON_TOKEN_LIMIT,
 } from "../../../config.js";
 import { getPost } from "./posts.js";
-import { buildSystemPrompt, MAX_SYSTEM_PROMPT } from "./prompts.js";
+import {
+  buildSystemPrompt,
+  MAX_SYSTEM_PROMPT,
+  LEAN_SYSTEM_PROMPT,
+  isLeanTier,
+} from "./prompts.js";
 
 // Set to true to enable detailed token debugging in console
 const DEBUG_TOKENS = false;
+
+// Short reminder appended to the user turn for recency — small models weight the last tokens most.
+// The UI stores the raw query separately, so the displayed question is unaffected.
+export const USER_CITATION_REMINDER =
+  "\n\n(Cite sources inline from the allowed links only — each at most once, never repeated. If none are relevant, say you don't have enough information; never invent a source.)";
+
+/**
+ * Append the citation recency reminder to a user message.
+ * @param {string} query - The user's message
+ * @returns {string}
+ */
+export const withCitationReminder = (query) =>
+  `${query}${USER_CITATION_REMINDER}`;
 
 /**
  * Build base system prompts with RAG context.
@@ -22,21 +40,55 @@ const DEBUG_TOKENS = false;
  * Does NOT include the final user query - that's added separately.
  * @param {string} context - RAG context (XML chunks)
  * @param {string} [query=""] - User query for conditional prompt sections
+ * @param {Object} [options]
+ * @param {number} [options.maxTokens] - Model context window; selects LEAN vs FULL system prompt
  * @returns {Array<{role: string, content: string}>}
  */
-export const buildBasePrompts = (context = "", query = "") => {
-  // Extract links from context.
+export const buildBasePrompts = (
+  context = "",
+  query = "",
+  { maxTokens } = {},
+) => {
+  // Extract links from context, one entry per unique URL.
   const linkPattern =
     /<CHUNK><URL>([^<]+)<\/URL><TITLE>([^<]+)<\/TITLE><CONTENT>/g;
-  let links = "";
+  const seenUrls = new Set();
+  /** @type {Array<{url: string, title: string}>} */
+  const entries = [];
   for (const match of context.matchAll(linkPattern)) {
-    links += `- [${match[2]}](${match[1]})\n`;
+    const [, url, title] = match;
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
+    entries.push({ url, title });
   }
+
+  // Disambiguate identical titles across different URLs so no two allowed links share link text
+  // (e.g. two PUMA posts both titled "PUMA e-Commerce Platform"). Append a human-readable hint
+  // derived from the URL's last path segment to the colliding ones.
+  const titleCounts = entries.reduce((counts, { title }) => {
+    counts[title] = (counts[title] ?? 0) + 1;
+    return counts;
+  }, /** @type {Record<string, number>} */ ({}));
+  const slugHint = (url) =>
+    url.replace(/\/+$/, "").split("/").pop().replace(/[-_]+/g, " ").trim();
+  const links = entries
+    .map(({ url, title }) => {
+      const text =
+        titleCounts[title] > 1 ? `${title} — ${slugHint(url)}` : title;
+      return `- [${text}](${url})`;
+    })
+    .join("\n");
+
+  // Only mandate a citation when links actually exist; otherwise an impossible instruction
+  // invites hallucinated sources. With no links, steer toward the "not enough info" path.
+  const linkDirective = links
+    ? `These are the ONLY links you may cite, each at most once and inline where it fits. You MUST cite at least one. Use the exact link text shown:\n${links}`
+    : `No sources were retrieved for this question. Do NOT cite or invent any links — tell the user you don't have enough information to answer.`;
 
   return [
     {
       role: "system",
-      content: buildSystemPrompt(query),
+      content: buildSystemPrompt(query, { maxTokens }),
     },
     {
       role: "assistant",
@@ -44,7 +96,7 @@ export const buildBasePrompts = (context = "", query = "") => {
     },
     {
       role: "assistant",
-      content: `You may only choose links from the following list of urls from the <CHUNKS />: ${links}`,
+      content: linkDirective,
     },
   ];
 };
@@ -61,19 +113,24 @@ const createMessages = ({ query, context = "" }) => [
   ...buildBasePrompts(context, query),
   {
     role: "user",
-    content: query,
+    content: withCitationReminder(query),
   },
 ];
 
-// Use MAX_SYSTEM_PROMPT (all conditional sections) for token envelope estimation.
-// Over-reserves ~78 tokens worst case when conditional sections don't match.
-export const BASE_TOKEN_ESTIMATE = estimateTokens(
-  JSON.stringify(
-    createMessages({ query: "" }).map((m) =>
-      m.role === "system" ? { ...m, content: MAX_SYSTEM_PROMPT } : m,
+// Base-prompt token envelope, estimated per tier by overriding the system message with the
+// corresponding worst-case system prompt. FULL uses MAX_SYSTEM_PROMPT (all conditional sections);
+// LEAN uses LEAN_SYSTEM_PROMPT. buildContextFromChunks picks the estimate matching the model's tier.
+const estimateBaseTokens = (systemPrompt) =>
+  estimateTokens(
+    JSON.stringify(
+      createMessages({ query: "" }).map((m) =>
+        m.role === "system" ? { ...m, content: systemPrompt } : m,
+      ),
     ),
-  ),
-);
+  );
+
+export const BASE_TOKEN_ESTIMATE = estimateBaseTokens(MAX_SYSTEM_PROMPT);
+export const LEAN_BASE_TOKEN_ESTIMATE = estimateBaseTokens(LEAN_SYSTEM_PROMPT);
 
 /**
  * Build XML context string from search chunks with token limiting.
@@ -98,6 +155,10 @@ export const buildContextFromChunks = async ({
 }) => {
   const modelCfg = getModelCfg({ provider, model });
   const maxTokens = modelCfg.maxTokens;
+  // Budget chunks against the base prompt this model actually gets (LEAN vs FULL).
+  const baseTokenEstimate = isLeanTier(maxTokens)
+    ? LEAN_BASE_TOKEN_ESTIMATE
+    : BASE_TOKEN_ESTIMATE;
   const cushion = forMultiTurn
     ? getMultiTurnCushion(maxTokens)
     : TOKEN_CUSHION_CHAT;
@@ -114,7 +175,7 @@ export const buildContextFromChunks = async ({
   // For Chrome, could use measureContextUsage() for actual counts, but requires
   // creating a session first. For now, estimates provide reasonable approximation.
   const queryTokens = estimateTokens(query);
-  let totalContextTokensEst = BASE_TOKEN_ESTIMATE + queryTokens;
+  let totalContextTokensEst = baseTokenEstimate + queryTokens;
 
   if (DEBUG_TOKENS) {
     const tokensForChunks = maxContextTokens - totalContextTokensEst;
@@ -134,7 +195,7 @@ export const buildContextFromChunks = async ({
             ? MULTI_TURN_CONTEXT_RATIO
             : "N/A (skipped)",
           maxContextTokens,
-          basePromptTokens: BASE_TOKEN_ESTIMATE,
+          basePromptTokens: baseTokenEstimate,
           queryTokens,
           startingTotal: totalContextTokensEst,
           tokensForChunks,
@@ -274,8 +335,7 @@ export const buildContextFromChunks = async ({
     .join("");
 
   // Calculate granular token breakdown
-  const chunksTokens =
-    totalContextTokensEst - BASE_TOKEN_ESTIMATE - queryTokens;
+  const chunksTokens = totalContextTokensEst - baseTokenEstimate - queryTokens;
 
   return {
     context,
@@ -285,7 +345,7 @@ export const buildContextFromChunks = async ({
     tokenEstimate: totalContextTokensEst,
     // Granular token breakdown for UI display
     tokenBreakdown: {
-      basePromptTokens: BASE_TOKEN_ESTIMATE,
+      basePromptTokens: baseTokenEstimate,
       queryTokens,
       chunksTokens,
       totalTokens: totalContextTokensEst,
@@ -326,7 +386,8 @@ export const rebuildContextWithLimit = async ({
 if (DEBUG_TOKENS) {
   // eslint-disable-next-line no-undef
   console.log(
-    "DEBUG(TOKENS) chat.js - BASE_TOKEN_ESTIMATE:",
+    "DEBUG(TOKENS) chat.js - BASE_TOKEN_ESTIMATE (full / lean):",
     BASE_TOKEN_ESTIMATE,
+    LEAN_BASE_TOKEN_ESTIMATE,
   );
 }

@@ -6,7 +6,11 @@ import {
   deleteModelAllInfoInCache,
   prebuiltAppConfig,
 } from "@mlc-ai/web-llm";
-import { DEFAULT_CHAT_MODEL } from "../../../../config.js";
+import {
+  DEFAULT_CHAT_MODEL,
+  WEB_LLM_FREQUENCY_PENALTY,
+  WEB_LLM_PRESENCE_PENALTY,
+} from "../../../../config.js";
 import {
   wrap,
   breadcrumb,
@@ -272,6 +276,9 @@ export const createHandler = async ({
             messages,
             temperature,
             max_tokens: maxOutputTokens,
+            // Curb small-model runaway repetition / missing EOS. See WEB_LLM_*_PENALTY in config.
+            frequency_penalty: WEB_LLM_FREQUENCY_PENALTY,
+            presence_penalty: WEB_LLM_PRESENCE_PENALTY,
             stream: true,
             stream_options: { include_usage: true },
             ...(extraBody && { extra_body: extraBody }),

@@ -5,7 +5,11 @@ import { getProviderCapabilities } from "./llm.js";
 import { estimateTokens } from "../util.js";
 import { createHandler as createChromeHandler } from "./providers/chrome.js";
 import { createHandler as createWebLlmHandler } from "./providers/web-llm.js";
-import { buildBasePrompts, BASE_TOKEN_ESTIMATE } from "./chat.js";
+import {
+  buildBasePrompts,
+  withCitationReminder,
+  BASE_TOKEN_ESTIMATE,
+} from "./chat.js";
 import { performRagSearch, reduceContext as ragReduceContext } from "./rag.js";
 import {
   getModelCfg,
@@ -138,15 +142,19 @@ const buildUsageMessage = ({
 }) => {
   const queryTokens = estimateTokens(userMessage);
   const tokenBreakdown = getTokenBreakdown(state);
+  // Use the base-prompt estimate captured at context-build time — it already reflects the
+  // model's tier (LEAN vs FULL), unlike the always-FULL BASE_TOKEN_ESTIMATE constant.
+  const basePromptTokens =
+    tokenBreakdown?.basePromptTokens ?? BASE_TOKEN_ESTIMATE;
   const contextTokens = tokenBreakdown
     ? {
-        basePromptTokens: BASE_TOKEN_ESTIMATE,
+        basePromptTokens,
         queryTokens,
         chunksTokens: tokenBreakdown.chunksTokens,
         chunkCount: getChunkCount(state),
         historyTokens,
         totalTokens:
-          BASE_TOKEN_ESTIMATE +
+          basePromptTokens +
           tokenBreakdown.chunksTokens +
           historyTokens +
           queryTokens,
@@ -222,6 +230,7 @@ export const createChatSession = ({
             model,
             systemContext: getContext(state),
             temperature,
+            maxTokens,
           })
         : await createWebLlmHandler({
             model,
@@ -237,9 +246,9 @@ export const createChatSession = ({
    * Build messages for web-llm (stateless provider).
    */
   const buildMessages = (userMessage) => [
-    ...buildBasePrompts(getContext(state), userMessage),
+    ...buildBasePrompts(getContext(state), userMessage, { maxTokens }),
     ...state.history,
-    { role: "user", content: userMessage },
+    { role: "user", content: withCitationReminder(userMessage) },
   ];
 
   /**
@@ -259,7 +268,12 @@ export const createChatSession = ({
     }
 
     const handler = await ensureHandler();
-    const input = provider === "webLlm" ? buildMessages(query) : query;
+    // web-llm gets the full messages array (reminder applied inside buildMessages); Chrome takes a
+    // raw user string, so apply the citation reminder here for the Prompt + Writer paths.
+    const input =
+      provider === "webLlm"
+        ? buildMessages(query)
+        : withCitationReminder(query);
     let firstTokenTime = null;
 
     for await (const event of handler.sendMessage(input)) {

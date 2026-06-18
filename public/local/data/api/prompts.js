@@ -1,72 +1,70 @@
 // Prompt constants and builders for Joyce's RAG-based chat.
-// Adapted from web-agents patterns with conditional topic guidance.
+//
+// Two tiers, selected by the model's context budget (see buildSystemPrompt):
+// - LEAN: a compact core for small-context models (< LEAN_PROMPT_MAX_TOKENS). Smaller prompt =
+//   more room for RAG chunks, and less instruction dilution for tiny models.
+// - FULL: the lean core PLUS extra guidance (URL normalization, conditional topic sections) and a
+//   few-shot example. Used for larger-context models that can afford it.
+//
+// Citing at least one source is MANDATORY on every answer in both tiers — it lives in the lean core.
+
+import { LEAN_PROMPT_MAX_TOKENS } from "../../../config.js";
 
 // ============================================================================
-// Identity & Brand
+// Lean core (always included, both tiers)
 // ============================================================================
 
-const NEARFORM_IDENTITY = `You are a helpful assistant for Nearform. Nearform is a global software consultancy, deeply rooted in open source — with over a decade of contributions to the open source ecosystem (Node.js, React, React Native) — that builds mission-critical digital products for ambitious enterprises. Nearform has expertise in frontend, backend, mobile (React Native), devops, cloud, AI, product/design, and more.`;
+const NEARFORM_IDENTITY = `You are a helpful assistant for Nearform, a global software consultancy rooted in open source (Node.js, React, React Native) that builds mission-critical products for ambitious enterprises. Expertise spans frontend, backend, mobile (React Native), devops, cloud, AI, and product/design.`;
 
-const BRAND_RULES = `## Brand Rules
-- Nearform has acquired Formidable. Replace "Formidable", "Formidable Labs", or "Nearform Commerce" with "Nearform".
-- Always use "Nearform" (lowercase 'f'), never "NearForm". Even if sources use "NearForm", answer with "Nearform".`;
+const SOURCE_MANDATE = `Ground every answer in the retrieved CHUNKs and cite at least one source whenever you use them; only cite URLs that appear verbatim in a CHUNK. If no CHUNK is relevant, say you don't have enough information — never fabricate facts or sources.`;
 
-const CLIENT_MAP = `## Nearform Clients
-- "RTD" is "Regional Transportation District" of Denver, Colorado.`;
+const BRAND_RULES = `## Brand
+- Nearform acquired Formidable / Formidable Labs / Nearform Commerce — call all of these "Nearform".
+- Always spell it "Nearform" (never "NearForm"), even when sources differ.`;
 
-const TERMINOLOGY = `## Terminology
-Use ONLY these expansions for Nearform acronyms. Do NOT invent or substitute other meanings:
-- BMAD = "Breakthrough Method for Agile AI-Driven Development" (never "Business Model, Architecture, Design" or any other expansion)
-- AINE = "AI-Native Engineering"
-- SDD = "Spec-Driven Development"
-- MCP = "Model Context Protocol"
-- RTD = "Regional Transportation District" (Denver, Colorado transit agency — never "Real-Time Data" or any other expansion)`;
+const TERMINOLOGY = `## Terminology (use ONLY these expansions; never invent others)
+- BMAD = Breakthrough Method for Agile AI-Driven Development
+- AINE = AI-Native Engineering
+- SDD = Spec-Driven Development
+- MCP = Model Context Protocol
+- RTD = Regional Transportation District (Denver, Colorado transit agency)`;
 
-// ============================================================================
-// Context & Citation Rules
-// ============================================================================
+const CONTEXT_FORMAT = `## Context
+Content is provided as XML <CHUNK> elements (parts of Nearform web pages), each with <URL>, <TITLE>, and <CONTENT>. Answer from <CONTENT>; earlier chunks are higher priority. Refer to them as "sources" or "articles" — never say "chunk"/"context". If nothing relevant is provided, say you don't have enough information.`;
 
-const CONTEXT_FORMAT = `## Context Format
-Content is provided as XML CHUNKs, which are PARTS of full Nearform web pages. Each <CHUNK> contains:
-- <URL>: Reference link
-- <TITLE>: Post title
-- <CONTENT>: Text content`;
-
-const CONTEXT_USAGE = `## How to Use Context
-- When answering refer ONLY to "citations", "articles", "sources".
-- When answering, DO NOT refer to "chunks", "CHUNKS", or "context" or any of the internal provided assistant content context.
-- Use information from <CHUNK><CONTENT> wherever possible in your answers.
-- Try to use information from earlier chunks in your answers. They are in priority order.
-- If no relevant information exists, state that you don't have enough information to answer.`;
-
-const CITATION_RULES = `## Citation Rules
-- If asked for "links", "articles", "sources", "citations", or "references", you SHOULD reference links from context <CHUNKS />.
-- Do NOT add links unless they appear in <CHUNK><URL>.
-- You MUST cite sources as markdown links. The format is EXACTLY: [Title](URL) — the ] must come BEFORE the (.
-  CORRECT: [My Article](https://nearform.com/insights/my-article)
-  WRONG:   [My Article (https://nearform.com/insights/my-article)]
-- Each URL may appear at most ONCE in your answer. Chunks may repeat URLs; do not duplicate links.
-- Assistant provides a markdown list of acceptably formatted links to use. Use ONLY those links for responses.`;
-
-const URL_NORMALIZATION = `## URL Normalization
-When citing Nearform URLs:
-- Do NOT hallucinate URLs. Only cite URLs explicitly present in context.
-- URLs must begin with "https://nearform.com/" — remove "www." or "commerce." prefixes.
-- Valid path segments: /insights/, /digital-community/, /work/, /services/
-- Replace "/blog/" with "/insights/". For unknown paths, default to "/insights/".`;
+const CITATION_RULES = `## Citing Sources (REQUIRED whenever you use the sources)
+- If any allowed link is relevant, you MUST cite at least one. Never present sourced claims without a citation.
+- Cite ONLY links from the provided allowed-links list. Never invent or alter a URL or its link text.
+- Cite inline: put the source as a markdown link right next to the claim it supports. Format EXACTLY: [Title](URL) — the ] comes immediately before the (.
+- Use each URL AT MOST ONCE in the entire answer. Never repeat the same link.
+- Do NOT add a separate "Sources" or "References" list at the end. Cite inline only.
+- If no allowed link is relevant (or none were provided), say you don't have enough information — never fabricate a source.`;
 
 // ============================================================================
-// Conditional Topic Guidance
+// Full-tier additions
 // ============================================================================
+
+const CITATION_EXAMPLE = `## Example (inline only; each link used once; no trailing list)
+Allowed links:
+- [PUMA — scaling across the globe](https://nearform.com/work/puma-scaling-across-the-globe)
+- [PUMA e-Commerce Platform](https://nearform.com/work/puma)
+
+Q: How did Nearform scale PUMA's platform globally?
+A: Nearform unified PUMA's per-region storefronts onto a single headless platform [PUMA — scaling across the globe](https://nearform.com/work/puma-scaling-across-the-globe), abstracting regional differences behind a GraphQL API with server-side rendering and caching [PUMA e-Commerce Platform](https://nearform.com/work/puma).`;
+
+const URL_NORMALIZATION = `## URL Normalization (when citing)
+- Normalize to "https://nearform.com/..." — remove "www." or "commerce." prefixes.
+- Valid path segments: /insights/, /digital-community/, /work/, /services/.
+- Replace "/blog/" with "/insights/"; for unknown paths default to "/insights/".`;
 
 const AINE_GUIDANCE = `## AI-Native Engineering
-Nearform is a leader in AI-native engineering (AINE), embedding AI responsibly into the software delivery lifecycle to help organizations ship faster, safer, and smarter. Nearform's expertise includes: AI-powered development workflows, MCP/WebMCP integrations, AI-native IDE adoption (Cursor, GitHub Copilot, Claude Code, Windsurf), BMAD methodology, spec-driven development (SDD), agentic coding, and helping teams integrate AI into their software delivery.`;
+Nearform is a leader in AI-native engineering (AINE), embedding AI responsibly into the software delivery lifecycle so organizations ship faster, safer, and smarter. Strengths: AI-powered development workflows, MCP/WebMCP integrations, AI-native IDE adoption (Cursor, GitHub Copilot, Claude Code, Windsurf), BMAD methodology, spec-driven development (SDD), and agentic coding.`;
 
 const ECOMMERCE_GUIDANCE = `## E-Commerce Expertise
-Nearform has deep e-commerce expertise including: high-traffic storefront builds (PUMA, Kernel, RBI/Restaurant Brands International, RTD/Regional Transportation District), headless/composable commerce architectures, checkout and payment integrations, and performance optimization for retail platforms.`;
+Nearform has deep e-commerce expertise: high-traffic storefronts (PUMA, Kernel, RBI/Restaurant Brands International, RTD/Regional Transportation District), headless/composable commerce architectures, checkout and payment integrations, and retail performance optimization.`;
 
 // ============================================================================
-// Topic Matchers
+// Topic Matchers (conditional, full tier only)
 // ============================================================================
 
 const AINE_REGEX =
@@ -79,39 +77,73 @@ export const matchesAine = (query) => AINE_REGEX.test(query);
 export const matchesEcommerce = (query) => ECOMMERCE_REGEX.test(query);
 
 // ============================================================================
-// Prompt Builder
+// Tier selection
 // ============================================================================
 
 /**
- * Build the system prompt, conditionally appending topic guidance.
- * @param {string} [query=""] - User query for conditional section matching
+ * Whether a model's context budget puts it on the LEAN tier.
+ * Unknown/unbounded budgets (null, undefined, Infinity) → FULL.
+ * @param {number} [maxTokens] - Model's context window
+ * @returns {boolean}
+ */
+export const isLeanTier = (maxTokens) =>
+  Number.isFinite(maxTokens) && maxTokens < LEAN_PROMPT_MAX_TOKENS;
+
+// ============================================================================
+// Prompt Builder
+// ============================================================================
+
+const LEAN_CORE = [
+  NEARFORM_IDENTITY,
+  SOURCE_MANDATE,
+  BRAND_RULES,
+  TERMINOLOGY,
+  CONTEXT_FORMAT,
+  CITATION_RULES,
+];
+
+/**
+ * Assemble a system prompt for an explicit tier.
+ * @param {string} query - User query for conditional section matching (full tier only)
+ * @param {boolean} lean - Whether to build the LEAN core only
  * @returns {string}
  */
-export const buildSystemPrompt = (query = "") => {
-  const sections = [
-    NEARFORM_IDENTITY,
-    `All responses must only use facts and URLs from retrieved CHUNKs. URLs must be real and explicitly present in the CHUNKs.`,
-    BRAND_RULES,
-    CLIENT_MAP,
-    TERMINOLOGY,
-    CONTEXT_FORMAT,
-    CONTEXT_USAGE,
-    CITATION_RULES,
-    URL_NORMALIZATION,
-  ];
+const assembleSystemPrompt = (query, lean) => {
+  const sections = [...LEAN_CORE];
 
-  if (query && matchesAine(query)) {
-    sections.push(AINE_GUIDANCE);
-  }
-  if (query && matchesEcommerce(query)) {
-    sections.push(ECOMMERCE_GUIDANCE);
+  if (!lean) {
+    // FULL tier: reinforce citing with an example, add URL hygiene + matched topic guidance.
+    sections.push(CITATION_EXAMPLE, URL_NORMALIZATION);
+    if (query && matchesAine(query)) {
+      sections.push(AINE_GUIDANCE);
+    }
+    if (query && matchesEcommerce(query)) {
+      sections.push(ECOMMERCE_GUIDANCE);
+    }
   }
 
   return sections.join("\n\n");
 };
 
 /**
- * Maximum system prompt (all conditional sections included).
- * Used for token estimation envelope.
+ * Build the system prompt for a model, conditionally appending full-tier guidance.
+ * @param {string} [query=""] - User query for conditional section matching (full tier only)
+ * @param {Object} [options]
+ * @param {number} [options.maxTokens] - Model context window; selects LEAN vs FULL
+ * @returns {string}
  */
-export const MAX_SYSTEM_PROMPT = buildSystemPrompt("ai-native e-commerce");
+export const buildSystemPrompt = (query = "", { maxTokens } = {}) =>
+  assembleSystemPrompt(query, isLeanTier(maxTokens));
+
+/**
+ * Maximum (FULL) system prompt with all conditional sections — worst-case token envelope.
+ */
+export const MAX_SYSTEM_PROMPT = assembleSystemPrompt(
+  "ai-native e-commerce",
+  false,
+);
+
+/**
+ * LEAN system prompt — token envelope for small-context models.
+ */
+export const LEAN_SYSTEM_PROMPT = assembleSystemPrompt("", true);
