@@ -24,7 +24,7 @@ const DEBUG_TOKENS = false;
 // Short reminder appended to the user turn for recency — small models weight the last tokens most.
 // The UI stores the raw query separately, so the displayed question is unaffected.
 export const USER_CITATION_REMINDER =
-  "\n\n(Cite at least one source inline using only the allowed links; use each link at most once and never repeat one.)";
+  "\n\n(Cite sources inline from the allowed links only — each at most once, never repeated. If none are relevant, say you don't have enough information; never invent a source.)";
 
 /**
  * Append the citation recency reminder to a user message.
@@ -79,6 +79,12 @@ export const buildBasePrompts = (
     })
     .join("\n");
 
+  // Only mandate a citation when links actually exist; otherwise an impossible instruction
+  // invites hallucinated sources. With no links, steer toward the "not enough info" path.
+  const linkDirective = links
+    ? `These are the ONLY links you may cite, each at most once and inline where it fits. You MUST cite at least one. Use the exact link text shown:\n${links}`
+    : `No sources were retrieved for this question. Do NOT cite or invent any links — tell the user you don't have enough information to answer.`;
+
   return [
     {
       role: "system",
@@ -90,7 +96,7 @@ export const buildBasePrompts = (
     },
     {
       role: "assistant",
-      content: `These are the ONLY links you may cite, each at most once and inline where it fits. You MUST cite at least one. Use the exact link text shown:\n${links}`,
+      content: linkDirective,
     },
   ];
 };
