@@ -1,4 +1,4 @@
-/* global LanguageModel:false,Writer:false */
+/* global LanguageModel:false,Writer:false,setTimeout:false,clearTimeout:false */
 // Chrome AI provider implementation using Chrome Built-in AI APIs
 // Supports both Prompt API and Writer API via pseudo-models
 // See: https://developer.chrome.com/docs/ai/built-in-apis
@@ -25,19 +25,102 @@ const WRITER_OPTIONS = {
 // Map of model -> { progressCallback }
 const modelState = new Map();
 
+// How long a model download may make no progress before we give up. Chrome's
+// create() hangs indefinitely when the on-device model can't be provisioned
+// (e.g. a required asset isn't installed), so without this the app spins
+// forever. It's a *stall* budget, not a total budget: every downloadprogress
+// event resets it, so a slow-but-advancing multi-GB download is never killed.
+const CHROME_DOWNLOAD_STALL_MS = 60_000;
+
 /**
- * Create a download progress monitor for Chrome AI APIs.
- * @param {Function|null} progressCallback - Optional callback for download progress
+ * Build the `monitor` callback for a Chrome AI create() call.
+ *
+ * @param {Function|null} progressCallback - Optional download-progress callback
+ * @param {Function} onProgress - Called on every event (used to reset the stall timer)
  * @returns {Function} Monitor function for Chrome AI create() options
  */
-const createDownloadMonitor = (progressCallback) => (m) => {
+const buildMonitor = (progressCallback, onProgress) => (m) => {
+  if (!m?.addEventListener) return;
   m.addEventListener("downloadprogress", (e) => {
+    onProgress();
+    // Current Chrome reports `loaded` as a 0..1 fraction (with total === 1).
+    // The ProgressEvent spec (and older builds) report bytes, so normalize by
+    // `total` when it looks like a byte count — robust across versions.
+    const fraction =
+      typeof e.total === "number" && e.total > 1
+        ? e.loaded / e.total
+        : e.loaded;
+    const progress = Math.min(1, Math.max(0, fraction || 0));
+    breadcrumb("chrome.download.progress", { progress });
     progressCallback?.({
-      text: `Downloading model: ${Math.round(e.loaded * 100)}%`,
-      progress: e.loaded,
+      text: `Downloading model: ${Math.round(progress * 100)}%`,
+      progress,
     });
   });
 };
+
+/**
+ * Run a Chrome AI create() with a stall timeout so a wedged model download
+ * rejects with an actionable error instead of hanging forever. The timer starts
+ * before create() and resets on every downloadprogress event; if it fires we
+ * reject, and if create() resolves late we destroy the instance to avoid a leak.
+ *
+ * @param {Object} opts
+ * @param {string} opts.label - Telemetry label passed to wrap()
+ * @param {Function|null} opts.progressCallback - Optional download-progress callback
+ * @param {(monitor: Function) => Promise<Object>} opts.create - Given the monitor, returns create()'s promise
+ * @param {Function} [opts.makeData] - Optional telemetry metadata factory
+ * @returns {Promise<Object>} The created session/writer
+ */
+const createWithStallTimeout = ({
+  label,
+  progressCallback,
+  create,
+  makeData,
+}) =>
+  new Promise((resolve, reject) => {
+    let timer = null;
+    let timedOut = false;
+    const clear = () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const arm = () => {
+      clear();
+      timer = setTimeout(() => {
+        timedOut = true;
+        breadcrumb("chrome.download.stalled", { label });
+        reject(
+          new Error(
+            `Chrome AI model download stalled — no progress for ${
+              CHROME_DOWNLOAD_STALL_MS / 1000
+            }s. The on-device model may not be provisioned. Check ` +
+              "chrome://on-device-internals, then chrome://components → " +
+              '"Optimization Guide On Device Model" → Check for update, and ' +
+              "restart Chrome.",
+          ),
+        );
+      }, CHROME_DOWNLOAD_STALL_MS);
+    };
+
+    const monitor = buildMonitor(progressCallback, arm);
+    arm(); // start the stall clock before create() (the hang can precede any event)
+
+    wrap(label, () => create(monitor), makeData).then(
+      (instance) => {
+        clear();
+        // If we already rejected, don't leak a session that resolved too late.
+        if (timedOut) instance?.destroy?.();
+        else resolve(instance);
+      },
+      (err) => {
+        clear();
+        if (!timedOut) reject(err);
+      },
+    );
+  });
 
 /**
  * Check Chrome AI availability for a specific API type.
@@ -204,20 +287,26 @@ const createPromptHandler = async ({
 
   const initialPrompts = buildBasePrompts(systemContext, "", { maxTokens });
 
-  const session = await wrap(
-    "chrome.prompt.create",
-    () =>
+  const session = await createWithStallTimeout({
+    label: "chrome.prompt.create",
+    progressCallback,
+    create: (monitor) =>
       LanguageModel.create({
         ...PROMPT_OPTIONS,
+        // Newer Chrome builds require an explicit top-level output language and
+        // warn ("No output language was specified…") without it, degrading
+        // output quality/safety attestation. Kept alongside expectedOutputs.
+        outputLanguage: "en",
         topK: CHROME_DEFAULT_TOP_K,
         temperature,
         initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
-        monitor: progressCallback
-          ? createDownloadMonitor(progressCallback)
-          : undefined,
+        monitor,
       }),
-    () => ({ temperature, initialPromptCount: initialPrompts.length }),
-  );
+    makeData: () => ({
+      temperature,
+      initialPromptCount: initialPrompts.length,
+    }),
+  });
 
   return {
     /**
@@ -299,9 +388,10 @@ const createWriterHandler = async ({
      * @yields {{ type: "data", content: string } | { type: "done", finishReason: string, usage: Object }}
      */
     async *sendMessage(userMessage) {
-      const writer = await wrap(
-        "chrome.writer.create",
-        () =>
+      const writer = await createWithStallTimeout({
+        label: "chrome.writer.create",
+        progressCallback,
+        create: (monitor) =>
           Writer.create({
             tone: "neutral",
             length: "medium",
@@ -309,12 +399,10 @@ const createWriterHandler = async ({
             sharedContext: fullSharedContext,
             ...WRITER_OPTIONS,
             outputLanguage: "en",
-            monitor: progressCallback
-              ? createDownloadMonitor(progressCallback)
-              : undefined,
+            monitor,
           }),
-        () => ({ contextLen: fullSharedContext.length }),
-      );
+        makeData: () => ({ contextLen: fullSharedContext.length }),
+      });
 
       try {
         // New API: measureContextUsage, old: measureInputUsage
