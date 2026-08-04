@@ -137,13 +137,15 @@ const ConversationEntry = ({ entry, onNewConversation }) => {
     <div className="conversation-entry">
       <${QueryDisplay} query=${entry.query} />
       ${entry.isLoading && !think.visible && html`<${LoadingBubble} />`}
-      ${think.visible &&
-      html`<${Answer}
-        answer=${entry.answer}
-        think=${think}
-        queryInfo=${entry.queryInfo}
-        onNewConversation=${onNewConversation}
-      />`}
+      ${
+        think.visible &&
+        html`<${Answer}
+          answer=${entry.answer}
+          think=${think}
+          queryInfo=${entry.queryInfo}
+          onNewConversation=${onNewConversation}
+        />`
+      }
     </div>
   `;
 };

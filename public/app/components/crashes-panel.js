@@ -100,20 +100,18 @@ const RecoveredCrash = ({ record, onDismiss }) => {
         html`
           <pre className="alert-stack">
 ${record.breadcrumbs
-              .map(
-                (c) =>
-                  `[${formatTime(c.t)}] ${c.msg}${c.data ? " " + JSON.stringify(c.data) : ""}`,
-              )
-              .join("\n")}</pre
-          >
+  .map(
+    (c) =>
+      `[${formatTime(c.t)}] ${c.msg}${c.data ? " " + JSON.stringify(c.data) : ""}`,
+  )
+  .join("\n")}</pre>
         `
       }
       ${
         showSnapshot &&
         html`
           <pre className="alert-stack">
-${JSON.stringify(record.snapshot ?? {}, null, 2)}</pre
-          >
+${JSON.stringify(record.snapshot ?? {}, null, 2)}</pre>
         `
       }
     </${Alert}>
@@ -206,53 +204,63 @@ export const CrashesPanel = () => {
       id="tabpanel-crashes"
       aria-labelledby="tab-crashes"
     >
-      ${record &&
-      html`<${RecoveredCrash}
-        record=${record}
-        onDismiss=${dismissRecovered}
-      />`}
+      ${
+        record &&
+        html`<${RecoveredCrash}
+          record=${record}
+          onDismiss=${dismissRecovered}
+        />`
+      }
 
       <h3>Live session warnings</h3>
-      ${warnings.length === 0
-        ? html`<p style=${{ color: "var(--color-text-muted)" }}>
-            No warnings this session.
-          </p>`
-        : html`<div className="system-info">
-            ${recentWarnings.map(
-              (w, i) =>
-                html`<${WarningRow} key=${`${w.t}-${i}`} warning=${w} />`,
-            )}
-            ${hiddenWarnings > 0 &&
-            html`<div
-              className="system-info-row"
-              style=${{
-                color: "var(--color-text-muted)",
-                fontStyle: "italic",
-              }}
-            >
-              + ${hiddenWarnings} earlier
-              ${hiddenWarnings === 1 ? "warning" : "warnings"}
-            </div>`}
-          </div>`}
+      ${
+        warnings.length === 0
+          ? html`<p style=${{ color: "var(--color-text-muted)" }}>
+              No warnings this session.
+            </p>`
+          : html`<div className="system-info">
+              ${recentWarnings.map(
+                (w, i) =>
+                  html`<${WarningRow} key=${`${w.t}-${i}`} warning=${w} />`,
+              )}
+              ${
+                hiddenWarnings > 0 &&
+                html`<div
+                  className="system-info-row"
+                  style=${{
+                    color: "var(--color-text-muted)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  + ${hiddenWarnings} earlier
+                  ${hiddenWarnings === 1 ? "warning" : "warnings"}
+                </div>`
+              }
+            </div>`
+      }
 
       <h3>Session diagnostics</h3>
-      ${status
-        ? html`
-            <div className="system-info">
-              <div className="system-info-row">
-                <strong>Session:</strong>${" "}
-                <code style=${{ fontSize: "0.85em" }}>${status.sessionId}</code>
+      ${
+        status
+          ? html`
+              <div className="system-info">
+                <div className="system-info-row">
+                  <strong>Session:</strong>${" "}
+                  <code style=${{ fontSize: "0.85em" }}
+                    >${status.sessionId}</code
+                  >
+                </div>
+                <div className="system-info-row">
+                  <strong>Breadcrumbs:</strong> ${status.breadcrumbCount}
+                </div>
+                <div className="system-info-row">
+                  <strong>Last seen:</strong>${" "}
+                  ${new Date(status.lastSeen).toLocaleTimeString()}
+                </div>
               </div>
-              <div className="system-info-row">
-                <strong>Breadcrumbs:</strong> ${status.breadcrumbCount}
-              </div>
-              <div className="system-info-row">
-                <strong>Last seen:</strong>${" "}
-                ${new Date(status.lastSeen).toLocaleTimeString()}
-              </div>
-            </div>
-          `
-        : html`<p>Telemetry not initialized.</p>`}
+            `
+          : html`<p>Telemetry not initialized.</p>`
+      }
 
       <h3>Debug actions</h3>
       <p style=${{ color: "var(--color-text-muted)" }}>
@@ -274,9 +282,9 @@ export const CrashesPanel = () => {
             )}
           type="button"
         >
-          <i className="iconoir-database"></i>${" "}${inlineView?.key === "dump"
-            ? "Hide dump"
-            : "Show dump"}
+          <i className="iconoir-database"></i>${" "}${
+            inlineView?.key === "dump" ? "Hide dump" : "Show dump"
+          }
         </button>
         <button
           className="pure-button pure-button-xsmall"
@@ -292,10 +300,11 @@ export const CrashesPanel = () => {
             )}
           type="button"
         >
-          <i className="iconoir-restart"></i>${" "}${inlineView?.key ===
-          "recovered"
-            ? "Hide recovered"
-            : "Show recovered"}
+          <i className="iconoir-restart"></i>${" "}${
+            inlineView?.key === "recovered"
+              ? "Hide recovered"
+              : "Show recovered"
+          }
         </button>
         <button
           className="pure-button pure-button-xsmall"

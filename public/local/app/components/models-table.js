@@ -130,17 +130,21 @@ const StatusIcon = ({
   return html`
     <span className="status-icon-wrapper">
       ${icon}
-      ${showDelete &&
-      html`<button
-        className="loading-status-icon-button loading-status-delete"
-        onClick=${onDelete}
-        type="button"
-        title="Delete from disk"
-      >
-        <i className="iconoir-trash"></i>
-      </button>`}
-      ${progressPercent !== null &&
-      html`<span className="status-progress-text">${progressPercent}%</span>`}
+      ${
+        showDelete &&
+        html`<button
+          className="loading-status-icon-button loading-status-delete"
+          onClick=${onDelete}
+          type="button"
+          title="Delete from disk"
+        >
+          <i className="iconoir-trash"></i>
+        </button>`
+      }
+      ${
+        progressPercent !== null &&
+        html`<span className="status-progress-text">${progressPercent}%</span>`
+      }
     </span>
   `;
 };
@@ -288,15 +292,17 @@ export const ModelsTable = ({ models = [], fitCtx }) => {
                     <td>${maxTokens ?? "—"}</td>
                     <td>${vramMb ?? "—"}</td>
                     <td>${released ?? "—"}</td>
-                    ${showFit &&
-                    html`<td>
-                      <span
-                        className=${`status-badge ${tierClass(fit.tier)}`}
-                        title=${fit.reasons.join(" ")}
-                      >
-                        ${tierLabel(fit.tier)}
-                      </span>
-                    </td>`}
+                    ${
+                      showFit &&
+                      html`<td>
+                        <span
+                          className=${`status-badge ${tierClass(fit.tier)}`}
+                          title=${fit.reasons.join(" ")}
+                        >
+                          ${tierLabel(fit.tier)}
+                        </span>
+                      </td>`
+                    }
                     <td>
                       <${StatusIcon}
                         status=${status}

@@ -12,22 +12,27 @@ export const Alert = ({ type = "success", children, err }) => {
   return html`
     <div className=${`alert ${typeClasses[type]}`}>
       ${children}
-      ${err &&
-      typeof err !== "string" &&
-      html`
-        <div className="alert-details">
-          <button
-            onClick=${() => setShowDetails(!showDetails)}
-            className="pure-button pure-button-xsmall"
-          >
-            ${showDetails ? "Hide" : "Show"} Details
-          </button>
-          ${showDetails &&
-          html`
-            <pre className="alert-stack">${err.stack || err.toString()}</pre>
-          `}
-        </div>
-      `}
+      ${
+        err &&
+        typeof err !== "string" &&
+        html`
+          <div className="alert-details">
+            <button
+              onClick=${() => setShowDetails(!showDetails)}
+              className="pure-button pure-button-xsmall"
+            >
+              ${showDetails ? "Hide" : "Show"} Details
+            </button>
+            ${
+              showDetails &&
+              html`
+                <pre className="alert-stack">
+${err.stack || err.toString()}</pre>
+              `
+            }
+          </div>
+        `
+      }
     </div>
   `;
 };

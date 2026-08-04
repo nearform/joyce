@@ -204,18 +204,22 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           <span className=${`status-badge ${webgpuStatus.className}`}>
             ${webgpuStatus.label}
           </span>
-          ${limits.maxBufferSize != null &&
-          html`<span className="gpu-info">
-            ${formatBytes(limits.maxBufferSize)} max buffer
-          </span>`}
+          ${
+            limits.maxBufferSize != null &&
+            html`<span className="gpu-info">
+              ${formatBytes(limits.maxBufferSize)} max buffer
+            </span>`
+          }
           ${gpuInfo && html`<span className="gpu-info">${gpuInfo}</span>`}
         </div>
 
         <div className="system-info-row">
           <strong>System RAM:</strong>${" "}
-          ${ramGb != null
-            ? `${ramGb} GB`
-            : "Unknown (iOS Safari does not expose deviceMemory)"}
+          ${
+            ramGb != null
+              ? `${ramGb} GB`
+              : "Unknown (iOS Safari does not expose deviceMemory)"
+          }
         </div>
 
         <div className="system-info-row">
@@ -232,97 +236,115 @@ const SystemPanel = ({ systemInfo, deviceInfo, experimentalChat }) => {
           >
             ${useIndexedDBCache ? "IndexedDB" : "Cache API"}
           </span>
-          ${useIndexedDBCache &&
-          html`<span className="gpu-info">(common on iOS Safari)</span>`}
+          ${
+            useIndexedDBCache &&
+            html`<span className="gpu-info">(common on iOS Safari)</span>`
+          }
         </div>
 
-        ${webgpu.adapterAvailable &&
-        html`
-          <details className="system-info-limits">
-            <summary>WebGPU Limits</summary>
-            <table className="limits-table">
-              <tbody>
-                <tr>
-                  <td>Max Buffer Size</td>
-                  <td>${formatBytes(limits.maxBufferSize)}</td>
-                </tr>
-                <tr>
-                  <td>Max Storage Buffer Binding</td>
-                  <td>${formatBytes(limits.maxStorageBufferBindingSize)}</td>
-                </tr>
-                <tr>
-                  <td>Max Compute Workgroup Storage</td>
-                  <td>${formatBytes(limits.maxComputeWorkgroupStorageSize)}</td>
-                </tr>
-                ${webgpu.preferredFormat &&
-                html`
+        ${
+          webgpu.adapterAvailable &&
+          html`
+            <details className="system-info-limits">
+              <summary>WebGPU Limits</summary>
+              <table className="limits-table">
+                <tbody>
                   <tr>
-                    <td>Preferred Canvas Format</td>
-                    <td>${webgpu.preferredFormat}</td>
+                    <td>Max Buffer Size</td>
+                    <td>${formatBytes(limits.maxBufferSize)}</td>
                   </tr>
-                `}
-              </tbody>
-            </table>
-          </details>
-        `}
+                  <tr>
+                    <td>Max Storage Buffer Binding</td>
+                    <td>${formatBytes(limits.maxStorageBufferBindingSize)}</td>
+                  </tr>
+                  <tr>
+                    <td>Max Compute Workgroup Storage</td>
+                    <td>
+                      ${formatBytes(limits.maxComputeWorkgroupStorageSize)}
+                    </td>
+                  </tr>
+                  ${
+                    webgpu.preferredFormat &&
+                    html`
+                      <tr>
+                        <td>Preferred Canvas Format</td>
+                        <td>${webgpu.preferredFormat}</td>
+                      </tr>
+                    `
+                  }
+                </tbody>
+              </table>
+            </details>
+          `
+        }
       </div>
 
-      ${experimentalChat &&
-      html`
-        <h3>Best for this device</h3>
-        <div className="system-info">
-          <div className="system-info-row">
-            <strong>web-llm:</strong>
-            ${best
-              ? html`
-                  ${best.model.model}
-                  ${best.model.vramMb != null &&
-                  html`<span className="gpu-info">
-                    (${best.model.vramMb} MB VRAM)
-                  </span>`}
-                  <span className=${`status-badge ${tierClass(best.fit.tier)}`}>
-                    ${tierLabel(best.fit.tier)}
-                  </span>
-                `
-              : html`
-                  <span className="status-badge status-unsupported">
-                    No clearly-safe model
-                  </span>
-                `}
-          </div>
-          ${best
-            ? html`
-                <div
-                  className="system-info-row"
-                  style=${{ color: "var(--color-text-muted)" }}
-                >
-                  ${best.fit.reasons.join(" ")}
-                </div>
-              `
-            : html`
-                <div
-                  className="system-info-row"
-                  style=${{ color: "var(--color-text-muted)" }}
-                >
-                  See the${" "}<strong>AI Models</strong>${" "}tab for the
-                  smallest options.
-                </div>
-              `}
+      ${
+        experimentalChat &&
+        html`
+          <h3>Best for this device</h3>
+          <div className="system-info">
+            <div className="system-info-row">
+              <strong>web-llm:</strong>
+              ${
+                best
+                  ? html`
+                      ${best.model.model}
+                      ${
+                        best.model.vramMb != null &&
+                        html`<span className="gpu-info">
+                          (${best.model.vramMb} MB VRAM)
+                        </span>`
+                      }
+                      <span
+                        className=${`status-badge ${tierClass(best.fit.tier)}`}
+                      >
+                        ${tierLabel(best.fit.tier)}
+                      </span>
+                    `
+                  : html`
+                      <span className="status-badge status-unsupported">
+                        No clearly-safe model
+                      </span>
+                    `
+              }
+            </div>
+            ${
+              best
+                ? html`
+                    <div
+                      className="system-info-row"
+                      style=${{ color: "var(--color-text-muted)" }}
+                    >
+                      ${best.fit.reasons.join(" ")}
+                    </div>
+                  `
+                : html`
+                    <div
+                      className="system-info-row"
+                      style=${{ color: "var(--color-text-muted)" }}
+                    >
+                      See the${" "}<strong>AI Models</strong>${" "}tab for the
+                      smallest options.
+                    </div>
+                  `
+            }
 
-          <div className="system-info-row">
-            <strong>Chrome Prompt API:</strong>
-            <span className=${`status-badge ${promptBadge.className}`}>
-              ${promptBadge.label}
-            </span>
+            <div className="system-info-row">
+              <strong>Chrome Prompt API:</strong>
+              <span className=${`status-badge ${promptBadge.className}`}>
+                ${promptBadge.label}
+              </span>
+            </div>
+            <div className="system-info-row">
+              <strong>Chrome Writer API:</strong>
+              <span className=${`status-badge ${writerBadge.className}`}>
+                ${writerBadge.label}
+              </span>
+            </div>
           </div>
-          <div className="system-info-row">
-            <strong>Chrome Writer API:</strong>
-            <span className=${`status-badge ${writerBadge.className}`}>
-              ${writerBadge.label}
-            </span>
-          </div>
-        </div>
-      `}
+        `
+      }
     </div>
   `;
 };

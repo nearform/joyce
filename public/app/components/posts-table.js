@@ -72,10 +72,12 @@ export const PostsTable = ({
       <table className="pure-table pure-table-bordered">
         <thead>
           <tr>
-            ${hasChunks &&
-            html`<th title="Included in prompt context">
-              <i className="iconoir-quote"></i>
-            </th>`}
+            ${
+              hasChunks &&
+              html`<th title="Included in prompt context">
+                <i className="iconoir-quote"></i>
+              </th>`
+            }
             ${Object.entries(headings).map(
               ([key, label]) =>
                 html`<th
@@ -113,16 +115,20 @@ export const PostsTable = ({
                     ${
                       hasChunks &&
                       html`<td>
-                        ${usedChunkSlugs.has(slug) &&
-                        html`<i
-                          class="iconoir-quote"
-                          style=${{ cursor: "pointer" }}
-                          onClick=${() =>
-                            setExpandedSlug(isExpanded ? null : slug)}
-                          title=${isExpanded
-                            ? "Click to collapse chunk excerpts"
-                            : "Click to view chunk excerpts"}
-                        ></i>`}
+                        ${
+                          usedChunkSlugs.has(slug) &&
+                          html`<i
+                            class="iconoir-quote"
+                            style=${{ cursor: "pointer" }}
+                            onClick=${() =>
+                              setExpandedSlug(isExpanded ? null : slug)}
+                            title=${
+                              isExpanded
+                                ? "Click to collapse chunk excerpts"
+                                : "Click to view chunk excerpts"
+                            }
+                          ></i>`
+                        }
                       </td>`
                     }
                     <td style=${{ minWidth: "90px" }}>

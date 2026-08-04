@@ -90,14 +90,16 @@ export const ModelsFilter = ({ models, filters, setFilters }) => {
         />
       </label>
 
-      ${filters.vramMin != null &&
-      filters.vramMax != null &&
-      filters.vramMax < filters.vramMin &&
-      html`
-        <span className="filter-validation-error">
-          Max must be greater than min
-        </span>
-      `}
+      ${
+        filters.vramMin != null &&
+        filters.vramMax != null &&
+        filters.vramMax < filters.vramMin &&
+        html`
+          <span className="filter-validation-error">
+            Max must be greater than min
+          </span>
+        `
+      }
     </div>
   `;
 };

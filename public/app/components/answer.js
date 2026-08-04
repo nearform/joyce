@@ -149,20 +149,23 @@ const QueryInfo = ({
       </summary>
 
       <div>
-        ${model &&
-        html`
-          <div key="model">
-            <strong>Model:</strong> ${model}
-            <ul>
-              ${provider && html`<li>Provider: ${ALL_PROVIDERS[provider]}</li>`}
-              ${providerApi && html`<li>API: ${providerApi}</li>`}
-              ${maxTokens && html`<li>Input: ${maxTokens} max tokens</li>`}
-              ${finishReason && html`<li>Finish reason: ${finishReason}</li>`}
-            </ul>
-          </div>
-        `}
-        ${elapsed &&
-        html`
+        ${
+          model &&
+          html`
+            <div key="model">
+              <strong>Model:</strong> ${model}
+              <ul>
+                ${provider && html`<li>Provider: ${ALL_PROVIDERS[provider]}</li>`}
+                ${providerApi && html`<li>API: ${providerApi}</li>`}
+                ${maxTokens && html`<li>Input: ${maxTokens} max tokens</li>`}
+                ${finishReason && html`<li>Finish reason: ${finishReason}</li>`}
+              </ul>
+            </div>
+          `
+        }
+        ${
+          elapsed &&
+          html`
           <${Fragment}>
             <div>
               <strong>Elapsed time:</strong> ${totalElapsed}
@@ -194,9 +197,11 @@ const QueryInfo = ({
               </li>
             </ul>
           </${Fragment}>
-        `}
-        ${chunks &&
-        html`
+        `
+        }
+        ${
+          chunks &&
+          html`
           <${Fragment}>
             <div>
               <strong>Chunks:</strong>
@@ -210,9 +215,11 @@ const QueryInfo = ({
               </li>
             </ul>
           </${Fragment}>
-        `}
-        ${usage &&
-        html`
+        `
+        }
+        ${
+          usage &&
+          html`
           <${Fragment}>
             <div>
               <strong>Usage:</strong>
@@ -241,9 +248,11 @@ const QueryInfo = ({
               }
             </ul>
           </${Fragment}>
-        `}
-        ${context &&
-        html`
+        `
+        }
+        ${
+          context &&
+          html`
           <${Fragment}>
             <div>
               <strong>Context:</strong>
@@ -256,10 +265,12 @@ const QueryInfo = ({
               <li>Total: ${formatInt(context.totalTokens)} tokens (est)</li>
             </ul>
           </${Fragment}>
-        `}
-        ${internal &&
-        internal.queries?.length > 0 &&
-        html`
+        `
+        }
+        ${
+          internal &&
+          internal.queries?.length > 0 &&
+          html`
           <${Fragment}>
             <div>
               <strong>Internal:</strong>
@@ -286,7 +297,8 @@ const QueryInfo = ({
               }
             </ul>
           </${Fragment}>
-        `}
+        `
+        }
       </div>
     </details>
   `;

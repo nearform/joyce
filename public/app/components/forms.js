@@ -106,16 +106,18 @@ export const DropdownWrapper = ({
       ref=${dropdownRef}
     >
       <i className=${iconClasses} onClick=${toggleOpen} title=${iconTitle}></i>
-      ${isOpen && !disabled
-        ? html`<div className="form-dropdown-content" onClick=${toggleOpen}>
-            <div
-              className="form-dropdown-content-inner"
-              onClick=${(e) => e.stopPropagation()}
-            >
-              ${children}
-            </div>
-          </div>`
-        : ""}
+      ${
+        isOpen && !disabled
+          ? html`<div className="form-dropdown-content" onClick=${toggleOpen}>
+              <div
+                className="form-dropdown-content-inner"
+                onClick=${(e) => e.stopPropagation()}
+              >
+                ${children}
+              </div>
+            </div>`
+          : ""
+      }
     </div>
   `;
 };
@@ -126,13 +128,15 @@ export const DropdownWrapper = ({
 const Submit = ({ submitName = "Submit", isFetching }) => html`
   <button
     type="submit"
-    className="pure-button pure-button-primary ${(isFetching &&
-      "pure-button-disabled") ||
-    ""}"
+    className="pure-button pure-button-primary ${
+      (isFetching && "pure-button-disabled") || ""
+    }"
   >
-    ${submitName.startsWith("iconoir-")
-      ? html`<i className=${submitName}></i>`
-      : submitName}
+    ${
+      submitName.startsWith("iconoir-")
+        ? html`<i className=${submitName}></i>`
+        : submitName
+    }
   </button>
 `;
 
@@ -142,9 +146,9 @@ const AskButton = ({ isFetching, title = "Ask" }) => html`
     type="submit"
     title=${title}
     disabled=${isFetching}
-    className="pure-button pure-button-primary chat-submit-icon-btn ${isFetching
-      ? "pure-button-disabled"
-      : ""}"
+    className="pure-button pure-button-primary chat-submit-icon-btn ${
+      isFetching ? "pure-button-disabled" : ""
+    }"
   >
     <i className="iconoir-send"></i>
   </button>
@@ -160,9 +164,9 @@ const ResetButton = ({ isFetching, onReset }) => {
     <button
       type="button"
       title="Clear conversation and start fresh"
-      className="pure-button chat-submit-icon-btn ${isFetching
-        ? "pure-button-disabled"
-        : ""}"
+      className="pure-button chat-submit-icon-btn ${
+        isFetching ? "pure-button-disabled" : ""
+      }"
       onClick=${handleReset}
       disabled=${isFetching}
     >

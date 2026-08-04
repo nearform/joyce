@@ -137,9 +137,9 @@ export const Posts = () => {
         html`<${LoadingMessage}
           resourceId=${LOADING.POSTS_DATA}
           type="info"
-          message=${postsDataStatus === "loading"
-            ? "Loading posts data..."
-            : null}
+          message=${
+            postsDataStatus === "loading" ? "Loading posts data..." : null
+          }
         />`
       }
     </${Page}>

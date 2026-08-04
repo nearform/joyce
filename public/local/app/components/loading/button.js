@@ -138,9 +138,11 @@ export const LoadingButton = ({
               isModel
                 ? html`<span
                     className="loading-status-info"
-                    title=${modelMeta
-                      ? `${modelMeta.quantization || "—"} · ${modelMeta.vramMb ? `${modelMeta.vramMb} MB VRAM` : "—"}`
-                      : "Model info"}
+                    title=${
+                      modelMeta
+                        ? `${modelMeta.quantization || "—"} · ${modelMeta.vramMb ? `${modelMeta.vramMb} MB VRAM` : "—"}`
+                        : "Model info"
+                    }
                     onClick=${handleInfoClick}
                     key="info"
                     ><i className="iconoir-info-circle"></i
@@ -247,9 +249,11 @@ export const LoadingButton = ({
                     <i className="iconoir-database"></i>
                     <span className="modal-stat-label">VRAM Required</span>
                     <span className="modal-stat-value">
-                      ${modelMeta.vramMb
-                        ? `${modelMeta.vramMb.toLocaleString()} MB`
-                        : "—"}
+                      ${
+                        modelMeta.vramMb
+                          ? `${modelMeta.vramMb.toLocaleString()} MB`
+                          : "—"
+                      }
                     </span>
                   </div>
                   <div className="modal-stat-card">
