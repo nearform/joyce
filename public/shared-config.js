@@ -28,6 +28,15 @@ export const IS_MOBILE =
   /Mobi/.test(UA) ||
   (PLATFORM === "MacIntel" && MAX_TOUCH_POINTS > 1); // iPadOS reports as MacIntel
 
+// LiteRT-LM feature detection. The runtime is WebGPU-only in practice: GPU_ARTISAN is the only
+// backend that streams a multi-GB model (CPU_ARTISAN isn't even compiled into the web wasm — it
+// throws "Unsupported backend: 1"), and the smallest model it accepts is 2 GB, far past what an
+// iPhone can hold. Mobile is excluded until a small web-packaged model exists — see docs/data.md.
+// Node-safe: no `navigator` falls through to disabled.
+export const HAS_WEBGPU =
+  typeof navigator !== "undefined" && Boolean(navigator.gpu);
+export const LITERT_POSSIBLE = HAS_WEBGPU && !IS_MOBILE;
+
 const BASE_PAGES = [
   { name: "Home", navName: "Joyce", to: "/", icon: "iconoir-glasses" },
   { name: "Posts", to: "/posts", icon: "iconoir-multiple-pages-empty" },
@@ -154,6 +163,58 @@ const WEB_LLM_CHAT_MOBILE = [
   },
 ];
 
+// LiteRT-LM (Google's on-device GenAI runtime). Version-pinned to match the @litert-lm/core entry
+// in the index.html import map — the runtime feature-detects relaxed-SIMD/JSPI and picks the right
+// build out of this directory. Keep the two versions in lockstep.
+export const LITERT_WASM_URL =
+  "https://cdn.jsdelivr.net/npm/@litert-lm/core@0.15.0/wasm";
+
+// LiteRT-LM curated tiers. Models are downloaded from HuggingFace by `repo`/`file` (see
+// litert-cache.js) and cached in the Cache API, so `model` is a synthetic id — no "/" in it, which
+// keeps loading.js's resource-key derivation working unchanged.
+//
+// Only five genuine web-optimized `.litertlm` files exist across all of HuggingFace, all Gemma 4,
+// and the smallest is 2 GB. The `-web` packaging is load-bearing, not cosmetic: the GPU_ARTISAN
+// backend streams the file section by section, and plain `.litertlm` builds fail outright with
+// "Streaming LlmExecutorMetadata section is not supported yet" / "Streaming HF_Tokenizer_Zlib
+// section is not supported yet" (measured — see docs/data.md). Both repos below are ungated (the
+// Gemma 3 LiteRT repos are `gated: auto` and 401 without a token, so they're unusable here).
+//
+// maxTokens is the KV-cache budget we request via mainExecutorSettings.maxNumTokens, NOT a model
+// ceiling — Gemma 4 supports 32k. It's a memory/context tradeoff: bigger KV cache costs GPU memory
+// on top of the ~1.8 GB of weights. 8192 matches Google's own JS example and the Chrome provider's
+// setting here, and leaves real room for RAG chunks after the cushion. Raise it if you have GPU
+// headroom; drop it to 4096 if a device OOMs during load.
+const LITERT_MAX_TOKENS = 8192;
+const LITERT_CHAT_DESKTOP = [
+  {
+    model: "gemma-4-E2B-it-web",
+    modelShortName: "Gemma 4 E2B",
+    shortOption: "Better",
+    repo: "litert-community/gemma-4-E2B-it-litert-lm",
+    file: "gemma-4-E2B-it-web.litertlm",
+    downloadSizeMb: 2008,
+    maxTokens: LITERT_MAX_TOKENS,
+    quantization: "mixed 2/4/8-bit",
+  },
+  {
+    model: "gemma-4-E4B-it-web",
+    modelShortName: "Gemma 4 E4B",
+    shortOption: "Best",
+    repo: "litert-community/gemma-4-E4B-it-litert-lm",
+    file: "gemma-4-E4B-it-web.litertlm",
+    downloadSizeMb: 2969,
+    maxTokens: LITERT_MAX_TOKENS,
+    quantization: "mixed 2/4/8-bit",
+  },
+];
+
+// Empty by measurement, not assumption. Small plain `.litertlm` files do load on the CPU backend
+// (Qwen3-0.6B int4 in 15.5s, MiniCPM5-1B in 88.5s) but prefill runs at 4-8 tok/s, which a RAG
+// context of a few thousand tokens turns into minutes before the first token. Unusable here, and
+// worse on a phone. Populate this only if Google ships a small `-web`-packaged `.litertlm`.
+const LITERT_CHAT_MOBILE = [];
+
 const config = {
   pages: {
     all: [...BASE_PAGES, ...DEV_ONLY_PAGES],
@@ -199,6 +260,11 @@ const config = {
       chat: IS_MOBILE ? WEB_LLM_CHAT_MOBILE : WEB_LLM_CHAT_DESKTOP,
     },
   },
+  litert: {
+    models: {
+      chat: IS_MOBILE ? LITERT_CHAT_MOBILE : LITERT_CHAT_DESKTOP,
+    },
+  },
 };
 
 // Default embedding chunk size (uses the MEDIUM size from dataChunkSizes)
@@ -207,6 +273,7 @@ export const DEFAULT_EMBEDDING_CHUNK_SIZE =
 
 export const ALL_PROVIDERS = {
   chrome: "Chrome",
+  litert: "LiteRT-LM",
   webLlm: "web-llm",
 };
 
@@ -214,7 +281,7 @@ export const ALL_PROVIDERS = {
 // page-owned engine + managing their own cache. Chrome built-in AI is OS-managed (unload/delete are
 // no-ops), so it's excluded. Add future providers here as they gain unload/delete support; the UI
 // (loading button, models table) reads this list to decide whether to offer those actions.
-export const MEMORY_MANAGED_PROVIDERS = ["webLlm"];
+export const MEMORY_MANAGED_PROVIDERS = ["webLlm", "litert"];
 export const providerManagesMemory = (provider) =>
   MEMORY_MANAGED_PROVIDERS.includes(provider);
 
@@ -225,7 +292,7 @@ export const providerManagesMemory = (provider) =>
 // MEMORY_MANAGED_PROVIDERS (which is about whether unload/delete are offered) — a provider could
 // manage its own memory yet still permit multiple resident models. Add future providers here as they
 // gain page-owned engines that need this policy.
-export const SINGLE_MODEL_PROVIDERS = ["webLlm"];
+export const SINGLE_MODEL_PROVIDERS = ["webLlm", "litert"];
 export const usesSingleModelPolicy = (provider) =>
   SINGLE_MODEL_PROVIDERS.includes(provider);
 

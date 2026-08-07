@@ -58,13 +58,21 @@
     </script>
 
     <!-- Deps
-      - @xenova/transformers@2.17.2 is UMD and breaks with '+esm' added. 
+      - @xenova/transformers@2.17.2 is UMD and breaks with '+esm' added.
       - "crashbox": "https://cdn.jsdelivr.net/npm/crashbox@0.1.0/+esm",
       - "crashbox": "/vendor/crashbox/src/index.js",
+      - @litert-lm/core loads its wasm separately from the same pinned version — see
+        LITERT_WASM_URL in shared-config.js. Bump both together.
+      - Its +esm bundle serves a `Link: </npm/@litertjs/wasm-utils@2.5.3/+esm>; rel=modulepreload`
+        header. Browsers resolve Link headers against the DOCUMENT url, not the module's, so you
+        get a harmless 404 for `<origin>/npm/@litertjs/wasm-utils...` in the console. The real
+        import inside the bundle is `/npm/...` resolved against cdn.jsdelivr.net and works fine.
+        Ignore the 404 — it is a wasted preload, not a broken dependency.
     -->
     <script type="importmap">
       {
         "imports": {
+          "@litert-lm/core": "https://cdn.jsdelivr.net/npm/@litert-lm/core@0.15.0/+esm",
           "@mlc-ai/web-llm": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.83/+esm",
           "@orama/orama": "https://cdn.jsdelivr.net/npm/@orama/orama@3.1.18/+esm",
           "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2",
@@ -97,7 +105,10 @@
       import { bootstrap, breadcrumb } from "./local/data/telemetry.js";
       import { init } from "./local/data/loading.js";
       import { getSystemInfo, getDeviceInfo } from "./local/data/util.js";
-      import { CHROME_ANY_API_POSSIBLE } from "./shared-config.js";
+      import {
+        CHROME_ANY_API_POSSIBLE,
+        LITERT_POSSIBLE,
+      } from "./shared-config.js";
 
       // Must run before anything else so the previous session is recovered and a fresh
       // session is recording before resource loads start emitting breadcrumbs. Gated on
@@ -124,6 +135,9 @@
           },
           chrome: {
             enabled: CHROME_ANY_API_POSSIBLE,
+          },
+          litert: {
+            enabled: LITERT_POSSIBLE,
           },
         },
       };

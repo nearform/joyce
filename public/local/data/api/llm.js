@@ -2,11 +2,13 @@
 // Routes to provider-specific implementations based on provider parameter
 import * as webLlm from "./providers/web-llm.js";
 import * as chrome from "./providers/chrome.js";
+import * as litert from "./providers/litert.js";
 import { DEFAULT_CHAT_MODEL } from "../../../config.js";
 
 const PROVIDERS = {
   webLlm,
   chrome,
+  litert,
 };
 
 /**
@@ -83,8 +85,28 @@ export const isLlmCached = async (provider, model) => {
  * Capabilities are defined in provider implementations (single source of truth).
  * @param {string} provider - The provider key (e.g., "webLlm", "chrome")
  * @param {string} model - The model ID
- * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean }}
+ * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean, usesMessageArray: boolean }}
  */
 export const getProviderCapabilities = (provider, model) => {
   return getProvider(provider).getCapabilities(model);
+};
+
+/**
+ * Create a conversation handler for a provider.
+ *
+ * Callers pass a superset options bag and each provider reads only the keys it needs — that keeps
+ * provider selection in this one registry instead of a parallel switch in chat-session.js.
+ *
+ * @param {string} provider - The provider key
+ * @param {Object} opts - Handler options
+ * @param {string} opts.model - Model ID
+ * @param {string} [opts.systemContext] - RAG context, for providers whose session owns the history
+ * @param {number} [opts.temperature] - Sampling temperature
+ * @param {number} [opts.maxTokens] - Model context window
+ * @param {number} [opts.maxOutputTokens] - Cap on generated tokens
+ * @param {boolean} [opts.enableThinking] - Allow reasoning models to emit <think> (web-llm only)
+ * @returns {Promise<Object>} Handler with sendMessage(input) and destroy()
+ */
+export const createProviderHandler = async (provider, opts) => {
+  return getProvider(provider).createHandler(opts);
 };

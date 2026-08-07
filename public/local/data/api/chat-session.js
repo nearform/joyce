@@ -1,10 +1,8 @@
 // Chat Session - Unified API for RAG-based conversations
 // Simplified architecture: RAG → Session → Provider
 
-import { getProviderCapabilities } from "./llm.js";
+import { getProviderCapabilities, createProviderHandler } from "./llm.js";
 import { estimateTokens } from "../util.js";
-import { createHandler as createChromeHandler } from "./providers/chrome.js";
-import { createHandler as createWebLlmHandler } from "./providers/web-llm.js";
 import {
   buildBasePrompts,
   withCitationReminder,
@@ -197,7 +195,7 @@ const buildUsageMessage = ({
  * Create a chat session for RAG-based conversations.
  *
  * @param {Object} options
- * @param {string} options.provider - LLM provider ("webLlm" | "chrome")
+ * @param {string} options.provider - LLM provider key (see PROVIDERS in llm.js)
  * @param {string} options.model - Model ID
  * @param {number} options.temperature - Sampling temperature
  * @param {boolean} [options.enableThinking] - Allow reasoning models to emit <think> (web-llm only)
@@ -224,20 +222,16 @@ export const createChatSession = ({
   const ensureHandler = async () => {
     if (state.handler) return state.handler;
 
-    state.handler =
-      provider === "chrome"
-        ? await createChromeHandler({
-            model,
-            systemContext: getContext(state),
-            temperature,
-            maxTokens,
-          })
-        : await createWebLlmHandler({
-            model,
-            temperature,
-            maxOutputTokens: MAX_OUTPUT_TOKENS,
-            enableThinking,
-          });
+    // Superset options bag — each provider reads only what it needs. Provider selection lives in
+    // llm.js's PROVIDERS registry, so adding a provider doesn't touch this file.
+    state.handler = await createProviderHandler(provider, {
+      model,
+      systemContext: getContext(state),
+      temperature,
+      maxTokens,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      enableThinking,
+    });
 
     return state.handler;
   };
@@ -268,12 +262,13 @@ export const createChatSession = ({
     }
 
     const handler = await ensureHandler();
-    // web-llm gets the full messages array (reminder applied inside buildMessages); Chrome takes a
-    // raw user string, so apply the citation reminder here for the Prompt + Writer paths.
-    const input =
-      provider === "webLlm"
-        ? buildMessages(query)
-        : withCitationReminder(query);
+    // Stateless providers get the full messages array (reminder applied inside buildMessages);
+    // providers whose session owns the history take a raw user string, so apply the citation
+    // reminder here. Driven by a declared capability so a new provider can't silently get the
+    // wrong shape.
+    const input = capabilities.usesMessageArray
+      ? buildMessages(query)
+      : withCitationReminder(query);
     let firstTokenTime = null;
 
     for await (const event of handler.sendMessage(input)) {

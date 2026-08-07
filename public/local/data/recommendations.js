@@ -56,7 +56,10 @@ export const assessModelFit = (model, ctx) => {
   const fallbackGPU = !!systemInfo?.webgpu?.isFallback;
   const noWebGPU = !systemInfo?.webgpu?.adapterAvailable;
   // MODELS entries from public/config.js have no `provider` field; treat them as web-llm.
-  const isWebLlm = model.provider === undefined || model.provider === "webLlm";
+  const provider = model.provider ?? "webLlm";
+  // Every in-page engine we run needs WebGPU (web-llm's runtime, LiteRT-LM's GPU_ARTISAN backend).
+  // Chrome built-in AI is the exception — the model is the OS's, so WebGPU is irrelevant to it.
+  const needsWebGpu = provider !== "chrome";
 
   // Hard blocks.
   // Unknown VRAM requirement (web-llm leaves vram_required_MB null for some entries, e.g. the
@@ -75,9 +78,9 @@ export const assessModelFit = (model, ctx) => {
       `Needs ${need} MB; GPU max buffer is ${Math.round(maxBuf / 1048576)} MB.`,
     );
   }
-  if (isWebLlm && noWebGPU) {
+  if (needsWebGpu && noWebGPU) {
     tier = escalate(tier, "blocked");
-    reasons.push("web-llm requires WebGPU; not available here.");
+    reasons.push(`${provider} requires WebGPU; not available here.`);
   }
 
   if (tier !== "blocked") {
@@ -106,7 +109,7 @@ export const assessModelFit = (model, ctx) => {
       tier = escalate(tier, "risky");
       reasons.push("WebGPU is using a software fallback adapter.");
     }
-    if (recovered?.reason === "webgpu-device-lost" && isWebLlm) {
+    if (recovered?.reason === "webgpu-device-lost" && needsWebGpu) {
       tier = escalate(tier, "risky");
       reasons.push("Previous session crashed with a WebGPU device loss.");
     }

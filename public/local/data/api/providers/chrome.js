@@ -146,11 +146,14 @@ export const isLlmCached = async (model) => {
 /**
  * Get capabilities for a Chrome AI model.
  * @param {string} model - The model ID
- * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean }}
+ * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean, usesMessageArray: boolean }}
  */
 export const getCapabilities = (model) => ({
   supportsMultiTurn: getApiType(model) === "prompt",
   supportsTokenTracking: true,
+  // Chrome sessions own their own history and take prompts at create() time, so sendMessage()
+  // receives a raw user string rather than the full messages array.
+  usesMessageArray: false,
 });
 
 /**

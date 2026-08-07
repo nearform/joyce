@@ -228,11 +228,14 @@ export const deleteModelCache = async (model = DEFAULT_MODEL) => {
 
 /**
  * Get capabilities for a web-llm model.
- * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean }}
+ * @returns {{ supportsMultiTurn: boolean, supportsTokenTracking: boolean, usesMessageArray: boolean }}
  */
 export const getCapabilities = () => ({
   supportsMultiTurn: true,
   supportsTokenTracking: true,
+  // web-llm is stateless — every request resends the whole conversation, so sendMessage() takes
+  // the full messages array rather than a bare user string.
+  usesMessageArray: true,
 });
 
 /**
