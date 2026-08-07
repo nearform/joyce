@@ -31,7 +31,7 @@ export const IS_MOBILE =
 // LiteRT-LM feature detection. The runtime is WebGPU-only in practice: GPU_ARTISAN is the only
 // backend that streams a multi-GB model (CPU_ARTISAN isn't even compiled into the web wasm — it
 // throws "Unsupported backend: 1"), and the smallest model it accepts is 2 GB, far past what an
-// iPhone can hold. Mobile is excluded until a small web-packaged model exists — see docs/data.md.
+// iPhone can hold. Mobile is excluded until a small web-packaged model exists — see docs/research.md.
 // Node-safe: no `navigator` falls through to disabled.
 export const HAS_WEBGPU =
   typeof navigator !== "undefined" && Boolean(navigator.gpu);
@@ -177,7 +177,7 @@ export const LITERT_WASM_URL =
 // and the smallest is 2 GB. The `-web` packaging is load-bearing, not cosmetic: the GPU_ARTISAN
 // backend streams the file section by section, and plain `.litertlm` builds fail outright with
 // "Streaming LlmExecutorMetadata section is not supported yet" / "Streaming HF_Tokenizer_Zlib
-// section is not supported yet" (measured — see docs/data.md). Both repos below are ungated (the
+// section is not supported yet" (measured — see docs/research.md). Both repos below are ungated (the
 // Gemma 3 LiteRT repos are `gated: auto` and 401 without a token, so they're unusable here).
 //
 // maxTokens is the KV-cache budget we request via mainExecutorSettings.maxNumTokens, NOT a model

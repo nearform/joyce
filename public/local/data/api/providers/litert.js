@@ -99,8 +99,10 @@ export const getLlmEngine = async (model) => {
         () =>
           Engine.create({
             model: source,
-            // GPU_ARTISAN is the only backend that streams weights straight to the GPU. Every other
-            // backend copies the whole model into the wasm heap first, which cannot work at 2 GB.
+            // Do not change this. GPU_ARTISAN is the only backend the web wasm actually implements
+            // for GPU work, and it is bound to the streaming loader (hence the 2 GB `-web` model
+            // floor). Backend.GPU is an enum entry with no compiled executor — it crashes the tab
+            // rather than erroring. CPU works but is prefill-bound. See docs/research.md.
             backend: Backend.GPU_ARTISAN,
             // Enables getBenchmarkInfo(), which gives real per-turn prefill/decode token counts.
             benchmarkEnabled: true,

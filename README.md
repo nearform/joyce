@@ -7,6 +7,7 @@ A small, browser-based knowledge assistant for Nearform's web content.
 Docs:
 
 - [Data](./docs/data.md): How to update data.
+- [Research](./docs/research.md): Findings from evaluating technology we use or considered.
 
 Run development server:
 
