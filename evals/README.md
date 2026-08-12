@@ -50,14 +50,27 @@ created automatically. Quit any Chrome already using that directory — `--user-
 exclusive, and a second launch silently hands off to the running instance instead of starting.
 
 **Chrome built-in AI (optional).** `chrome::gemini-nano-*` cases need the model downloaded _in the
-eval profile_. The preflight reports availability; when it's absent those cases are skipped rather
-than failed. To enable it, launch the eval profile by hand once and turn on the built-in AI flags:
+eval profile_. The preflight reports availability, and when the model is absent those cases are
+skipped rather than failed.
+
+Check what preflight says first — it prints one of:
+
+- `availability=downloadable` — the API is present and the flags are already fine. You only need to
+  trigger the download once (below).
+- `LanguageModel=false` — the API isn't exposed at all; enable the Prompt API and the on-device
+  model at `chrome://flags` in the eval profile first.
+
+To trigger the download, launch the eval profile by hand and run one line in DevTools:
 
 ```sh
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
   --user-data-dir="$PWD/.data/evals/chrome-profile"
-# then visit chrome://flags, enable the Prompt API + on-device model, and let it download
+# DevTools console:  await LanguageModel.create()
+# Progress:          chrome://on-device-internals
 ```
+
+The download is a few GB and persists in the profile. Re-run preflight; `availability` should read
+`available`.
 
 **Judge (optional, later phase).** Point `JOYCE_EVAL_JUDGE_BASE_URL` at any OpenAI-compatible
 server. With `JOYCE_EVAL_JUDGE_MODEL=auto` the harness reads the model id from `GET /v1/models`, so
