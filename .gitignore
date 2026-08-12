@@ -34,6 +34,13 @@ tmp-*
 # Analytics data
 .data/analytics/
 
+# Evals: run artifacts, Chrome profile, judge cache, mining candidates.
+# NOTE: evals/baselines/ is deliberately NOT ignored — baselines are committed so score
+# changes show up in PR review.
+.data/evals/
+evals/.cache/
+evals/.mining/
+
 # AI
 .claude/settings*
 

@@ -1,4 +1,3 @@
-/* global console:false,process:false */
 /**
  * Generate embeddings for all posts from posts.json.
  *

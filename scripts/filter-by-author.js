@@ -1,4 +1,3 @@
-/* global console:false,process:false */
 /**
  * Filter posts.json by author name regex.
  *

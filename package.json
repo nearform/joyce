@@ -8,6 +8,8 @@
     "dev": "npx serve -p 4300",
     "dev:root": "npx serve -c serve-root.json -p 4301",
     "data:embeddings": "node ./scripts/embeddings.js",
+    "evals": "node ./evals/run.js",
+    "evals:holdout": "node ./evals/run.js --include-holdout",
     "lint:fix": "eslint . --fix",
     "lint:check": "eslint . --quiet",
     "pretty:fix": "prettier . --write",
