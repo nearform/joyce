@@ -46,8 +46,42 @@ cp evals/env.example .env
 
 **Chrome profile.** The harness uses a dedicated persistent profile at
 `.data/evals/chrome-profile` so web-llm's multi-GB model downloads survive between runs. It is
-created automatically. Quit any Chrome already using that directory — `--user-data-dir` is
-exclusive, and a second launch silently hands off to the running instance instead of starting.
+created automatically.
+
+`--user-data-dir` is **exclusive**: if a browser is already open on that profile, a second launch
+silently hands off to it and exits without ever writing a DevTools port. So either quit it, or —
+better if you like keeping a window open — attach to it instead:
+
+```sh
+npm run evals:chrome                      # open it, or report the one already open
+npm run evals:chrome -- --download-ai     # ...and fetch Chrome's on-device AI model
+npm run evals:chrome -- --quit            # close it again
+
+npm run evals -- --suite smoke --chrome-endpoint=http://127.0.0.1:9223
+```
+
+`evals:chrome` is idempotent — run it as often as you like. It prints the WebGPU adapter and the
+built-in AI status, **probed on the app origin**: those APIs need a secure context, so probing
+`about:blank` reports both as unavailable even when they work fine. If the dev server isn't up it
+says so rather than reporting a false negative.
+
+Doing it by hand instead:
+
+```sh
+# Open the eval profile yourself, on a port of your choosing.
+# Coexists fine with any other Chrome, as long as each has its own --user-data-dir.
+# Use the binary directly; `open -a` would just focus your existing window.
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --user-data-dir="$PWD/.data/evals/chrome-profile" \
+  --remote-debugging-port=9223 --no-first-run --no-default-browser-check &
+
+npm run evals -- --suite smoke --chrome-endpoint=http://127.0.0.1:9223
+```
+
+An attached browser is **never torn down** by the harness — it only closes the tab it opened. The
+run manifest records `chromeAttached: true`, because an attached browser is not a
+harness-controlled environment: its flags, extensions, and profile were decided elsewhere.
+`--headless` is rejected alongside `--chrome-endpoint`, since that choice was made at launch.
 
 **Chrome built-in AI (optional).** `chrome::gemini-nano-*` cases need the model downloaded _in the
 eval profile_. The preflight reports availability, and when the model is absent those cases are
@@ -60,17 +94,19 @@ Check what preflight says first — it prints one of:
 - `LanguageModel=false` — the API isn't exposed at all; enable the Prompt API and the on-device
   model at `chrome://flags` in the eval profile first.
 
-To trigger the download, launch the eval profile by hand and run one line in DevTools:
+To trigger the download:
 
 ```sh
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --user-data-dir="$PWD/.data/evals/chrome-profile"
-# DevTools console:  await LanguageModel.create()
-# Progress:          chrome://on-device-internals
+npm run evals:chrome -- --download-ai
 ```
 
-The download is a few GB and persists in the profile. Re-run preflight; `availability` should read
-`available`.
+It starts the download, samples progress for 20s, then hands off — the download continues at
+browser level even after the command exits. Watch `chrome://on-device-internals`, and re-run
+`npm run evals:chrome` to confirm; `availability` should end up `available`.
+
+The equivalent by hand is `await LanguageModel.create()` in the DevTools console of a page on the
+app origin. It must be a **secure context** — running it on `about:blank` fails, because the API
+isn't exposed there at all.
 
 **Judge (optional, later phase).** Point `JOYCE_EVAL_JUDGE_BASE_URL` at any OpenAI-compatible
 server. With `JOYCE_EVAL_JUDGE_MODEL=auto` the harness reads the model id from `GET /v1/models`, so

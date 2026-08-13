@@ -32,6 +32,10 @@ export const DEFAULTS = {
     readyTimeoutMs: 180_000,
   },
   chrome: {
+    // Set to a DevTools endpoint ("http://127.0.0.1:9223") to attach to an already-running
+    // Chrome instead of launching one. Needed when you keep a browser open on the eval profile,
+    // since --user-data-dir is exclusive. An attached browser is never torn down by the harness.
+    endpoint: null,
     binary: null,
     // Persistent profile so web-llm's multi-GB model downloads survive between runs. Under .data/
     // so eslint and prettier ignore it, and gitignored.
@@ -113,6 +117,7 @@ const CLI_OPTIONS = {
   "app-url": { type: "string" },
   "no-server": { type: "boolean" },
   port: { type: "string" },
+  "chrome-endpoint": { type: "string" },
   "chrome-binary": { type: "string" },
   "chrome-profile": { type: "string" },
   headless: { type: "boolean" },
@@ -161,6 +166,8 @@ App / browser:
   --app-url=URL           Default: http://127.0.0.1:4300/
   --no-server             Never spawn a dev server; fail if none is listening
   --port=N                Port to spawn the dev server on. Default: 4300
+  --chrome-endpoint=URL   Attach to an already-running Chrome (e.g. http://127.0.0.1:9223)
+                          instead of launching one. Never torn down by the harness.
   --chrome-binary=PATH    Override Chrome discovery
   --chrome-profile=DIR    Persistent profile dir. Default: .data/evals/chrome-profile
   --headless              Non-comparable run; sets comparable=false
@@ -231,6 +238,7 @@ const fromEnv = (env) => ({
     port: asNum(env.JOYCE_EVAL_PORT, "JOYCE_EVAL_PORT"),
   },
   chrome: {
+    endpoint: env.JOYCE_EVAL_CHROME_ENDPOINT,
     binary: env.JOYCE_EVAL_CHROME_BINARY,
     userDataDir: env.JOYCE_EVAL_CHROME_PROFILE,
     headless: asBool(env.JOYCE_EVAL_HEADLESS),
@@ -266,6 +274,7 @@ const fromCli = (v) => ({
     port: asNum(v.port, "--port"),
   },
   chrome: {
+    endpoint: v["chrome-endpoint"],
     binary: v["chrome-binary"],
     userDataDir: v["chrome-profile"],
     headless: v.headless,
@@ -365,6 +374,13 @@ const validate = (c) => {
   }
   if (c.sut.samples < 1) {
     throw new HarnessError("harness.bad_config", "--samples must be >= 1");
+  }
+  if (c.chrome.endpoint && c.chrome.headless) {
+    throw new HarnessError(
+      "harness.bad_config",
+      "--headless cannot be combined with --chrome-endpoint: the attached browser's mode was " +
+        "decided when you launched it, and the harness has no say in it.",
+    );
   }
   if (c.chrome.allowSwiftshader && !c.chrome.headless) {
     throw new HarnessError(

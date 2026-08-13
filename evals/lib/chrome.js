@@ -39,7 +39,7 @@ const LINUX_CANDIDATES = [
  *   --disable-extensions    harmless but unnecessary on a dedicated profile
  * and nothing that disables OptimizationGuideModelDownloading, which Chrome's built-in AI needs.
  */
-const BASE_ARGS = [
+export const BASE_ARGS = [
   "--no-first-run",
   "--no-default-browser-check",
   "--hide-crash-restore-bubble",
@@ -130,6 +130,73 @@ const readDevToolsPort = async (userDataDir, { timeoutMs, isAlive }) => {
     "chrome.port_timeout",
     `Chrome did not write DevToolsActivePort within ${timeoutMs}ms`,
   );
+};
+
+/**
+ * Attach to a Chrome that is already running with --remote-debugging-port.
+ *
+ * Exists because `--user-data-dir` is exclusive: if you keep a browser open on the eval profile
+ * (to download Chrome's built-in AI model, or just to watch runs), the harness cannot launch its
+ * own on that same profile — the second process hands off to the first and exits without ever
+ * writing a DevToolsActivePort. Attaching sidesteps that entirely.
+ *
+ * `stop` is deliberately a no-op: we did not start this browser, so we must never kill it. The
+ * caller still closes the tab it created.
+ *
+ * @param {{endpoint: string, timeoutMs?: number, log?: Object}} options
+ * @returns {Promise<{wsUrl: string, port: number, pid: null, version: Object,
+ *                    binary: null, attached: true, stop: () => Promise<void>}>}
+ */
+export const attachToChrome = async ({
+  endpoint,
+  timeoutMs = 10_000,
+  log = console,
+}) => {
+  let port;
+  try {
+    const url = new URL(
+      endpoint.includes("://") ? endpoint : `http://${endpoint}`,
+    );
+    port = Number.parseInt(url.port, 10);
+  } catch {
+    throw new HarnessError(
+      "chrome.bad_endpoint",
+      `--chrome-endpoint must be a URL or host:port, got "${endpoint}"`,
+    );
+  }
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new HarnessError(
+      "chrome.bad_endpoint",
+      `--chrome-endpoint must include a port, got "${endpoint}"`,
+    );
+  }
+
+  let wsUrl;
+  let version;
+  try {
+    ({ wsUrl, version } = await resolveBrowserWsUrl(port, { timeoutMs }));
+  } catch (err) {
+    throw new HarnessError(
+      "chrome.attach_failed",
+      `Could not reach a Chrome DevTools endpoint on port ${port}. Start one with:\n` +
+        `  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \\\n` +
+        `    --user-data-dir=<profile> --remote-debugging-port=${port}`,
+      { cause: err.message },
+    );
+  }
+
+  log.debug?.(
+    `Attached to running ${version.Browser ?? "Chrome"} on port ${port}`,
+  );
+  return {
+    wsUrl,
+    port,
+    pid: null,
+    version,
+    binary: null,
+    attached: true,
+    stop: async () => {},
+  };
 };
 
 /**

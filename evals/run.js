@@ -64,7 +64,9 @@ const preflight = async ({ config, log, disposers }) => {
   disposers.push("dev server", server.stop);
 
   log.info(
-    `Launching Chrome (${config.chrome.headless ? "headless" : "headful"})`,
+    config.chrome.endpoint
+      ? `Attaching to running Chrome at ${config.chrome.endpoint}`
+      : `Launching Chrome (${config.chrome.headless ? "headless" : "headful"})`,
   );
   const browser = await openBrowser(config, log);
   disposers.push("browser", browser.teardown);
@@ -290,6 +292,9 @@ const main = async () => {
         node: process.version,
         platform: process.platform,
         chrome: context.browser.chrome.version?.Browser ?? null,
+        // Recorded because an attached browser is not a harness-controlled environment: its
+        // flags, extensions, and profile were decided elsewhere.
+        chromeAttached: Boolean(context.browser.chrome.attached),
         gpu: context.env.gpu,
         chromeAi: context.env.chromeAi,
       },

@@ -10,6 +10,7 @@
     "data:embeddings": "node ./scripts/embeddings.js",
     "evals": "node ./evals/run.js",
     "evals:holdout": "node ./evals/run.js --include-holdout",
+    "evals:chrome": "node ./evals/tools/open-chrome.js",
     "lint:fix": "eslint . --fix",
     "lint:check": "eslint . --quiet",
     "pretty:fix": "prettier . --write",

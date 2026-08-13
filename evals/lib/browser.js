@@ -4,7 +4,7 @@
 // evaluation, and console/exception/network capture. Drivers should never reach for raw CDP.
 
 import { BINDING_NAME, connectCdp } from "./cdp.js";
-import { launchChrome } from "./chrome.js";
+import { attachToChrome, launchChrome } from "./chrome.js";
 import { addInitScript, evaluateFn } from "./inject.js";
 import { createBindingStream } from "./binding.js";
 import { HarnessError, TimeoutError } from "./errors.js";
@@ -44,15 +44,23 @@ export const moduleBase = (baseUrl) => {
  * @returns {Promise<Object>} browser session
  */
 export const openBrowser = async (config, log) => {
-  const chrome = await launchChrome({
-    binary: config.chrome.binary,
-    userDataDir: config.chrome.userDataDir,
-    headless: config.chrome.headless,
-    allowSwiftshader: config.chrome.allowSwiftshader,
-    extraArgs: config.chrome.extraArgs,
-    timeoutMs: config.chrome.launchTimeoutMs,
-    log,
-  });
+  // Attaching is the escape hatch for an already-open browser on the eval profile, since
+  // --user-data-dir is exclusive. An attached browser is never stopped by teardown.
+  const chrome = config.chrome.endpoint
+    ? await attachToChrome({
+        endpoint: config.chrome.endpoint,
+        timeoutMs: config.chrome.launchTimeoutMs,
+        log,
+      })
+    : await launchChrome({
+        binary: config.chrome.binary,
+        userDataDir: config.chrome.userDataDir,
+        headless: config.chrome.headless,
+        allowSwiftshader: config.chrome.allowSwiftshader,
+        extraArgs: config.chrome.extraArgs,
+        timeoutMs: config.chrome.launchTimeoutMs,
+        log,
+      });
 
   const conn = await connectCdp(chrome.wsUrl, { timeoutMs: 30_000 });
   const session = await conn.attach();
