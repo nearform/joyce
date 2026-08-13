@@ -155,7 +155,7 @@ Selection:
 
 System under test:
   --model=PROVIDER::ID    Repeatable. e.g. webLlm::Qwen3.5-2B-q4f16_1-MLC
-  --driver=pipeline|ui    Default: pipeline
+  --driver=pipeline|ui|retrieval  Default: pipeline (retrieval = no LLM, no judge)
   --samples=N             Repetitions per (model x case). Default: 1
   --temperature=N         Default: 0 (deterministic gate; the app default is 0.4)
   --concurrency=N         SUT tabs. Default 1. >1 invalidates latency metrics.
@@ -349,7 +349,7 @@ export const parseModelSpec = (spec) => {
   return { provider: spec.slice(0, idx), model: spec.slice(idx + 2), spec };
 };
 
-const VALID_DRIVERS = new Set(["pipeline", "ui"]);
+const VALID_DRIVERS = new Set(["pipeline", "ui", "retrieval"]);
 const VALID_BACKENDS = new Set(["local", "anthropic", "openai"]);
 const VALID_LOG_LEVELS = new Set(["error", "warn", "info", "debug"]);
 

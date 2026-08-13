@@ -11,6 +11,7 @@ import {
   THROW_ON_TOKEN_LIMIT,
 } from "../../../config.js";
 import { getPost } from "./posts.js";
+import { extractAllowedLinks, formatAllowedLinks } from "./links.js";
 import {
   buildSystemPrompt,
   MAX_SYSTEM_PROMPT,
@@ -49,35 +50,11 @@ export const buildBasePrompts = (
   query = "",
   { maxTokens } = {},
 ) => {
-  // Extract links from context, one entry per unique URL.
-  const linkPattern =
-    /<CHUNK><URL>([^<]+)<\/URL><TITLE>([^<]+)<\/TITLE><CONTENT>/g;
-  const seenUrls = new Set();
-  /** @type {Array<{url: string, title: string}>} */
-  const entries = [];
-  for (const match of context.matchAll(linkPattern)) {
-    const [, url, title] = match;
-    if (seenUrls.has(url)) continue;
-    seenUrls.add(url);
-    entries.push({ url, title });
-  }
-
-  // Disambiguate identical titles across different URLs so no two allowed links share link text
-  // (e.g. two PUMA posts both titled "PUMA e-Commerce Platform"). Append a human-readable hint
-  // derived from the URL's last path segment to the colliding ones.
-  const titleCounts = entries.reduce((counts, { title }) => {
-    counts[title] = (counts[title] ?? 0) + 1;
-    return counts;
-  }, /** @type {Record<string, number>} */ ({}));
-  const slugHint = (url) =>
-    url.replace(/\/+$/, "").split("/").pop().replace(/[-_]+/g, " ").trim();
-  const links = entries
-    .map(({ url, title }) => {
-      const text =
-        titleCounts[title] > 1 ? `${title} — ${slugHint(url)}` : title;
-      return `- [${text}](${url})`;
-    })
-    .join("\n");
+  // Extract links from context, one entry per unique URL. Identical titles across different URLs
+  // get a slug hint appended so no two allowed links share link text (e.g. two PUMA posts with the
+  // same title). Lives in links.js so the eval harness can derive the identical list rather than
+  // maintaining a second copy of the rule.
+  const links = formatAllowedLinks(extractAllowedLinks(context));
 
   // Only mandate a citation when links actually exist; otherwise an impossible instruction
   // invites hallucinated sources. With no links, steer toward the "not enough info" path.

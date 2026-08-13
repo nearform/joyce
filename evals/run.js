@@ -28,6 +28,8 @@ import { classify, OUTCOMES, blocksBaseline } from "./lib/errors.js";
 import { createJsonlReporter } from "./reporters/jsonl.js";
 import { runSearch } from "./page/retrieval.js";
 import { scoreRetrievalRecall } from "./scorers/retrieval.js";
+import { createPipelineDriver } from "./drivers/pipeline.js";
+import { getTier } from "./tiers.js";
 import { formatElapsed } from "../public/shared-util.js";
 
 /** Ordered teardown stack. Reverse order, idempotent, safe to run from a signal handler. */
@@ -189,6 +191,7 @@ const runRetrievalCase = async ({ browser, evalCase, config }) => {
   });
 
   return {
+    scores: { retrievalRecall: recall },
     turn: {
       turn: 1,
       query: evalCase.query,
@@ -210,9 +213,288 @@ const runRetrievalCase = async ({ browser, evalCase, config }) => {
         prompt: "phase:1-retrieval-only",
       },
     },
-    scores: { retrievalRecall: recall },
   };
 };
+
+/** Record one turn plus its scores, and report it on the console. */
+const reportTurn = async ({
+  reporter,
+  log,
+  counts,
+  evalCase,
+  sut,
+  sample,
+  turn,
+  scores,
+  label,
+}) => {
+  const blocking = Object.values(scores).filter((s) => !s.notApplicable);
+  const pass = blocking.every((s) => s.pass);
+  if (blocking.length === 0) {
+    // Nothing gradeable (e.g. an out-of-domain case with no gold): report, don't score.
+    log.info(`  ${evalCase.id}  — ${label}`);
+  } else if (pass) {
+    counts.ok += 1;
+    log.success(`${evalCase.id}  ${label}`);
+  } else {
+    counts.failed += 1;
+    log.error(`${evalCase.id}  ${label}`);
+    for (const [name, s] of Object.entries(scores)) {
+      if (!s.pass && !s.notApplicable && s.message)
+        log.error(`    ${name}: ${s.message}`);
+    }
+  }
+
+  await reporter.onTurn({
+    evalCase,
+    sut,
+    sample,
+    turn,
+    outcome: OUTCOMES.OK,
+    code: null,
+    scores: Object.fromEntries(
+      Object.entries(scores).map(([name, s]) => [
+        name,
+        {
+          score: s.score,
+          pass: s.pass,
+          notApplicable: Boolean(s.notApplicable),
+          details: s.details,
+        },
+      ]),
+    ),
+  });
+
+  return pass;
+};
+
+/** Record a non-quality failure (harness, server, model, timeout, SUT error). */
+const reportFailure = async ({
+  reporter,
+  log,
+  counts,
+  evalCase,
+  sut,
+  sample,
+  err,
+  context,
+}) => {
+  const capture = context.browser.capture();
+  const classified = classify(err, capture);
+  counts.error += 1;
+  log.error(
+    `${evalCase?.id ?? "run"}  [${classified.outcome}/${classified.code}] ${classified.message}`,
+  );
+  await reporter.onError({
+    evalCase,
+    sut,
+    sample,
+    outcome: classified.outcome,
+    code: classified.code,
+    message: classified.message,
+    details: classified.details,
+    capture,
+  });
+  return classified;
+};
+
+/** Retrieval-only execution: no model, no judge. Cheap enough to run on every commit. */
+const executeRetrieval = async ({
+  config,
+  log,
+  cases,
+  reporter,
+  counts,
+  context,
+}) => {
+  let infraFailure = false;
+  const sut = {
+    provider: null,
+    model: null,
+    driver: "retrieval",
+    temperature: null,
+    tier: null,
+  };
+
+  for (const evalCase of cases) {
+    try {
+      const { turn, scores } = await runRetrievalCase({
+        browser: context.browser,
+        evalCase,
+        config,
+      });
+      const label =
+        `${turn.retrieval.chunkCount} chunks, ${turn.retrieval.postCount} posts, ` +
+        `${formatElapsed(turn.timings.searchMs)}` +
+        (scores.retrievalRecall.notApplicable
+          ? " (no gold slugs; recall n/a)"
+          : "");
+      const pass = await reportTurn({
+        reporter,
+        log,
+        counts,
+        evalCase,
+        sut,
+        sample: 1,
+        turn,
+        scores,
+        label,
+      });
+      if (!pass && config.run.bail) {
+        log.warn("--bail: stopping after first failure");
+        break;
+      }
+    } catch (err) {
+      const classified = await reportFailure({
+        reporter,
+        log,
+        counts,
+        evalCase,
+        sut,
+        sample: 1,
+        err,
+        context,
+      });
+      if (blocksBaseline(classified.outcome)) infraFailure = true;
+      if (config.run.bail) break;
+    }
+  }
+  return { infraFailure };
+};
+
+/**
+ * Generation execution, model-outermost.
+ *
+ * Ordering matters more than it looks: SINGLE_MODEL_PROVIDERS means loading model B evicts model A,
+ * and a cold web-llm load is a multi-GB download. Case-outermost would evict and re-download on
+ * every case, turning a 20-minute run into hours.
+ */
+const executeGeneration = async ({
+  config,
+  log,
+  cases,
+  reporter,
+  counts,
+  context,
+}) => {
+  let infraFailure = false;
+  const driver = createPipelineDriver(context.browser, log);
+
+  for (const spec of config.sut.modelSpecs) {
+    const sut = {
+      provider: spec.provider,
+      model: spec.model,
+      driver: driver.name,
+      temperature: config.sut.temperature,
+      tier: getTier({ model: spec.model }),
+    };
+
+    // Chrome's built-in AI only exists once the on-device model is downloaded in this profile.
+    // Skip rather than fail: an absent model is a setup gap, not a quality regression.
+    if (spec.provider === "chrome" && !context.env.chromeAi.languageModel) {
+      log.warn(
+        `Skipping ${spec.spec}: Chrome built-in AI is unavailable in this profile ` +
+          `(run \`npm run evals:chrome -- --download-ai\`).`,
+      );
+      continue;
+    }
+
+    log.info(`Model ${spec.spec} (tier ${sut.tier})`);
+    try {
+      const loaded = await driver.ensureModel(spec, {
+        timeoutMs: config.timeouts.modelLoadMs,
+        onProgress: (p) => {
+          const pct = p.progress ? ` ${Math.round(p.progress * 100)}%` : "";
+          log.status(`    loading${pct} ${p.text ?? ""}`.slice(0, 110));
+        },
+      });
+      log.clearStatus();
+      log.success(
+        `loaded in ${formatElapsed(loaded.loadMs)}${loaded.cached ? " (cached)" : ""}`,
+      );
+    } catch (err) {
+      const classified = await reportFailure({
+        reporter,
+        log,
+        counts,
+        evalCase: null,
+        sut,
+        sample: null,
+        err,
+        context,
+      });
+      if (blocksBaseline(classified.outcome)) infraFailure = true;
+      // One model failing to load must not abort the other models in the matrix.
+      continue;
+    }
+
+    for (const evalCase of cases) {
+      for (
+        let sample = 1;
+        sample <= (evalCase.samples ?? config.sut.samples);
+        sample += 1
+      ) {
+        try {
+          const { turns } = await driver.runCase({
+            evalCase,
+            provider: spec.provider,
+            model: spec.model,
+            temperature: config.sut.temperature,
+            enableThinking: config.sut.enableThinking,
+            sample,
+            timeouts: config.timeouts,
+          });
+          log.clearStatus();
+
+          for (const turn of turns) {
+            const scores = scoreTurn({ evalCase, turn });
+            const label =
+              `${turn.answer.length} chars, ` +
+              `${turn.retrieval.usedSlugs.length}/${turn.retrieval.rankedSlugs.length} posts used, ` +
+              `${formatElapsed(turn.timings.lastTokenMs ?? 0)}` +
+              (turn.finishReason && turn.finishReason !== "stop"
+                ? ` [finish=${turn.finishReason}]`
+                : "");
+            await reportTurn({
+              reporter,
+              log,
+              counts,
+              evalCase,
+              sut,
+              sample,
+              turn,
+              scores,
+              label,
+            });
+          }
+        } catch (err) {
+          const classified = await reportFailure({
+            reporter,
+            log,
+            counts,
+            evalCase,
+            sut,
+            sample,
+            err,
+            context,
+          });
+          if (blocksBaseline(classified.outcome)) infraFailure = true;
+          if (config.run.bail) return { infraFailure };
+        }
+      }
+    }
+  }
+  return { infraFailure };
+};
+
+/** Score one generated turn. Citation scorers land next; retrieval already applies. */
+const scoreTurn = ({ evalCase, turn }) => ({
+  retrievalRecall: scoreRetrievalRecall({
+    rankedSlugs: turn.retrieval.rankedSlugs,
+    usedSlugs: turn.retrieval.usedSlugs,
+    gold: evalCase.gold,
+  }),
+});
 
 const main = async () => {
   const config = loadConfig();
@@ -304,82 +586,12 @@ const main = async () => {
     });
 
     log.blank();
-    for (const evalCase of cases) {
-      const sut = {
-        provider: null,
-        model: null,
-        driver: "retrieval",
-        temperature: config.sut.temperature,
-        tier: null,
-      };
-      try {
-        const { turn, scores } = await runRetrievalCase({
-          browser: context.browser,
-          evalCase,
-          config,
-        });
-        const recall = scores.retrievalRecall;
-        const pass = recall.pass;
-        if (pass) counts.ok += 1;
-        else counts.failed += 1;
-
-        await reporter.onTurn({
-          evalCase,
-          sut,
-          sample: 1,
-          turn,
-          outcome: OUTCOMES.OK,
-          code: null,
-          scores: {
-            retrievalRecall: {
-              score: recall.score,
-              pass: recall.pass,
-              notApplicable: Boolean(recall.notApplicable),
-              details: recall.details,
-            },
-          },
-        });
-
-        const summary =
-          `${turn.retrieval.chunkCount} chunks, ` +
-          `${turn.retrieval.postCount} posts, ` +
-          `${formatElapsed(turn.timings.searchMs)}`;
-        if (recall.notApplicable) {
-          log.info(
-            `  ${evalCase.id}  — ${summary} (no gold slugs; recall n/a)`,
-          );
-        } else if (pass) {
-          log.success(`${evalCase.id}  ${summary}, recall 100%`);
-        } else {
-          log.error(`${evalCase.id}  ${summary}`);
-          log.error(`    ${recall.message}`);
-        }
-
-        if (!pass && config.run.bail) {
-          log.warn("--bail: stopping after first failure");
-          break;
-        }
-      } catch (err) {
-        const capture = context.browser.capture();
-        const classified = classify(err, capture);
-        counts.error += 1;
-        if (blocksBaseline(classified.outcome)) infraFailure = true;
-        log.error(
-          `${evalCase.id}  [${classified.outcome}/${classified.code}] ${classified.message}`,
-        );
-        await reporter.onError({
-          evalCase,
-          sut,
-          sample: 1,
-          outcome: classified.outcome,
-          code: classified.code,
-          message: classified.message,
-          details: classified.details,
-          capture,
-        });
-        if (config.run.bail) break;
-      }
-    }
+    const shared = { config, log, cases, reporter, counts, context };
+    const bailed =
+      config.sut.driver === "retrieval"
+        ? await executeRetrieval(shared)
+        : await executeGeneration(shared);
+    if (bailed?.infraFailure) infraFailure = true;
   } catch (err) {
     const capture = context?.browser?.capture?.() ?? {};
     const classified = classify(err, capture);

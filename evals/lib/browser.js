@@ -185,22 +185,19 @@ export const openBrowser = async (config, log) => {
   };
 
   /**
-   * Evaluate a page function while consuming its binding events.
-   * @param {Function} fn
-   * @param {*} arg
-   * @param {{onEvent: Function, stallMs?: number, timeoutMs?: number}} options
+   * Open a binding stream whose lifetime is independent of any single evaluate.
+   *
+   * This is the shape long-running work needs: the page function starts the work and returns
+   * immediately, then reports progress and its terminal payload as events. Tying the stream to an
+   * evaluate's lifetime instead would mean holding that evaluate pending for the duration, which
+   * is exactly the "Promise was collected" trap described in rule 4 of evals/page/README.md.
+   *
+   * @param {{onEvent: Function, stallMs?: number}} options
+   * @returns {{bindingName: string, stop: () => void, touch: () => void}}
    */
-  const streamJson = async (fn, arg, { onEvent, stallMs, timeoutMs }) => {
+  const openStream = ({ onEvent, stallMs }) => {
     const stream = createBindingStream(conn, session, { onEvent, stallMs });
-    try {
-      return await evaluateJson(
-        fn,
-        { ...arg, bindingName: BINDING_NAME },
-        { timeoutMs },
-      );
-    } finally {
-      stream.stop();
-    }
+    return { bindingName: BINDING_NAME, ...stream };
   };
 
   /** Probe GPU / Chrome AI / app boot state. */
@@ -311,7 +308,7 @@ export const openBrowser = async (config, log) => {
     goto,
     evaluate,
     evaluateJson,
-    streamJson,
+    openStream,
     probe,
     checkModuleSharing,
     resourceStatuses,
