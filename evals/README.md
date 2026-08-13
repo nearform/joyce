@@ -3,9 +3,9 @@
 An eval harness for Joyce's RAG chat. It drives the real app in a real browser, so what it
 measures is what users get.
 
-> **Status: Phase 1 (spine).** Preflight plus a retrieval-only pass works today. Generation,
-> scorers for citations and output hygiene, and the LLM judge land in later phases — see
-> "Roadmap" at the end. Sections marked _(planned)_ describe work not yet built.
+> **Status: Phase 2, in progress.** Preflight, retrieval, and real chat generation all work. What
+> is missing is **scoring**: nothing yet grades citations, so a passing run only means retrieval
+> recall held. The citation scorers are the immediate next task — see "Roadmap".
 
 ## Why this exists
 
@@ -136,6 +136,7 @@ config.js      Layered config + --help text
 tiers.js       Model capability tiers (thresholds key off these, not model ids)
 lib/           cdp, chrome, server, inject, binding, browser, errors, logger, fs-out
 page/          Browser-side functions (see page/README.md for the rules)
+drivers/       pipeline (generation) + the TurnResult contract scorers depend on
 cases/         Eval cases, one module per suite
 scorers/       Deterministic scorers + the gate matrix
 reporters/     JSONL now; markdown/HTML/baselines later
@@ -231,7 +232,7 @@ Stop at the first "yes". Getting this wrong is the most common wasted day on a R
 | Phase | Contents                                                                          | Status   |
 | ----- | --------------------------------------------------------------------------------- | -------- |
 | 1     | CDP client, Chrome launch + attach, server lifecycle, preflight, retrieval, JSONL | **done** |
-| 2     | Pipeline driver (generation), citation scorers, seed cases, Markdown report       | **next** |
+| 2     | Pipeline driver (generation) — **done**; citation scorers, seed cases, MD report  | **next** |
 | 2.5   | Fix the fabricated few-shot labels in `CITATION_EXAMPLE`, measured before/after   | planned  |
 | 3     | Output-hygiene scorers, incl. the internal-mechanics leak detector                | planned  |
 | 4     | Blessed vocabulary + operator-fact citation exemption, measured before/after      | planned  |
@@ -249,6 +250,19 @@ Phase 3, because the vocabulary change can't be judged without `mechanicsLeak`.
 `webLlm::Llama-3.2-1B-Instruct-q4f16_1-MLC` (tiny), `webLlm::Qwen3.5-4B-q4f16_1-MLC` (mid),
 `chrome::gemini-nano-prompt`. Note tiny→mid is a wide gap with nothing between; if a case passes at
 mid and fails at tiny you won't know where the line falls. `Qwen3.5-2B` (small) is easy to add.
+
+### Immediate next task
+
+`evals/lib/links.js` and `evals/lib/urls.js` (markdown link extraction that survives nested
+brackets; URL normalization that strips the trailing slashes 26 corpus URLs carry), then five
+scorers: `citationDuplicate`, `citationAllowed`, `citationNotRetrieved`, `citationFormat`,
+`citationLabelFidelity`. Wire them into `scoreTurn` in `run.js`, which currently scores retrieval
+only.
+
+There is a ready-made test: the first answer the harness ever captured contains two citation
+failures — a URL copied out of the few-shot example that was never retrieved, and an irrelevant
+source cited as evidence (see `docs/prompt-findings.md`). The first must go red once the scorers
+exist. The second must **not**, because it is a semantic judgement, not a deterministic one.
 
 ### Open items needing a human
 
