@@ -1,89 +1,67 @@
 // Browser-side: drive and observe the app's resource loading system. See ./README.md for rules.
+//
+// IMPORTANT DESIGN NOTE: these functions all return immediately. Node polls them; the page never
+// holds a long-lived promise open on the harness's behalf.
+//
+// The obvious alternative — one `Runtime.evaluate` with `awaitPromise: true` that resolves when
+// the resource finishes — is a trap. A pending evaluate dies with "Promise was collected" if the
+// execution context is disturbed at all, which happens routinely when the tab is backgrounded in
+// an attached browser. It fails intermittently, and it fails worse the longer the wait: a web-llm
+// model download is tens of minutes. Polling short-lived evaluates from Node has none of that
+// fragility, and page-timer throttling can't affect it either, because the clock lives in Node.
 
 /**
- * Wait for one app resource to reach a terminal state, reporting progress over the binding.
+ * Start loading a resource if it isn't already going, and report its current state.
  *
- * Do NOT be tempted to simply `await startLoading(resource)`. Two things make that wrong, and both
- * present as a mysterious hang or a false success:
+ * Do NOT be tempted to await `startLoading`. Two things make that useless, and both present as a
+ * mysterious hang or a false success:
  *
- *  - `startLoading` returns `undefined` immediately when the resource is already "loading" or
- *    "loaded", so awaiting it can resolve before the work is done — or resolve instantly while the
- *    real load is still in flight from the app's own init().
+ *  - it returns `undefined` immediately when the resource is already "loading" or "loaded", so
+ *    awaiting it can resolve long before the work is done;
  *  - `runLoad` catches failures internally and records status "error" rather than rejecting, so an
  *    awaited `startLoading` also resolves on failure.
  *
- * The status subscription is therefore the only trustworthy signal. `startLoading` is invoked
- * fire-and-forget purely to kick off a load that isn't already running.
+ * Status is therefore the only trustworthy signal, and it's what Node polls.
  *
  * Resource ids: "posts_data", "posts_embeddings", "db", "extractor", and "llm_<modelId>".
  *
- * @param {{base: string, bindingName: string, resourceId: string, timeoutMs: number}} arg
- * @returns {Promise<string>} JSON string with {status, elapsedMs, progress}
+ * @param {{base: string, resourceId: string}} arg
+ * @returns {Promise<string>} JSON string with {found, status, progress}
  */
-export const waitForResource = async (arg) => {
-  const send = (event) => window[arg.bindingName](JSON.stringify(event));
+export const startResourceLoad = async (arg) => {
   const loading = await import(`${arg.base}local/data/loading.js`);
-
   const resource = loading.findResourceById(arg.resourceId);
   if (!resource) {
-    return JSON.stringify({ status: "missing", resourceId: arg.resourceId });
+    return JSON.stringify({ found: false, resourceId: arg.resourceId });
   }
 
-  const startedAt = performance.now();
-  const current = loading.getLoadingStatus(arg.resourceId);
-  if (current === "loaded") {
-    return JSON.stringify({
-      status: "loaded",
-      elapsedMs: 0,
-      alreadyLoaded: true,
-    });
-  }
-
-  const unsubProgress = loading.subscribeLoadingProgress(
-    arg.resourceId,
-    (p) => {
-      send({
-        type: "progress",
-        resourceId: arg.resourceId,
-        text: (p && p.text) || "",
-        progress: (p && p.progress) || 0,
-      });
-    },
-  );
-
-  const settled = new Promise((resolve) => {
-    const status = loading.getLoadingStatus(arg.resourceId);
-    if (status === "loaded" || status === "error") {
-      resolve(status);
-      return;
+  const status = loading.getLoadingStatus(arg.resourceId);
+  if (status !== "loaded" && status !== "loading") {
+    // Fire-and-forget: the return value carries no useful information (see above), and awaiting it
+    // here would recreate the long-lived-promise problem this module exists to avoid.
+    try {
+      Promise.resolve(loading.startLoading(resource)).catch(() => {});
+    } catch {
+      // A synchronous throw still leaves polled status as the source of truth.
     }
-    const unsub = loading.subscribeLoadingStatus(arg.resourceId, (next) => {
-      if (next === "loaded" || next === "error") {
-        unsub();
-        resolve(next);
-      }
-    });
-  });
-
-  // Fire-and-forget: see the note above on why the return value is useless here.
-  try {
-    Promise.resolve(loading.startLoading(resource)).catch(() => {});
-  } catch {
-    // A synchronous throw still leaves the subscription as the source of truth.
   }
-
-  let timer = null;
-  const timeout = new Promise((resolve) => {
-    timer = setTimeout(() => resolve("timeout"), arg.timeoutMs);
-  });
-
-  const status = await Promise.race([settled, timeout]);
-  clearTimeout(timer);
-  unsubProgress();
 
   return JSON.stringify({
-    status,
-    elapsedMs: Math.round(performance.now() - startedAt),
+    found: true,
+    status: loading.getLoadingStatus(arg.resourceId),
+    progress: loading.getLoadingProgress(arg.resourceId) || null,
+  });
+};
+
+/**
+ * Read one resource's status and progress. Never starts a load.
+ * @param {{base: string, resourceId: string}} arg
+ * @returns {Promise<string>} JSON string
+ */
+export const readResourceState = async (arg) => {
+  const loading = await import(`${arg.base}local/data/loading.js`);
+  return JSON.stringify({
+    status: loading.getLoadingStatus(arg.resourceId),
     progress: loading.getLoadingProgress(arg.resourceId) || null,
   });
 };

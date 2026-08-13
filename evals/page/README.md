@@ -4,9 +4,9 @@ Everything in this directory is serialized with `Function.prototype.toString()` 
 inside the Chrome page. These files never execute in Node.
 
 That works cleanly because this repo has no build step, so `toString()` yields the exact authored
-source. It also means three rules are non-negotiable.
+source. It also means four rules are non-negotiable.
 
-## The three rules
+## The four rules
 
 ### 1. No closure references
 
@@ -64,6 +64,26 @@ For anything large or nested — a turn result, a search payload — `JSON.strin
 return the string. Node parses it back. That sidesteps deep-serialization limits and keeps the
 shape stable.
 
+### 4. Never hold a long-lived promise open on the harness's behalf
+
+A page function must return promptly. Do **not** write one that resolves "when the model finishes
+loading" or "when generation completes" and let Node `await` it across minutes.
+
+A `Runtime.evaluate` with `awaitPromise: true` that stays pending dies with **"Promise was
+collected"** if the execution context is disturbed at all — which happens routinely when the tab is
+backgrounded, and is common in an attached browser with other tabs open. It fails intermittently,
+and the longer the wait the likelier it is: this bit us on a ~700ms resource load, and a web-llm
+model download runs for tens of minutes.
+
+The pattern that works:
+
+- Page: a **short** function that _starts_ the work and returns immediately.
+- Page: emit progress over the binding (fire-and-forget — no pending promise).
+- Node: poll a **short** status function on an interval, and own the deadline.
+
+`awaitResource` in `evals/lib/browser.js` is the reference implementation. Keeping the clock in
+Node has a second benefit: page-timer throttling in a background tab can't affect it.
+
 ## Streaming back to Node
 
 For long operations, emit progress with the binding installed by the harness. `arg.bindingName`
@@ -92,9 +112,14 @@ const makeSend = (name) => {
 };
 ```
 
-Keep binding traffic small and ordered — status events, not payloads. A generated answer produces
-hundreds of token deltas, so send heartbeats (every N deltas) rather than the text itself, and
-return the full answer in the function's JSON result.
+Keep per-event traffic small and ordered — a generated answer produces hundreds of token deltas, so
+send heartbeats (every N deltas) rather than the text itself.
+
+For **short** work, return the full payload as the function's JSON result. For work that runs long
+enough to trip rule 4 — generation, model loading — send the terminal payload over the binding as a
+final `done` event instead (the chunker above exists for exactly that) and have Node resolve on
+that event rather than on the evaluate's return value. Otherwise you have reintroduced the
+long-lived promise by the back door.
 
 ## Linting
 

@@ -228,13 +228,34 @@ Stop at the first "yes". Getting this wrong is the most common wasted day on a R
 
 ## Roadmap
 
-| Phase | Contents                                                                    | Status   |
-| ----- | --------------------------------------------------------------------------- | -------- |
-| 1     | CDP client, Chrome/server lifecycle, preflight, retrieval pass, JSONL       | **done** |
-| 2     | Pipeline driver (generation), citation scorers, seed cases, Markdown report | next     |
-| 3     | Output-hygiene scorers, including the internal-mechanics leak detector      | planned  |
-| 4     | Blessed vocabulary + the four prompt fixes, measured before/after           | planned  |
-| 5     | LLM judge + judge calibration meta-eval                                     | planned  |
-| 6     | In-app capture button, `evals:add`, the full runbook                        | planned  |
-| 7     | Case mining + HTML review page, HTML report, baselines                      | planned  |
-| 8     | Multi-turn, consistency, entity/date, `ui` driver                           | planned  |
+| Phase | Contents                                                                          | Status   |
+| ----- | --------------------------------------------------------------------------------- | -------- |
+| 1     | CDP client, Chrome launch + attach, server lifecycle, preflight, retrieval, JSONL | **done** |
+| 2     | Pipeline driver (generation), citation scorers, seed cases, Markdown report       | **next** |
+| 2.5   | Fix the fabricated few-shot labels in `CITATION_EXAMPLE`, measured before/after   | planned  |
+| 3     | Output-hygiene scorers, incl. the internal-mechanics leak detector                | planned  |
+| 4     | Blessed vocabulary + operator-fact citation exemption, measured before/after      | planned  |
+| 5     | LLM judge + judge calibration meta-eval                                           | planned  |
+| 6     | In-app capture button, `evals:add`, the full runbook                              | planned  |
+| 7     | Case mining + HTML review page, HTML report, baselines                            | planned  |
+| 8     | Multi-turn, consistency, entity/date, `ui` driver                                 | planned  |
+
+Phase 2.5 is pulled forward deliberately: once the citation scorers exist, the few-shot label bug
+is already measurable and doesn't need the hygiene scorers. The remaining prompt work waits for
+Phase 3, because the vocabulary change can't be judged without `mechanicsLeak`.
+
+### Model matrix
+
+`webLlm::Llama-3.2-1B-Instruct-q4f16_1-MLC` (tiny), `webLlm::Qwen3.5-4B-q4f16_1-MLC` (mid),
+`chrome::gemini-nano-prompt`. Note tiny→mid is a wide gap with nothing between; if a case passes at
+mid and fails at tiny you won't know where the line falls. `Qwen3.5-2B` (small) is easy to add.
+
+### Open items needing a human
+
+- **Gemini Nano download** — `npm run evals:chrome -- --download-ai`. Until then `chrome::` cases
+  skip rather than fail.
+- **Gold-slug review** (~30 min, Phase 2) — the harness can verify a slug exists, but not that it's
+  the right answer to the question as phrased. A wrong gold slug is worse than no case.
+- **Judge calibration labels** (~1–2h, Phase 5) — ~50 hand-labelled items. A judge that hasn't been
+  calibrated cannot gate CI.
+- **Golden-set review** (~2–3h, Phase 7) — ~120 mined candidates via the HTML review page.

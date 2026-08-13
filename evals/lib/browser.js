@@ -11,10 +11,13 @@ import { HarnessError, TimeoutError } from "./errors.js";
 import { EVAL_SETTINGS, seedSettings } from "../page/settings.js";
 import { probeEnvironment, probeModuleSharing } from "../page/probe.js";
 import {
+  readResourceState,
   readResourceStatuses,
   registerModel,
-  waitForResource,
+  startResourceLoad,
 } from "../page/resources.js";
+
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Core app resources that must be loaded before any chat case can run. */
 export const CORE_RESOURCES = [
@@ -212,24 +215,57 @@ export const openBrowser = async (config, log) => {
     evaluateJson(readResourceStatuses, { base, resourceIds });
 
   /**
-   * Wait for one resource, forwarding progress to a callback.
+   * Wait for one resource by polling from Node.
+   *
+   * Deliberately NOT a single long-lived `awaitPromise` evaluate. That pattern dies with
+   * "Promise was collected" whenever the execution context is disturbed — which happens routinely
+   * when the tab is backgrounded in an attached browser — and it fails more often the longer the
+   * wait. Since a web-llm model load runs for tens of minutes, that would be a coin flip. Polling
+   * short-lived evaluates is immune to it, and keeps the deadline in Node where page-timer
+   * throttling can't reach it.
+   *
    * @param {string} resourceId
-   * @param {{timeoutMs: number, onProgress?: Function}} options
+   * @param {{timeoutMs: number, onProgress?: Function, pollMs?: number}} options
+   * @returns {Promise<{status: string, elapsedMs: number, progress: Object|null}>}
    */
-  const awaitResource = async (resourceId, { timeoutMs, onProgress }) =>
-    streamJson(
-      waitForResource,
-      { base, resourceId, timeoutMs },
-      {
-        onEvent: (evt) => {
-          if (evt.type === "progress") onProgress?.(evt);
-        },
-        // The evaluate itself enforces the real deadline; pad the CDP timeout so the page's own
-        // timeout wins and we get a structured "timeout" status rather than a CDP error.
-        timeoutMs: timeoutMs + 30_000,
-        stallMs: timeoutMs + 30_000,
-      },
-    );
+  const awaitResource = async (
+    resourceId,
+    { timeoutMs, onProgress, pollMs = 250 },
+  ) => {
+    const startedAt = Date.now();
+    const first = await evaluateJson(startResourceLoad, { base, resourceId });
+    if (!first.found)
+      return { status: "missing", elapsedMs: 0, progress: null };
+
+    let state = first;
+    let lastProgressText = null;
+    while (state.status !== "loaded" && state.status !== "error") {
+      if (Date.now() - startedAt > timeoutMs) {
+        return {
+          status: "timeout",
+          elapsedMs: Date.now() - startedAt,
+          progress: state.progress,
+        };
+      }
+      await delay(pollMs);
+      state = await evaluateJson(readResourceState, { base, resourceId });
+      // Only surface a change, so a 30-minute model download doesn't spam identical lines.
+      const text = `${state.progress?.text ?? ""}|${state.progress?.progress ?? ""}`;
+      if (onProgress && text !== lastProgressText) {
+        lastProgressText = text;
+        onProgress({
+          resourceId,
+          text: state.progress?.text ?? "",
+          progress: state.progress?.progress ?? 0,
+        });
+      }
+    }
+    return {
+      status: state.status,
+      elapsedMs: Date.now() - startedAt,
+      progress: state.progress ?? null,
+    };
+  };
 
   /** Register an uncurated model for this session. */
   const register = (provider, model) =>
