@@ -22660,5 +22660,33 @@
       "primary": "finance",
       "others": []
     }
+  },
+  "insights-are-specs-the-only-way-we-can-stay-in-control-of-ai": {
+    "href": "https://nearform.com/insights/are-specs-the-only-way-we-can-stay-in-control-of-ai/",
+    "postType": "blog",
+    "slug": "insights-are-specs-the-only-way-we-can-stay-in-control-of-ai",
+    "date": "2026-09-02",
+    "title": "Are specs the only way we can stay in control of AI?",
+    "authors": [
+      "ALFONSO GRAZIANO"
+    ],
+    "content": [
+      "As AI is increasingly used to generate code, the challenge shifts from writing software to trusting it. So, how do specifications and a strong harness keep teams in control as autonomy grows?\n\nThe argument about whether AI can write shippable code is over. It can, and it reviews and fixes that code before you even open a pull request. The harder question is whether an autonomous system builds the right thing for your business.\n\nCode can run and still be wrong. The priority now is to define what good looks like, then make sure the code delivers on that. That takes a clear specification and the automated checks to enforce it. This is what Nearform designs around when we build agentic systems for clients.",
+      "Harnessing the potential\n\nGive your team AI agents but keep reviewing code the same way, and you run into trouble fast. Writing is no longer the slow part - checking the output is. You can write far more code but ship no faster, and the pile of unread changes keeps growing. The way out is to catch issues before someone opens the file.\n\nHarness engineering, the discipline of building those checks, is becoming an increasingly standard practice, as AI offers up bigger and sometimes riskier changes. Code can look polished enough to hide weak work, and that false confidence is the danger.\n\nA strong harness works in layers. Deterministic checks run first. Linting, static analysis and unit tests fire up the moment an agent touches the code, catching obvious faults for next to nothing.\n\nThen a separate model reviews the change, hunting for logic errors, architectural drift and security gaps. Production monitoring takes the last watch, with metrics and fast rollback for whatever slips through.\n\nOnce AI clears the obvious problems, your reviewers move faster, focusing on architecture, logic and whether the code does its job. The harness does not replace people, it clears the noise so they are left with the judgement only a human can make.\n\nA recent example of this in practice is when we were building an internal knowledge base tool at Nearform recently. While building it, we also built a full test suite, integrating linting and formatting tooling, security scanning and other hardening tools. We then used an adversarial review to spot vulnerabilities early and fix them more easily. This identified two issues, which would otherwise have landed in production.",
+      "Are we human or are we chancers?\n\nNot every change passes under human eyes anymore, and that makes leaders nervous. On some teams, low-risk, well-tested changes with solid rollback now merge with little oversight, because the harness has earned that trust. Break something, and it reverts in minutes, and that small risk beats reviewing every line by hand.\n\nThis isn’t a blanket rule. Mission-critical infrastructure, regulated sectors and any codebase where failure spreads wide keep a human firmly in the loop for years yet. How fast the shift reaches you depends on what being wrong costs and how quickly you recover.\n\nHuman review is narrowing to the work only people can do. Is this what we meant to build? Does it make sense in a business context that the model can’t see? Routine checking is a machine problem now.",
+      "Why specifications matter\n\nYou might expect specs to become throwaway - one more artefact an agent can draft, build against and verify - but the opposite is happening.\n\nAs agents get better at execution, drafting them gets cheaper. In spec-driven development, we give an agent the high-level requirements, the current system and past decisions. It drafts one, and we review and refine what comes back.\n\nWhat cannot be automated is intent. The decision of what to build (and why it matters) is the one input no system invents for itself. It comes from someone who understands the business problem, the user, and how success gets measured. A spec is no silver bullet, and there are plenty of common pitfalls.\n\nSo the spec stops being an implementation plan and becomes the contract between human intent and autonomous execution. The last place a person sets out what good looks like before the agents take the wheel.\n\nGive the agent intent, constraints and verification together, and the gains are twofold. Layered verification catches more before production, so quality rises. The harness absorbs the review, freeing engineers for intent and orchestration, so delivery speeds up. Control does not vanish. It moves up a level, where people govern the systems that act.\n\nWant to learn more about whether spec-driven development is right for your engineering needs? Talk to our team and we’ll show you what’s possible.",
+      "But wait - there's more.\n\nNearform publishes real-world learnings on data & AI, engineering, and digital strategy - with more merged in weekly.\n\nInsights\n\nPerspectives on AI in engineering, product development, and strategy, for enterprise executives.\n\nExplore Insights\nCommunity\n\nDeep dives and tutorials by engineers, for engineers.\n\nExplore Community"
+    ],
+    "categories": {
+      "primary": "ai",
+      "others": [
+        "test",
+        "security"
+      ]
+    },
+    "verticals": {
+      "primary": "none",
+      "others": []
+    }
   }
 }
