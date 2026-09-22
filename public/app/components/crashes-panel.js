@@ -100,11 +100,11 @@ const RecoveredCrash = ({ record, onDismiss }) => {
         html`
           <pre className="alert-stack">
 ${record.breadcrumbs
-  .map(
-    (c) =>
-      `[${formatTime(c.t)}] ${c.msg}${c.data ? " " + JSON.stringify(c.data) : ""}`,
-  )
-  .join("\n")}</pre>
+              .map(
+                (c) =>
+                  `[${formatTime(c.t)}] ${c.msg}${c.data ? " " + JSON.stringify(c.data) : ""}`,
+              )
+              .join("\n")}</pre>
         `
       }
       ${
