@@ -133,6 +133,16 @@ const QueryInfo = ({
   // Check for conversation-specific fields
   const hasConversationTokens = usage?.available != null;
 
+  const streamingMs =
+    elapsed?.tokensFirst != null && elapsed?.tokensLast != null
+      ? elapsed.tokensLast - elapsed.tokensFirst
+      : null;
+  const outputTokens = usage?.output?.tokens;
+  const tokensPerSec =
+    outputTokens != null && streamingMs > 0
+      ? (outputTokens / (streamingMs / 1000)).toFixed(2)
+      : null;
+
   const ElapsedDelta = ({ delta }) => {
     if (delta == null || Number.isNaN(delta)) return null;
     return html`<${Fragment}>(<i className="iconoir-triangle"></i> ${formatElapsed(delta)})</${Fragment}>`;
@@ -234,6 +244,14 @@ const QueryInfo = ({
                 Output: ${hasCost && html`$${formatFloat(usage.output.cost)}, `}${formatInt(usage.output.tokens)} tokens
                 ${usage.output.reasoningTokens > 0 && html` (${formatInt(usage.output.reasoningTokens)} reasoning)`}
               </li>
+              ${
+                tokensPerSec != null &&
+                html`<li>
+                  Speed: ${tokensPerSec} tokens/sec${" "}<i
+                    className="iconoir-flash"
+                  ></i>
+                </li>`
+              }
               ${
                 hasConversationTokens &&
                 html`
