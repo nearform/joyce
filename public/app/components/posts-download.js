@@ -4,27 +4,28 @@ import { html, openTextInNewWindow } from "../util/html.js";
 
 const { saveAs } = FileSaver;
 
-const postsToCsv = (posts) => {
-  return (
-    ["Date", "Type", "Title", "URL", "Category", "Vertical"].join(",") +
-    "\n" +
-    posts
-      .map((post) => {
-        const { title, postType, date, href, categories, verticals } = post;
-        // Escape any commas in the title with quotes
-        const escapedTitle = `"${title}"`.replace(/\n/g, " ");
-        return [
-          date,
-          postType,
-          escapedTitle,
-          href,
-          categories.primary,
-          verticals?.primary ?? "",
-        ].join(",");
-      })
-      .join("\n")
-  );
+const CSV_HEADERS = ["Date", "Type", "Title", "URL", "Category", "Vertical"];
+
+// RFC 4180: quote fields containing comma/quote/newline; double embedded quotes.
+const toCsvField = (value) => {
+  const str = String(value ?? "").replace(/\r?\n/g, " ");
+  return /[",]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 };
+
+const postsToCsv = (posts) =>
+  [
+    CSV_HEADERS,
+    ...posts.map(({ title, postType, date, href, categories, verticals }) => [
+      date,
+      postType,
+      title,
+      href,
+      categories.primary,
+      verticals?.primary ?? "",
+    ]),
+  ]
+    .map((row) => row.map(toCsvField).join(","))
+    .join("\n");
 
 const formatDate = (date) => {
   return date.toISOString().slice(0, -5).replace(/:/g, "-");
@@ -40,7 +41,10 @@ export const DownloadPostsCsv = ({ posts }) => {
   }
 
   const handleDownload = () => {
-    const blob = new Blob([postsToCsv(posts)], { type: "text/csv" });
+    // Prepend a UTF-8 BOM so Excel detects the encoding (curly quotes, etc.).
+    const blob = new Blob(["﻿" + postsToCsv(posts)], {
+      type: "text/csv;charset=utf-8",
+    });
     saveAs(blob, `joyce-ai-${getPathname()}-${formatDate(new Date())}.csv`);
   };
 
